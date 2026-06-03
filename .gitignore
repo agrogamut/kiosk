@@ -1,0 +1,27 @@
+node_modules/
+dist/
+.next/
+.expo/
+*.log
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
+
+# pnpm
+.pnpm-store/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Uploads (dev artifacts)
+data/uploads/
+
+# Expo
+android/
+ios/

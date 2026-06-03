@@ -1,0 +1,15 @@
+{
+  "name": "madamgy",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "pnpm run --parallel --filter './packages/server' --filter './packages/web' dev",
+    "build": "pnpm run --recursive --if-present build",
+    "lint": "pnpm run --recursive --if-present lint",
+    "typecheck": "pnpm run --recursive --if-present typecheck"
+  },
+  "engines": {
+    "node": ">=20.19.0",
+    "pnpm": ">=9"
+  }
+}
