@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://madamgy:madamgy@localhost:5432/madamgy} prisma generate --schema src/prisma/schema.prisma",
+    "db:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://madamgy:madamgy@localhost:55432/madamgy} prisma generate --schema src/prisma/schema.prisma",
     "db:migrate": "prisma migrate dev --schema src/prisma/schema.prisma",
     "db:migrate:deploy": "prisma migrate deploy --schema src/prisma/schema.prisma",
     "db:seed": "tsx src/prisma/seed.ts",

@@ -8,12 +8,12 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "55432:5432"
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "56379:6379"
 
   livekit:
     image: livekit/livekit-server:latest
@@ -46,9 +46,12 @@ services:
       - redis
       - minio
       - livekit
-    env_file: .env
+    env_file: .env.example
     environment:
       NODE_ENV: production
+      DATABASE_URL: postgresql://madamgy:madamgy@postgres:5432/madamgy
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio
     ports:
       - "3000:3000"
     restart: unless-stopped
