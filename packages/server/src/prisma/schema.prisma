@@ -1,0 +1,180 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+enum CallStatus {
+  QUEUED
+  RINGING
+  ACTIVE
+  ENDED
+  MISSED
+  REJECTED
+  NO_DOCTOR
+}
+
+enum MsgType {
+  TEXT
+  IMAGE
+  VITALS
+}
+
+enum FileType {
+  PRESCRIPTION
+  LAB_REPORT
+  OTHER
+}
+
+enum TxnType {
+  CREDIT
+  DEBIT
+}
+
+enum TxnStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  phone        String   @unique
+  name         String
+  role         UserRole @default(PATIENT)
+  pinHash      String?
+  passwordHash String?
+  disabled     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  patientProfile PatientProfile?
+  doctorProfile  DoctorProfile?
+  healthFiles    HealthFile[]
+  prescriptions  Prescription[]      @relation("patient_prescriptions")
+  doctorRx       Prescription[]      @relation("doctor_prescriptions")
+  callsAsPatient CallSession[]       @relation("patient_calls")
+  callsAsDoctor  CallSession[]       @relation("doctor_calls")
+  walletTxns     WalletTransaction[]
+  chatMessages   ChatMessage[]
+}
+
+model PatientProfile {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  heightCm  Float?
+  weightKg  Float?
+  bloodType String?
+  dob       DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model DoctorProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  degree         String
+  regNumber      String   @unique
+  specialization String?
+  isAvailable    Boolean  @default(false)
+  isApproved     Boolean  @default(false)
+  approvedAt     DateTime?
+  approvedById   String?
+  walletBalance  Decimal  @default(0) @db.Decimal(12, 2)
+  commissionRate Decimal  @default(0.80) @db.Decimal(4, 2)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([isAvailable])
+}
+
+model CallSession {
+  id          String     @id @default(cuid())
+  patientId   String
+  doctorId    String?
+  status      CallStatus @default(QUEUED)
+  livekitRoom String     @unique
+  queuedAt    DateTime   @default(now())
+  startedAt   DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime   @default(now())
+
+  patient      User          @relation("patient_calls", fields: [patientId], references: [id])
+  doctor       User?         @relation("doctor_calls", fields: [doctorId], references: [id])
+  prescription Prescription?
+  messages     ChatMessage[]
+
+  @@index([patientId])
+  @@index([status])
+}
+
+model ChatMessage {
+  id            String   @id @default(cuid())
+  callSessionId String
+  senderId      String
+  content       String?
+  imageKey      String?
+  vitals        Json?
+  type          MsgType  @default(TEXT)
+  createdAt     DateTime @default(now())
+
+  callSession CallSession @relation(fields: [callSessionId], references: [id])
+  sender      User        @relation(fields: [senderId], references: [id])
+
+  @@index([callSessionId])
+}
+
+model Prescription {
+  id            String   @id @default(cuid())
+  callSessionId String   @unique
+  patientId     String
+  doctorId      String
+  content       Json
+  objectKey     String?
+  pdfReady      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  callSession CallSession @relation(fields: [callSessionId], references: [id])
+  patient     User        @relation("patient_prescriptions", fields: [patientId], references: [id])
+  doctor      User        @relation("doctor_prescriptions", fields: [doctorId], references: [id])
+  healthFile  HealthFile?
+}
+
+model HealthFile {
+  id             String   @id @default(cuid())
+  userId         String
+  prescriptionId String?  @unique
+  name           String
+  type           FileType
+  objectKey      String
+  sizeBytes      Int
+  createdAt      DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id])
+  prescription Prescription? @relation(fields: [prescriptionId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+model WalletTransaction {
+  id            String    @id @default(cuid())
+  doctorId      String
+  callSessionId String?
+  amount        Decimal   @db.Decimal(10, 2)
+  type          TxnType
+  status        TxnStatus @default(PENDING)
+  description   String?
+  createdAt     DateTime  @default(now())
+
+  doctor User @relation(fields: [doctorId], references: [id])
+
+  @@index([doctorId, createdAt])
+}

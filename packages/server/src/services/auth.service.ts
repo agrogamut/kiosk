@@ -1,0 +1,162 @@
+import type { SignOptions } from "jsonwebtoken";
+import type { UserRole } from "@prisma/client";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { prisma } from "../lib/prisma.js";
+import { redis } from "../lib/redis.js";
+import { AppError } from "../middleware/error.middleware.js";
+
+export interface JwtPayload {
+  sub: string;
+  role: UserRole;
+}
+
+export function signAccessToken(payload: JwtPayload): string {
+  const expiresIn = (process.env.JWT_ACCESS_EXPIRES ?? "15m") as SignOptions["expiresIn"];
+  return jwt.sign(payload, process.env.JWT_ACCESS_SECRET!, { expiresIn });
+}
+
+export function signRefreshToken(payload: JwtPayload): string {
+  const expiresIn = (process.env.JWT_REFRESH_EXPIRES ?? "30d") as SignOptions["expiresIn"];
+  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET!, { expiresIn });
+}
+
+export function verifyAccessToken(token: string): JwtPayload {
+  return jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as JwtPayload;
+}
+
+export function verifyRefreshToken(token: string): JwtPayload {
+  return jwt.verify(token, process.env.JWT_REFRESH_SECRET!) as JwtPayload;
+}
+
+export async function registerPatient(data: {
+  phone: string;
+  name: string;
+  dob: string;
+  pin: string;
+}) {
+  const existing = await prisma.user.findUnique({ where: { phone: data.phone } });
+  if (existing) {
+    throw new AppError(409, "Phone already registered");
+  }
+
+  const dob = new Date(data.dob);
+  if (Number.isNaN(dob.getTime())) {
+    throw new AppError(400, "Invalid date of birth");
+  }
+
+  const pinHash = await bcrypt.hash(data.pin, 12);
+  return prisma.user.create({
+    data: {
+      phone: data.phone,
+      name: data.name,
+      role: "PATIENT",
+      pinHash,
+      patientProfile: { create: { dob } },
+    },
+  });
+}
+
+export async function loginPatient(phone: string, pin: string) {
+  const attemptsKey = `pin_attempts:${phone}`;
+  const attempts = await redis.get(attemptsKey);
+  if (attempts && Number(attempts) >= 5) {
+    throw new AppError(429, "Account locked. Try again in 15 minutes.");
+  }
+
+  const user = await prisma.user.findUnique({ where: { phone } });
+  if (!user || user.role !== "PATIENT" || !user.pinHash) {
+    throw new AppError(401, "Invalid credentials");
+  }
+  if (user.disabled) {
+    throw new AppError(403, "Account disabled");
+  }
+
+  const valid = await bcrypt.compare(pin, user.pinHash);
+  if (!valid) {
+    await redis.incr(attemptsKey);
+    await redis.expire(attemptsKey, 900);
+    throw new AppError(401, "Invalid credentials");
+  }
+
+  await redis.del(attemptsKey);
+  return user;
+}
+
+export async function registerDoctor(data: {
+  phone: string;
+  name: string;
+  password: string;
+  degree: string;
+  regNumber: string;
+  specialization?: string;
+}) {
+  const existing = await prisma.user.findUnique({ where: { phone: data.phone } });
+  if (existing) {
+    throw new AppError(409, "Phone already registered");
+  }
+
+  const existingProfile = await prisma.doctorProfile.findUnique({
+    where: { regNumber: data.regNumber },
+  });
+  if (existingProfile) {
+    throw new AppError(409, "Registration number already in use");
+  }
+
+  const passwordHash = await bcrypt.hash(data.password, 12);
+  return prisma.user.create({
+    data: {
+      phone: data.phone,
+      name: data.name,
+      role: "DOCTOR",
+      passwordHash,
+      doctorProfile: {
+        create: {
+          degree: data.degree,
+          regNumber: data.regNumber,
+          specialization: data.specialization,
+        },
+      },
+    },
+  });
+}
+
+export async function loginDoctorInitiate(phone: string, password: string) {
+  const user = await prisma.user.findUnique({
+    where: { phone },
+    include: { doctorProfile: true },
+  });
+  if (!user || user.role !== "DOCTOR" || !user.passwordHash) {
+    throw new AppError(401, "Invalid credentials");
+  }
+  if (user.disabled) {
+    throw new AppError(403, "Account disabled");
+  }
+  if (!user.doctorProfile?.isApproved) {
+    throw new AppError(403, "Account pending admin approval");
+  }
+
+  const valid = await bcrypt.compare(password, user.passwordHash);
+  if (!valid) {
+    throw new AppError(401, "Invalid credentials");
+  }
+
+  return user;
+}
+
+export async function loginAdmin(phone: string, password: string) {
+  const user = await prisma.user.findUnique({ where: { phone } });
+  if (!user || user.role !== "ADMIN" || !user.passwordHash) {
+    throw new AppError(401, "Invalid credentials");
+  }
+  if (user.disabled) {
+    throw new AppError(403, "Account disabled");
+  }
+
+  const valid = await bcrypt.compare(password, user.passwordHash);
+  if (!valid) {
+    throw new AppError(401, "Invalid credentials");
+  }
+
+  return user;
+}
