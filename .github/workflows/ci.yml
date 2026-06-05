@@ -11,18 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @madamgy/api-client build
-      - run: pnpm --filter @madamgy/server db:generate
-      - run: pnpm typecheck
-      - run: pnpm lint
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace @madamgy/api-client
+      - run: npm run db:generate --workspace @madamgy/server
+      - run: npm run typecheck
+      - run: npm run lint
 
   test-server:
     runs-on: ubuntu-latest
@@ -52,16 +49,13 @@ jobs:
       ADMIN_PASSWORD: admin123
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @madamgy/api-client build
-      - run: pnpm --filter @madamgy/server db:generate
-      - run: pnpm --filter @madamgy/server db:migrate:deploy
-      - run: pnpm --filter @madamgy/server db:seed
-      - run: pnpm --filter @madamgy/server test
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace @madamgy/api-client
+      - run: npm run db:generate --workspace @madamgy/server
+      - run: npm run db:migrate:deploy --workspace @madamgy/server
+      - run: npm run db:seed --workspace @madamgy/server
+      - run: npm run test --workspace @madamgy/server

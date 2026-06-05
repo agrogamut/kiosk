@@ -1,15 +1,14 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
-RUN npm i -g pnpm@9
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY package.json package-lock.json ./
 COPY packages/api-client/package.json packages/api-client/
 COPY packages/web/package.json packages/web/
-RUN pnpm install --frozen-lockfile
+RUN npm ci
 COPY tsconfig.base.json ./
 COPY packages/api-client/ packages/api-client/
 COPY packages/web/ packages/web/
-RUN pnpm --filter @madamgy/api-client build
-RUN pnpm --filter @madamgy/web build
+RUN npm run build --workspace @madamgy/api-client
+RUN npm run build --workspace @madamgy/web
 
 FROM nginx:alpine
 COPY --from=builder /app/packages/web/dist /usr/share/nginx/html

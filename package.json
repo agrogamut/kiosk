@@ -2,14 +2,20 @@
   "name": "madamgy",
   "private": true,
   "version": "0.0.1",
+  "workspaces": [
+    "packages/api-client",
+    "packages/server",
+    "packages/web"
+  ],
   "scripts": {
-    "dev": "pnpm run --parallel --filter './packages/server' --filter './packages/web' dev",
-    "build": "pnpm run --recursive --if-present build",
-    "lint": "pnpm run --recursive --if-present lint",
-    "typecheck": "pnpm run --recursive --if-present typecheck"
+    "dev": "npm run dev --workspace @madamgy/server & npm run dev --workspace @madamgy/web & wait",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspace @madamgy/server"
   },
   "engines": {
     "node": ">=20.19.0",
-    "pnpm": ">=9"
+    "npm": ">=10"
   }
 }

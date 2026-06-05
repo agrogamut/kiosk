@@ -1,3 +1,4 @@
+import "../config/env.js";
 import * as Minio from "minio";
 
 const client = new Minio.Client({
