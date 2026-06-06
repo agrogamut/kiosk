@@ -32,8 +32,8 @@ services:
       MINIO_ROOT_USER: madamgy
       MINIO_ROOT_PASSWORD: madamgy123
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "19000:9000"
+      - "19001:9001"
     volumes:
       - minidata:/data
 
@@ -52,6 +52,7 @@ services:
       DATABASE_URL: postgresql://madamgy:madamgy@postgres:5432/madamgy
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
     ports:
       - "3000:3000"
     restart: unless-stopped

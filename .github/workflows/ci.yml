@@ -58,4 +58,5 @@ jobs:
       - run: npm run db:generate --workspace @madamgy/server
       - run: npm run db:migrate:deploy --workspace @madamgy/server
       - run: npm run db:seed --workspace @madamgy/server
+      - run: docker run -d --name madamgy-ci-minio -e MINIO_ROOT_USER=madamgy -e MINIO_ROOT_PASSWORD=madamgy123 -p 19000:9000 minio/minio server /data
       - run: npm run test --workspace @madamgy/server

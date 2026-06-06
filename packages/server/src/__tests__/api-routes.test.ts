@@ -5,6 +5,7 @@ import { app } from "../index.js";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 import { signAccessToken } from "../services/auth.service.js";
+import { ensureBucket } from "../services/storage.service.js";
 
 let adminId: string;
 let adminToken: string;
@@ -51,6 +52,7 @@ async function deleteApiTestData(): Promise<void> {
 }
 
 beforeAll(async () => {
+  await ensureBucket();
   await deleteApiTestData();
 
   const admin = await prisma.user.create({
@@ -197,6 +199,14 @@ describe("Admin API", () => {
     expect(profile.approvedById).toBe(adminId);
   });
 
+  it("returns 404 when approving a non-doctor", async () => {
+    const response = await request(app)
+      .put(`/api/admin/doctors/${patientId}/approve`)
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(404);
+  });
+
   it("lists and disables users", async () => {
     const listResponse = await request(app).get("/api/admin/users").set("Authorization", `Bearer ${adminToken}`);
 
@@ -214,6 +224,15 @@ describe("Admin API", () => {
     expect(user.disabled).toBe(true);
 
     await prisma.user.update({ where: { id: patientId }, data: { disabled: false } });
+  });
+
+  it("validates disable user payloads", async () => {
+    const response = await request(app)
+      .put(`/api/admin/users/${patientId}/disable`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ disabled: "yes" });
+
+    expect(response.status).toBe(400);
   });
 
   it("returns stats and paginated calls", async () => {
@@ -245,6 +264,18 @@ describe("Doctor wallet API", () => {
     const response = await request(app).get("/api/doctor/wallet").set("Authorization", `Bearer ${patientToken}`);
 
     expect(response.status).toBe(403);
+  });
+
+  it("rejects withdrawals above the available balance", async () => {
+    const response = await request(app).post("/api/doctor/wallet/withdraw").set("Authorization", `Bearer ${doctorToken}`).send({
+      amount: 300,
+      bankName: "Test Bank",
+      accountNumber: "1234567890",
+      ifsc: "TEST0001",
+      holderName: "API Doctor",
+    });
+
+    expect(response.status).toBe(400);
   });
 
   it("creates one pending withdrawal and rejects duplicates", async () => {
@@ -290,5 +321,77 @@ describe("Health files API", () => {
     const response = await request(app).post("/api/health-files").set("Authorization", `Bearer ${patientToken}`);
 
     expect(response.status).toBe(400);
+  });
+
+  it("uploads, fetches, lists, and deletes a lab report", async () => {
+    const uploadResponse = await request(app)
+      .post("/api/health-files")
+      .set("Authorization", `Bearer ${patientToken}`)
+      .attach("file", Buffer.from("lab report"), {
+        filename: "lab-report.pdf",
+        contentType: "application/pdf",
+      });
+
+    expect(uploadResponse.status).toBe(201);
+    expect(uploadResponse.body.name).toBe("lab-report.pdf");
+    expect(uploadResponse.body.type).toBe("LAB_REPORT");
+    expect(uploadResponse.body.url).toContain("lab-report.pdf");
+
+    const fileId = uploadResponse.body.id as string;
+    const getResponse = await request(app).get(`/api/health-files/${fileId}`).set("Authorization", `Bearer ${patientToken}`);
+    const listResponse = await request(app).get("/api/health-files").set("Authorization", `Bearer ${patientToken}`);
+    const deleteResponse = await request(app).delete(`/api/health-files/${fileId}`).set("Authorization", `Bearer ${patientToken}`);
+    const missingAfterDelete = await request(app).get(`/api/health-files/${fileId}`).set("Authorization", `Bearer ${patientToken}`);
+
+    expect(getResponse.status).toBe(200);
+    expect(getResponse.body.id).toBe(fileId);
+    expect(getResponse.body.url).toBeTruthy();
+    expect(listResponse.status).toBe(200);
+    expect(listResponse.body.some((file: { id: string }) => file.id === fileId)).toBe(true);
+    expect(deleteResponse.status).toBe(200);
+    expect(missingAfterDelete.status).toBe(404);
+  });
+
+  it("rejects health folder listing for doctors", async () => {
+    const response = await request(app).get("/api/health-files").set("Authorization", `Bearer ${doctorToken}`);
+
+    expect(response.status).toBe(403);
+  });
+
+  it("rejects access to another patient's file before presigning", async () => {
+    const file = await prisma.healthFile.create({
+      data: {
+        userId: patientId,
+        name: "Private Lab Report",
+        type: "LAB_REPORT",
+        objectKey: "health-files/private.pdf",
+        sizeBytes: 10,
+      },
+    });
+
+    const response = await request(app).get(`/api/health-files/${file.id}`).set("Authorization", `Bearer ${doctorToken}`);
+
+    expect(response.status).toBe(403);
+  });
+
+  it("rejects deleting prescriptions and missing files", async () => {
+    const prescriptionFile = await prisma.healthFile.create({
+      data: {
+        userId: patientId,
+        name: "Prescription",
+        type: "PRESCRIPTION",
+        objectKey: "prescriptions/private.pdf",
+        sizeBytes: 10,
+      },
+    });
+    const prescriptionDelete = await request(app)
+      .delete(`/api/health-files/${prescriptionFile.id}`)
+      .set("Authorization", `Bearer ${patientToken}`);
+    const missingDelete = await request(app)
+      .delete(`/api/health-files/${randomUUID()}`)
+      .set("Authorization", `Bearer ${patientToken}`);
+
+    expect(prescriptionDelete.status).toBe(400);
+    expect(missingDelete.status).toBe(404);
   });
 });

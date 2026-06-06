@@ -7,10 +7,34 @@ import { redis } from "../lib/redis.js";
 
 async function deleteTestUsers(): Promise<void> {
   const users = await prisma.user.findMany({
-    where: { phone: { startsWith: "9999" } },
+    where: { phone: { startsWith: "999900" } },
     select: { id: true },
   });
   const userIds = users.map((user) => user.id);
+
+  if (userIds.length === 0) {
+    return;
+  }
+
+  const calls = await prisma.callSession.findMany({
+    where: { OR: [{ patientId: { in: userIds } }, { doctorId: { in: userIds } }] },
+    select: { id: true },
+  });
+  const callIds = calls.map((call) => call.id);
+
+  await prisma.healthFile.deleteMany({ where: { userId: { in: userIds } } });
+  await prisma.walletTransaction.deleteMany({ where: { doctorId: { in: userIds } } });
+  await prisma.prescription.deleteMany({
+    where: {
+      OR: [{ patientId: { in: userIds } }, { doctorId: { in: userIds } }, { callSessionId: { in: callIds } }],
+    },
+  });
+  await prisma.chatMessage.deleteMany({
+    where: { OR: [{ senderId: { in: userIds } }, { callSessionId: { in: callIds } }] },
+  });
+  await prisma.callSession.deleteMany({
+    where: { OR: [{ patientId: { in: userIds } }, { doctorId: { in: userIds } }] },
+  });
   await prisma.patientProfile.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.doctorProfile.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
@@ -40,6 +64,17 @@ afterAll(async () => {
 });
 
 describe("Patient auth", () => {
+  it("rejects invalid patient registration input", async () => {
+    const response = await request(app).post("/api/auth/patient/register").send({
+      phone: "9999000000",
+      name: "Invalid Patient",
+      dob: "1990-01-01",
+      pin: "abcd",
+    });
+
+    expect(response.status).toBe(400);
+  });
+
   it("registers a new patient", async () => {
     const response = await request(app).post("/api/auth/patient/register").send({
       phone: "9999000001",
@@ -101,6 +136,90 @@ describe("Patient auth", () => {
   });
 });
 
+describe("Doctor auth", () => {
+  it("registers a doctor pending approval", async () => {
+    const response = await request(app).post("/api/auth/doctor/register").send({
+      phone: "9999000002",
+      name: "Test Doctor",
+      password: "password123",
+      degree: "MBBS",
+      regNumber: "DOC-9999000002",
+      specialization: "General Medicine",
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.body.message).toContain("awaiting admin approval");
+  });
+
+  it("rejects duplicate doctor phone and registration number", async () => {
+    const duplicatePhone = await request(app).post("/api/auth/doctor/register").send({
+      phone: "9999000002",
+      name: "Duplicate Doctor",
+      password: "password123",
+      degree: "MBBS",
+      regNumber: "DOC-NEW",
+    });
+    const duplicateReg = await request(app).post("/api/auth/doctor/register").send({
+      phone: "9999000003",
+      name: "Duplicate Registration",
+      password: "password123",
+      degree: "MBBS",
+      regNumber: "DOC-9999000002",
+    });
+
+    expect(duplicatePhone.status).toBe(409);
+    expect(duplicateReg.status).toBe(409);
+  });
+
+  it("blocks doctor login before approval", async () => {
+    const response = await request(app).post("/api/auth/doctor/login/initiate").send({
+      phone: "9999000002",
+      password: "password123",
+    });
+
+    expect(response.status).toBe(403);
+  });
+
+  it("initiates and verifies approved doctor OTP login", async () => {
+    const doctor = await prisma.user.findUniqueOrThrow({ where: { phone: "9999000002" } });
+    await prisma.doctorProfile.update({ where: { userId: doctor.id }, data: { isApproved: true } });
+
+    const badPassword = await request(app).post("/api/auth/doctor/login/initiate").send({
+      phone: "9999000002",
+      password: "wrong-password",
+    });
+    expect(badPassword.status).toBe(401);
+
+    const initiate = await request(app).post("/api/auth/doctor/login/initiate").send({
+      phone: "9999000002",
+      password: "password123",
+    });
+    expect(initiate.status).toBe(200);
+
+    const wrongOtp = await request(app).post("/api/auth/doctor/login/verify").send({
+      phone: "9999000002",
+      otp: "000000",
+    });
+    expect(wrongOtp.status).toBe(401);
+
+    await request(app).post("/api/auth/doctor/login/initiate").send({
+      phone: "9999000002",
+      password: "password123",
+    });
+    const otp = await redis.get("otp:9999000002");
+    expect(otp).toBeTruthy();
+
+    const verify = await request(app).post("/api/auth/doctor/login/verify").send({
+      phone: "9999000002",
+      otp,
+    });
+
+    expect(verify.status).toBe(200);
+    expect(verify.body.accessToken).toBeTruthy();
+    expect(verify.body.user.role).toBe("DOCTOR");
+  });
+});
+
 describe("Admin auth", () => {
   it("logs in with env credentials", async () => {
     const response = await request(app).post("/api/auth/admin/login").send({
@@ -110,5 +229,43 @@ describe("Admin auth", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.user.role).toBe("ADMIN");
+  });
+
+  it("rejects invalid admin credentials", async () => {
+    const response = await request(app).post("/api/auth/admin/login").send({
+      phone: process.env.ADMIN_PHONE ?? "9000000000",
+      password: "wrong-password",
+    });
+
+    expect(response.status).toBe(401);
+  });
+});
+
+describe("Session auth", () => {
+  it("refreshes access tokens from the refresh cookie", async () => {
+    const login = await request(app).post("/api/auth/patient/login").send({
+      phone: "9999000001",
+      pin: "1234",
+    });
+    const cookies = login.headers["set-cookie"];
+    expect(cookies).toBeTruthy();
+
+    const refresh = await request(app).post("/api/auth/refresh").set("Cookie", cookies);
+
+    expect(refresh.status).toBe(200);
+    expect(refresh.body.accessToken).toBeTruthy();
+  });
+
+  it("rejects refresh without a cookie", async () => {
+    const response = await request(app).post("/api/auth/refresh");
+
+    expect(response.status).toBe(401);
+  });
+
+  it("clears the refresh cookie on logout", async () => {
+    const response = await request(app).post("/api/auth/logout");
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe("Logged out");
   });
 });

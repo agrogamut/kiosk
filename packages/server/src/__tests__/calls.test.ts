@@ -8,8 +8,26 @@ import { signAccessToken } from "../services/auth.service.js";
 let patientToken: string;
 let patientId: string;
 
+async function deleteTestPatient(): Promise<void> {
+  const users = await prisma.user.findMany({ where: { phone: "9999100001" }, select: { id: true } });
+  const userIds = users.map((user) => user.id);
+
+  if (userIds.length === 0) {
+    return;
+  }
+
+  const calls = await prisma.callSession.findMany({ where: { patientId: { in: userIds } }, select: { id: true } });
+  const callIds = calls.map((call) => call.id);
+
+  await prisma.prescription.deleteMany({ where: { callSessionId: { in: callIds } } });
+  await prisma.chatMessage.deleteMany({ where: { callSessionId: { in: callIds } } });
+  await prisma.callSession.deleteMany({ where: { patientId: { in: userIds } } });
+  await prisma.patientProfile.deleteMany({ where: { userId: { in: userIds } } });
+  await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+}
+
 beforeAll(async () => {
-  await prisma.user.deleteMany({ where: { phone: "9999100001" } });
+  await deleteTestPatient();
   const patient = await prisma.user.create({
     data: {
       phone: "9999100001",
@@ -24,9 +42,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.callSession.deleteMany({ where: { patientId } });
-  await prisma.patientProfile.deleteMany({ where: { userId: patientId } });
-  await prisma.user.delete({ where: { id: patientId } });
+  await deleteTestPatient();
   await prisma.$disconnect();
   await redis.quit();
 });
@@ -48,6 +64,23 @@ describe("POST /api/calls", () => {
 
   it("returns 401 without token", async () => {
     const response = await request(app).post("/api/calls");
+
+    expect(response.status).toBe(401);
+  });
+});
+
+describe("GET /api/calls/history", () => {
+  it("returns paginated call history for the authenticated patient", async () => {
+    const response = await request(app).get("/api/calls/history").set("Authorization", `Bearer ${patientToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.calls).toHaveLength(1);
+    expect(response.body.calls[0].patientId).toBe(patientId);
+    expect(response.body.total).toBe(1);
+  });
+
+  it("returns 401 without a token", async () => {
+    const response = await request(app).get("/api/calls/history");
 
     expect(response.status).toBe(401);
   });
