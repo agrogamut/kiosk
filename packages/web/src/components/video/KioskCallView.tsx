@@ -16,7 +16,7 @@ export function KioskCallView({ token, serverUrl, onDisconnected }: KioskCallVie
       video
       audio
       onDisconnected={onDisconnected}
-      style={{ height: "100vh" }}
+      style={{ height: "100%" }}
     >
       <VideoConference />
     </LiveKitRoom>

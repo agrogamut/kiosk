@@ -16,7 +16,7 @@ callsRouter.post("/", requireAuth("PATIENT"), async (req: Request, res: Response
       where: { patientId, status: { in: ["QUEUED", "RINGING", "ACTIVE"] } },
     });
     if (existing) {
-      res.status(409).json({ message: "Active call exists", callSessionId: existing.id });
+      res.status(409).json({ message: "Active call exists", callSession: existing, callSessionId: existing.id });
       return;
     }
 

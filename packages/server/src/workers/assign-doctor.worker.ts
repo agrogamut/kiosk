@@ -54,6 +54,7 @@ export function startAssignDoctorWorker(): Worker<AssignDoctorJobData> {
         }),
       ]);
 
+      io.to(`user:${call.patientId}`).emit("call:ringing", { callSession: updatedCall });
       io.to(`user:${doctor.userId}`).emit("call:incoming", { callSession: updatedCall, patient });
     },
     { connection: bullMqConnection, concurrency: 5 },

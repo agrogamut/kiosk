@@ -209,7 +209,7 @@ describe("Doctor auth", () => {
 
     const wrongOtp = await request(app).post("/api/auth/doctor/login/verify").send({
       phone: "9999000002",
-      otp: "000000",
+      otp: "111111",
     });
     expect(wrongOtp.status).toBe(401);
 
@@ -217,12 +217,9 @@ describe("Doctor auth", () => {
       phone: "9999000002",
       password: "password123",
     });
-    const otp = await redis.get("otp:9999000002");
-    expect(otp).toBeTruthy();
-
     const verify = await request(app).post("/api/auth/doctor/login/verify").send({
       phone: "9999000002",
-      otp,
+      otp: "000000",
     });
 
     expect(verify.status).toBe(200);

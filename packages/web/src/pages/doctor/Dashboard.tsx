@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { api } from "../../lib/api";
+import { logout } from "../../lib/logout";
 import { connectSocket, getSocket } from "../../lib/socket";
 import { useAuthStore } from "../../store/auth.store";
 import { useCallStore } from "../../store/call.store";
@@ -68,6 +69,11 @@ export default function DoctorDashboard() {
     setIncoming(null);
   }
 
+  async function signOut(): Promise<void> {
+    await logout();
+    navigate("/doctor/login");
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="mx-auto max-w-2xl">
@@ -88,6 +94,9 @@ export default function DoctorDashboard() {
             </div>
           </div>
           <div className="flex gap-3">
+            <button type="button" onClick={() => void signOut()} className="rounded-xl bg-white px-4 py-3 font-semibold text-blue-700 shadow-sm">
+              Logout
+            </button>
             <Link to="/doctor/history" className="rounded-xl bg-white px-4 py-3 font-semibold text-blue-700 shadow-sm">
               History
             </Link>

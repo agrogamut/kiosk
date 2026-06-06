@@ -50,14 +50,18 @@ app.use("/api/doctor", doctorRouter);
 
 app.use(errorMiddleware);
 
-if (process.env.NODE_ENV !== "test" && process.env.MINIO_SKIP_BUCKET_CHECK !== "true") {
-  ensureBucket().catch((error: unknown) => {
-    const message = error instanceof Error ? error.message : String(error);
-    console.warn(`MinIO bucket check skipped: ${message}`);
-  });
+if (process.env.NODE_ENV !== "test") {
+  if (process.env.MINIO_SKIP_BUCKET_CHECK !== "true") {
+    ensureBucket().catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`MinIO bucket check skipped: ${message}`);
+    });
+  }
+
   const assignWorker = startAssignDoctorWorker();
   handleAssignDoctorFailed(assignWorker);
   startRenderPdfWorker();
+  console.log("Queue workers started");
 }
 
 const port = process.env.PORT ?? 3000;

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import toast from "react-hot-toast";
+import { CallChatPanel } from "../../components/call/CallChatPanel";
 import { DoctorCallView } from "../../components/video/DoctorCallView";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
@@ -72,19 +73,22 @@ export default function DoctorCall() {
         />
       </div>
 
-      <div className="flex flex-1 flex-col border-t-2 border-gray-200 bg-white p-4">
-        <h3 className="mb-2 text-lg font-bold">Prescription</h3>
-        <div className="min-h-[120px] flex-1 rounded-xl border-2 p-3">
-          <EditorContent editor={editor} />
+      <div className="grid min-h-0 flex-1 gap-4 border-t-2 border-gray-200 bg-white p-4 lg:grid-cols-[1fr_24rem]">
+        <div className="flex min-h-0 flex-col">
+          <h3 className="mb-2 text-lg font-bold">Prescription</h3>
+          <div className="min-h-[120px] flex-1 rounded-xl border-2 p-3">
+            <EditorContent editor={editor} />
+          </div>
+          <button
+            type="button"
+            onClick={() => void submitPrescription()}
+            disabled={submitting}
+            className="mt-3 w-full rounded-xl bg-blue-600 py-4 text-lg font-semibold text-white disabled:opacity-50"
+          >
+            {submitting ? "Submitting..." : "Submit Prescription"}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => void submitPrescription()}
-          disabled={submitting}
-          className="mt-3 w-full rounded-xl bg-blue-600 py-4 text-lg font-semibold text-white disabled:opacity-50"
-        >
-          {submitting ? "Submitting..." : "Submit Prescription"}
-        </button>
+        {callSessionId && <CallChatPanel callSessionId={callSessionId} />}
       </div>
     </div>
   );

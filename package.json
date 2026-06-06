@@ -9,6 +9,8 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace @madamgy/server & npm run dev --workspace @madamgy/web & wait",
+    "dev:server": "fish scripts/dev-server.fish",
+    "dev:ready": "fish scripts/dev-server.fish --web",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",

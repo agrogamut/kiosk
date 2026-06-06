@@ -1,11 +1,10 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuthStore } from "../../store/auth.store";
+import { logout } from "../../lib/logout";
 
 const IDLE_MS = 5 * 60 * 1000;
 
 export function IdleGuard() {
-  const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -17,8 +16,7 @@ export function IdleGuard() {
       }
 
       timer = setTimeout(() => {
-        logout();
-        navigate("/");
+        void logout().finally(() => navigate("/"));
       }, IDLE_MS);
     }
 
@@ -32,7 +30,7 @@ export function IdleGuard() {
       }
       events.forEach((event) => window.removeEventListener(event, reset));
     };
-  }, [logout, navigate]);
+  }, [navigate]);
 
   return null;
 }

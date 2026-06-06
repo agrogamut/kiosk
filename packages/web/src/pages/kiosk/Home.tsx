@@ -30,6 +30,14 @@ export default function KioskHome() {
           Returning Patient
         </button>
       </div>
+      <div className="flex gap-6 text-sm text-blue-900/70">
+        <button type="button" onClick={() => navigate("/doctor/login")} className="underline">
+          Doctor Login
+        </button>
+        <button type="button" onClick={() => navigate("/admin/login")} className="underline">
+          Admin Login
+        </button>
+      </div>
     </div>
   );
 }
