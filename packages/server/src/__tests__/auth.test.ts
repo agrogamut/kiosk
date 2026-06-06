@@ -68,8 +68,19 @@ describe("Patient auth", () => {
     const response = await request(app).post("/api/auth/patient/register").send({
       phone: "9999000000",
       name: "Invalid Patient",
-      dob: "1990-01-01",
+      dob: "01/01/1990",
       pin: "abcd",
+    });
+
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects invalid patient date of birth", async () => {
+    const response = await request(app).post("/api/auth/patient/register").send({
+      phone: "9999000000",
+      name: "Invalid Patient",
+      dob: "77777-08-09",
+      pin: "1234",
     });
 
     expect(response.status).toBe(400);
@@ -79,7 +90,7 @@ describe("Patient auth", () => {
     const response = await request(app).post("/api/auth/patient/register").send({
       phone: "9999000001",
       name: "Test Patient",
-      dob: "1990-01-01",
+      dob: "01/01/1990",
       pin: "1234",
     });
 
@@ -92,7 +103,7 @@ describe("Patient auth", () => {
     const response = await request(app).post("/api/auth/patient/register").send({
       phone: "9999000001",
       name: "Duplicate Patient",
-      dob: "1990-01-01",
+      dob: "01/01/1990",
       pin: "1234",
     });
 

@@ -1,12 +1,41 @@
 import { z } from "zod";
 
+const dateOfBirthPattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+const minDateOfBirthYear = 1900;
+
+function isValidDateOfBirth(value: string): boolean {
+  const match = dateOfBirthPattern.exec(value);
+  if (!match) {
+    return false;
+  }
+
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const today = new Date();
+  const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+
+  return (
+    year >= minDateOfBirthYear &&
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day &&
+    date <= todayUtc
+  );
+}
+
 export const UserRoleSchema = z.enum(["PATIENT", "DOCTOR", "ADMIN"]);
 export type UserRole = z.infer<typeof UserRoleSchema>;
+
+export const DateOfBirthSchema = z.string().refine(isValidDateOfBirth, {
+  message: "Date of birth must be a valid date in DD/MM/YYYY format",
+});
 
 export const PatientRegisterSchema = z.object({
   phone: z.string().min(10).max(15),
   name: z.string().min(1).max(100),
-  dob: z.string().min(1),
+  dob: DateOfBirthSchema,
   pin: z.string().length(4).regex(/^\d{4}$/),
 });
 export type PatientRegister = z.infer<typeof PatientRegisterSchema>;
@@ -60,6 +89,6 @@ export const UpdateProfileSchema = z.object({
   heightCm: z.number().positive().max(300).optional(),
   weightKg: z.number().positive().max(500).optional(),
   bloodType: z.string().max(10).optional(),
-  dob: z.string().min(1).optional(),
+  dob: DateOfBirthSchema.optional(),
 });
 export type UpdateProfile = z.infer<typeof UpdateProfileSchema>;

@@ -11,6 +11,18 @@ import { useAuthStore } from "../../store/auth.store";
 
 type RegisterInfo = Omit<PatientRegister, "pin">;
 
+function formatDateOfBirthInput(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) {
+    return digits;
+  }
+  if (digits.length <= 4) {
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  }
+
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
 export default function KioskRegister() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -24,6 +36,7 @@ export default function KioskRegister() {
     getValues,
     formState: { errors },
   } = useForm<RegisterInfo>({ resolver: zodResolver(PatientRegisterSchema.omit({ pin: true })) });
+  const dobRegistration = register("dob");
 
   async function submit(): Promise<void> {
     if (pin !== confirmPin) {
@@ -57,7 +70,19 @@ export default function KioskRegister() {
             className="w-full rounded-2xl border-2 p-5 text-xl"
           />
           {errors.phone && <p className="text-red-500">{errors.phone.message}</p>}
-          <input {...register("dob")} type="date" className="w-full rounded-2xl border-2 p-5 text-xl" />
+          <input
+            {...dobRegistration}
+            onChange={(event) => {
+              event.target.value = formatDateOfBirthInput(event.target.value);
+              void dobRegistration.onChange(event);
+            }}
+            type="text"
+            placeholder="DD/MM/YYYY"
+            autoComplete="bday"
+            inputMode="numeric"
+            maxLength={10}
+            className="w-full rounded-2xl border-2 p-5 text-xl"
+          />
           {errors.dob && <p className="text-red-500">{errors.dob.message}</p>}
           <button type="submit" className="mt-4 w-full rounded-3xl bg-blue-600 py-5 text-2xl font-semibold text-white">
             Next

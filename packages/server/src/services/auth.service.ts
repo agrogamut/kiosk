@@ -2,6 +2,7 @@ import type { SignOptions } from "jsonwebtoken";
 import type { UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { parseDateOfBirth } from "../lib/date-of-birth.js";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 import { AppError } from "../middleware/error.middleware.js";
@@ -40,11 +41,7 @@ export async function registerPatient(data: {
     throw new AppError(409, "Phone already registered");
   }
 
-  const dob = new Date(data.dob);
-  if (Number.isNaN(dob.getTime())) {
-    throw new AppError(400, "Invalid date of birth");
-  }
-
+  const dob = parseDateOfBirth(data.dob);
   const pinHash = await bcrypt.hash(data.pin, 12);
   return prisma.user.create({
     data: {

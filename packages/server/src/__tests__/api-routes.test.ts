@@ -155,7 +155,7 @@ describe("Users API", () => {
       heightCm: 165,
       weightKg: 58,
       bloodType: "O+",
-      dob: "1991-02-03",
+      dob: "03/02/1991",
     });
 
     expect(response.status).toBe(200);

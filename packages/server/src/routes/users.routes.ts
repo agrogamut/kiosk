@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
 import { UpdateProfileSchema } from "@madamgy/api-client";
+import { parseDateOfBirth } from "../lib/date-of-birth.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 
@@ -21,7 +22,7 @@ usersRouter.get("/me", requireAuth(), async (req: Request, res: Response, next: 
 usersRouter.put("/me", requireAuth("PATIENT"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const body = UpdateProfileSchema.parse(req.body);
-    const dob = body.dob ? new Date(body.dob) : undefined;
+    const dob = body.dob ? parseDateOfBirth(body.dob) : undefined;
 
     await prisma.$transaction([
       prisma.user.update({
