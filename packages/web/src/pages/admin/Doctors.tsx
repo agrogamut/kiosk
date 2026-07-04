@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { api } from "../../lib/api";
 
@@ -41,12 +42,12 @@ export default function AdminDoctors() {
           <div className="flex flex-col gap-3">
             {pending.map((doctor) => (
               <div key={doctor.id} className="flex items-center justify-between rounded-2xl border-2 border-amber-200 bg-white p-5 shadow-sm">
-                <div>
-                  <p className="text-lg font-bold">{doctor.name}</p>
+                <Link to={`/admin/users/${doctor.id}`} className="flex-1">
+                  <p className="text-lg font-bold text-blue-700 hover:underline">{doctor.name}</p>
                   <p className="text-gray-500">
                     {doctor.phone} - {doctor.doctorProfile.degree} - Reg: {doctor.doctorProfile.regNumber}
                   </p>
-                </div>
+                </Link>
                 <button
                   type="button"
                   onClick={() => approve.mutate(doctor.id)}
@@ -64,12 +65,12 @@ export default function AdminDoctors() {
       <div className="flex flex-col gap-3">
         {approved.map((doctor) => (
           <div key={doctor.id} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-            <div>
-              <p className="font-bold">{doctor.name}</p>
+            <Link to={`/admin/users/${doctor.id}`} className="flex-1">
+              <p className="font-bold text-blue-700 hover:underline">{doctor.name}</p>
               <p className="text-sm text-gray-500">
                 {doctor.phone} - {doctor.doctorProfile.degree}
               </p>
-            </div>
+            </Link>
             <span className="rounded-full bg-green-100 px-3 py-1 text-sm text-green-700">Approved</span>
           </div>
         ))}

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { api } from "../../lib/api";
 
@@ -33,12 +34,12 @@ export default function AdminUsers() {
       <div className="flex flex-col gap-3">
         {users?.map((user) => (
           <div key={user.id} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-            <div>
-              <p className="font-bold">{user.name}</p>
+            <Link to={`/admin/users/${user.id}`} className="flex-1">
+              <p className="font-bold text-blue-700 hover:underline">{user.name}</p>
               <p className="text-sm text-gray-500">
                 {user.phone} - {user.role} - {format(new Date(user.createdAt), "dd MMM yyyy")}
               </p>
-            </div>
+            </Link>
             <button
               type="button"
               onClick={() => toggle.mutate({ id: user.id, disabled: !user.disabled })}

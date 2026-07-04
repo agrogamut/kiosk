@@ -23,6 +23,7 @@ export default function AdminDashboard() {
           { label: "Doctors", href: "/admin/doctors" },
           { label: "Users", href: "/admin/users" },
           { label: "Call History", href: "/admin/calls" },
+          { label: "Withdrawals", href: "/admin/withdrawals" },
         ].map((item) => (
           <Link
             key={item.href}

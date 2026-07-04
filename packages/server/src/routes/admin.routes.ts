@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { AppError } from "../middleware/error.middleware.js";
 import { io } from "../index.js";
+import { completeWithdrawal, listPendingWithdrawals, rejectWithdrawal } from "../services/wallet.service.js";
 
 export const adminRouter = Router();
 
@@ -66,6 +67,45 @@ adminRouter.put("/users/:id/disable", async (req: Request, res: Response, next: 
   }
 });
 
+adminRouter.get("/users/:id", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        phone: true,
+        name: true,
+        role: true,
+        disabled: true,
+        createdAt: true,
+        patientProfile: true,
+        doctorProfile: true,
+      },
+    });
+    if (!user) {
+      throw new AppError(404, "User not found");
+    }
+
+    const [healthFiles, prescriptions, callsAsPatient, callsAsDoctor] = await Promise.all([
+      prisma.healthFile.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
+      prisma.prescription.findMany({
+        where: { OR: [{ patientId: user.id }, { doctorId: user.id }] },
+        orderBy: { createdAt: "desc" },
+        include: {
+          patient: { select: { id: true, name: true } },
+          doctor: { select: { id: true, name: true } },
+        },
+      }),
+      prisma.callSession.findMany({ where: { patientId: user.id }, orderBy: { createdAt: "desc" }, take: 20 }),
+      prisma.callSession.findMany({ where: { doctorId: user.id }, orderBy: { createdAt: "desc" }, take: 20 }),
+    ]);
+
+    res.json({ user, healthFiles, prescriptions, callsAsPatient, callsAsDoctor });
+  } catch (error) {
+    next(error);
+  }
+});
+
 adminRouter.get("/stats", async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const [totalPatients, totalDoctors, totalCalls, activeCalls, totalRx] = await Promise.all([
@@ -98,6 +138,33 @@ adminRouter.get("/calls", async (req: Request, res: Response, next: NextFunction
       prisma.callSession.count(),
     ]);
     res.json({ calls, total, page, pages: Math.ceil(total / limit) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/wallet/withdrawals", async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const withdrawals = await listPendingWithdrawals();
+    res.json(withdrawals);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.put("/wallet/withdrawals/:id/complete", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const transaction = await completeWithdrawal(req.params.id);
+    res.json(transaction);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.put("/wallet/withdrawals/:id/reject", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const transaction = await rejectWithdrawal(req.params.id);
+    res.json(transaction);
   } catch (error) {
     next(error);
   }

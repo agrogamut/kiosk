@@ -6,7 +6,9 @@ import AdminDashboard from "./pages/admin/Dashboard";
 import AdminDoctors from "./pages/admin/Doctors";
 import AdminLogin from "./pages/admin/Login";
 import AdminStats from "./pages/admin/Stats";
+import AdminUserDetail from "./pages/admin/UserDetail";
 import AdminUsers from "./pages/admin/Users";
+import AdminWithdrawals from "./pages/admin/Withdrawals";
 import DoctorCall from "./pages/doctor/Call";
 import DoctorDashboard from "./pages/doctor/Dashboard";
 import DoctorHistory from "./pages/doctor/History";
@@ -52,8 +54,10 @@ export default function App() {
       <Route path="/admin" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminDashboard /></RequireRole>} />
       <Route path="/admin/doctors" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminDoctors /></RequireRole>} />
       <Route path="/admin/users" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminUsers /></RequireRole>} />
+      <Route path="/admin/users/:id" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminUserDetail /></RequireRole>} />
       <Route path="/admin/stats" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminStats /></RequireRole>} />
       <Route path="/admin/calls" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminCalls /></RequireRole>} />
+      <Route path="/admin/withdrawals" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminWithdrawals /></RequireRole>} />
     </Routes>
   );
 }

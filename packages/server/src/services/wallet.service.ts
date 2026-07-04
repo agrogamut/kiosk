@@ -44,3 +44,41 @@ export async function createWithdrawRequest(
     },
   });
 }
+
+export async function listPendingWithdrawals() {
+  return prisma.walletTransaction.findMany({
+    where: { type: "DEBIT", status: "PENDING" },
+    orderBy: { createdAt: "asc" },
+    include: { doctor: { select: { id: true, name: true, phone: true } } },
+  });
+}
+
+export async function completeWithdrawal(transactionId: string) {
+  return prisma.$transaction(async (tx) => {
+    const txn = await tx.walletTransaction.findUnique({ where: { id: transactionId } });
+    if (!txn || txn.type !== "DEBIT" || txn.status !== "PENDING") {
+      throw new AppError(400, "Not a pending withdrawal request");
+    }
+
+    const profile = await tx.doctorProfile.findUnique({ where: { userId: txn.doctorId } });
+    if (!profile || Number(profile.walletBalance) < Number(txn.amount)) {
+      throw new AppError(400, "Doctor balance insufficient to complete withdrawal");
+    }
+
+    await tx.doctorProfile.update({
+      where: { userId: txn.doctorId },
+      data: { walletBalance: { decrement: txn.amount } },
+    });
+
+    return tx.walletTransaction.update({ where: { id: transactionId }, data: { status: "COMPLETED" } });
+  });
+}
+
+export async function rejectWithdrawal(transactionId: string) {
+  const txn = await prisma.walletTransaction.findUnique({ where: { id: transactionId } });
+  if (!txn || txn.type !== "DEBIT" || txn.status !== "PENDING") {
+    throw new AppError(400, "Not a pending withdrawal request");
+  }
+
+  return prisma.walletTransaction.update({ where: { id: transactionId }, data: { status: "FAILED" } });
+}
