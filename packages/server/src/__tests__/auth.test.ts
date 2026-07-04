@@ -186,10 +186,7 @@ describe("Patient auth", () => {
         .send({ phone, otp: "111111" });
       expect(locked.status).toBe(429);
 
-      const attemptKeys = await redis.keys(`otp_attempts:${phone}:*`);
-      if (attemptKeys.length > 0) {
-        await redis.del(...attemptKeys);
-      }
+      await redis.del(`otp_attempts:${phone}`);
     });
 
     it("returns an identical response for registered and unregistered phone numbers", async () => {

@@ -83,13 +83,23 @@ authRouter.post(
       let activePatient;
       try {
         activePatient = await findActivePatientByPhone(phone);
-      } catch {
-        activePatient = null;
+      } catch (error) {
+        if (error instanceof AppError && (error.statusCode === 401 || error.statusCode === 403)) {
+          activePatient = null;
+        } else {
+          throw error;
+        }
       }
 
       if (activePatient) {
-        const otp = await storeOtp(phone);
-        await sendOtpSms(phone, otp);
+        Promise.resolve()
+          .then(async () => {
+            const otp = await storeOtp(phone);
+            await sendOtpSms(phone, otp);
+          })
+          .catch((error) => {
+            console.error("otp send failed for", phone, error);
+          });
       }
 
       await recordFailedAttempt(attemptKey);
@@ -105,7 +115,7 @@ authRouter.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { phone, otp } = PatientLoginOtpVerifySchema.parse(req.body);
-      const attemptKey = `otp_attempts:${phone}:${req.ip}`;
+      const attemptKey = `otp_attempts:${phone}`;
       await checkAttemptLimit(attemptKey);
 
       const valid = await verifyOtp(phone, otp);
