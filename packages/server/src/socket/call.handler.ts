@@ -1,8 +1,8 @@
 import type { Server, Socket } from "socket.io";
-import type { Prisma } from "@prisma/client";
 import { assignDoctorQueue } from "../lib/queues.js";
 import { prisma } from "../lib/prisma.js";
 import { livekitService } from "../services/livekit.service.js";
+import { completeCall } from "../services/call-completion.service.js";
 
 export function registerCallHandlers(
   io: Server,
@@ -69,30 +69,8 @@ export function registerCallHandlers(
       if (!call || (call.patientId !== userId && call.doctorId !== userId)) {
         return;
       }
-      if (!["QUEUED", "RINGING", "ACTIVE"].includes(call.status)) {
-        return;
-      }
 
-      const operations: Prisma.PrismaPromise<unknown>[] = [
-        prisma.callSession.update({
-          where: { id: callSessionId },
-          data: { status: "ENDED", endedAt: new Date() },
-        }),
-      ];
-      if (call.doctorId) {
-        operations.push(
-          prisma.doctorProfile.update({
-            where: { userId: call.doctorId },
-            data: { isAvailable: true },
-          }),
-        );
-      }
-      await prisma.$transaction(operations);
-
-      io.to(`user:${call.patientId}`).emit("call:ended", { callSessionId });
-      if (call.doctorId) {
-        io.to(`user:${call.doctorId}`).emit("call:ended", { callSessionId });
-      }
+      await completeCall(callSessionId);
     } catch (error) {
       console.error("call:end error", error);
     }
