@@ -46,7 +46,7 @@ services:
       - redis
       - minio
       - livekit
-    env_file: .env.example
+    env_file: .env
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://madamgy:madamgy@postgres:5432/madamgy
