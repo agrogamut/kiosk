@@ -1,14 +1,8 @@
-# WhatsApp Clone — Build Plan
+# MadamGy Kiosk — Build Plan
 
-## Project Name: graveyard-chat
+## Project Name: madamgy
 
----
-
-## Overview
-
-A full-stack real-time messaging app with 1-on-1 and group chat, voice calls,
-and video calls. Self-hostable. Uses LiveKit as the media server for all
-audio/video routing. No paid services required.
+Rebuild of the legacy HealingGmaut platform (archived, see project history) as a monorepo with shared types, PostgreSQL/Prisma, and LiveKit for self-hosted video. Requirements source: `MadamGy Kiosk App – Requirement Sheet.docx` at repo root.
 
 ---
 
@@ -16,307 +10,117 @@ audio/video routing. No paid services required.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                        Clients                          │
-│   React Web App          React Native Mobile App        │
-│   (Vite + TypeScript)    (Expo + TypeScript)            │
-└───────────────────┬─────────────────┬───────────────────┘
-                    │  REST + WS       │ REST + WS
-┌───────────────────▼─────────────────▼───────────────────┐
-│                   API Server (Node.js)                   │
-│   Express + Socket.io                                    │
-│   - Auth (JWT)                                           │
-│   - Chat messages                                        │
-│   - Presence / online status                             │
-│   - Room management                                      │
-│   - LiveKit token generation                             │
-└──────────┬─────────────────────────┬────────────────────┘
-           │ Prisma ORM              │ LiveKit SDK (server)
-┌──────────▼──────┐        ┌─────────▼──────────────────┐
-│   PostgreSQL DB  │        │   LiveKit Server (Docker)   │
-│   (messages,     │        │   - SFU media routing       │
-│    users, rooms) │        │   - WebRTC audio/video      │
-└──────────────────┘        └────────────────────────────┘
+│                        Client                            │
+│         React Web App (Vite + TypeScript)                │
+│   Kiosk (patient) / Doctor / Admin — one app, role-gated  │
+│   Runs in Android WebView/kiosk mode on the physical device│
+└───────────────────────────┬───────────────────────────────┘
+                            │ REST + WebSocket
+┌───────────────────────────▼───────────────────────────────┐
+│                   API Server (Node.js)                     │
+│   Express + Socket.io                                       │
+│   - Auth (JWT, phone+PIN / phone+password+OTP)              │
+│   - Call queueing + auto doctor assignment (BullMQ)          │
+│   - Chat / vitals sharing over sockets                       │
+│   - LiveKit token generation                                  │
+│   - Prescription submit → PDF render (BullMQ) → Health Folder │
+│   - Doctor wallet / commission / withdrawal requests          │
+└──────────┬─────────────────────┬─────────────────┬─────────┘
+           │ Prisma ORM          │ LiveKit SDK       │ MinIO SDK
+┌──────────▼──────┐   ┌──────────▼──────────┐  ┌─────▼──────┐
+│   PostgreSQL     │   │   LiveKit Server     │  │   MinIO    │
+│   (users, calls, │   │   (Docker, SFU)      │  │ (PDFs,     │
+│    prescriptions,│   └──────────────────────┘  │  reports)  │
+│    wallet, ...)  │                              └────────────┘
+└──────────────────┘
 ```
 
 ---
 
-## Phase Breakdown
+## Current Status: core loop is built and verified working
 
-### Phase 1 — Foundation (Week 1)
-- [ ] Monorepo setup (pnpm workspaces)
-- [ ] `packages/server` — Express + Socket.io + Prisma + PostgreSQL
-- [ ] `packages/web` — Vite + React + TypeScript scaffold
-- [ ] Docker compose for PostgreSQL + LiveKit
-- [ ] User auth: register, login, JWT access + refresh tokens
-- [ ] Basic user profile: username, avatar (stored as base64 or local path)
-- [ ] Database schema: users, conversations, messages, participants, call_sessions
+Verified 2026-07-04 by driving a real registration → auto-assignment → LiveKit token exchange → chat → vitals → prescription submit → PDF render → Health Folder → wallet credit flow against a live dev server (real Postgres/Redis/MinIO, workers enabled, no mocks). All 8 steps completed and produced correct DB state. Full 47-test suite passes; all 3 workspaces typecheck clean.
 
-### Phase 2 — Chat (Week 2)
-- [ ] REST endpoints: create conversation, list conversations, fetch messages
-- [ ] Socket.io events: join room, send message, receive message
-- [ ] Message types: text, image, file, system
-- [ ] Message status: sent → delivered → read (double tick logic)
-- [ ] Typing indicators via socket
-- [ ] Online/offline presence tracking
-- [ ] Group chats: create group, add/remove members, group name/avatar
-- [ ] Message reactions (emoji on message)
-- [ ] Web UI: conversation list sidebar, chat window, message bubbles
+### Done
 
-### Phase 3 — Voice & Video (Week 3)
-- [ ] LiveKit server running via Docker
-- [ ] Server generates LiveKit JWT tokens per user per room
-- [ ] Call flow: caller sends invite → callee gets socket event → accept/reject
-- [ ] 1-on-1 voice call UI (mute, end call, speaker toggle)
-- [ ] 1-on-1 video call UI (camera on/off, mute, fullscreen)
-- [ ] Group voice/video room (up to N participants via LiveKit SFU)
-- [ ] Call history log stored in DB
+- [x] Monorepo setup (npm workspaces: `server`, `web`, `api-client`)
+- [x] `packages/server` — Express + Socket.io + Prisma + PostgreSQL + BullMQ + Redis
+- [x] `packages/web` — Vite + React + TypeScript, all 3 panels (kiosk/doctor/admin)
+- [x] Docker compose for Postgres + Redis + LiveKit + MinIO + Caddy
+- [x] Patient auth: register (name/dob/phone/PIN), login (phone+PIN), Redis-backed lockout after 5 bad attempts
+- [x] Doctor auth: self-register (pending admin approval), login via password + OTP (dev fixed code)
+- [x] Admin auth: phone + password
+- [x] Database schema: User/PatientProfile/DoctorProfile/CallSession/ChatMessage/Prescription/HealthFile/WalletTransaction
+- [x] Consult button → `CallSession` (QUEUED) → BullMQ auto-assignment to an available, approved doctor → RINGING → doctor accept/reject
+- [x] LiveKit token issuance to both patient and doctor on call accept; real `@livekit/components-react` video UI both sides
+- [x] In-call text chat, bidirectional
+- [x] Vitals sharing (weight/height/BP) from kiosk operator to doctor, delivered as a chat message type
+- [x] Doctor prescription editor (tiptap) → submit → BullMQ PDF render (`@react-pdf/renderer`) → MinIO upload → `HealthFile` row → wallet commission credit → `CallSession` marked ENDED
+- [x] Patient views/prints prescription via presigned MinIO URL + `react-to-print`
+- [x] Doctor wallet balance + transaction history + withdrawal request submission
+- [x] Admin: doctor approval queue, user list + disable/enable, stats dashboard, call history
+- [x] Admin: withdrawal request approval/rejection (added — see below)
+- [x] Admin: patient/doctor detail view for support & monitoring (added — see below)
+- [x] Integration tests (vitest + supertest) against real DB — 47 tests, no mocking of Prisma
+- [x] CI workflow present (`.github/workflows`)
 
-### Phase 4 — Mobile App (Week 4)
-- [ ] `packages/mobile` — Expo + React Native + TypeScript
-- [ ] Shared API client package (`packages/api-client`)
-- [ ] Auth screens: login, register
-- [ ] Chat screens: conversation list, chat window
-- [ ] Voice/video call screens using `@livekit/react-native`
-- [ ] Push notifications via Expo Push (free)
-- [ ] Dark mode support
+### Known Gaps / Open Items (in priority order)
 
-### Phase 5 — Dashboards (Week 5, optional)
-Four dashboards in the web app (route-gated by role):
-
-| Dashboard     | Role    | Content                                              |
-|---------------|---------|------------------------------------------------------|
-| User          | user    | Profile, contacts, settings, call history            |
-| Admin         | admin   | All users, ban/delete, usage stats                   |
-| Analytics     | admin   | Message volume, call minutes, active users over time |
-| Moderator     | mod     | Flagged messages, reported users, action log         |
-
-### Phase 6 — Hosting (Week 6)
-- [ ] Dockerize API server
-- [ ] Docker compose: postgres + livekit + api + nginx reverse proxy
-- [ ] Deploy to a VPS (Hetzner CX22 = ~$4/mo, or any Linux box)
-- [ ] HTTPS via Caddy or Certbot (free Let's Encrypt certs)
-- [ ] LiveKit needs a public IP and UDP port range open (40000-49999)
-- [ ] Environment config: `.env` with secrets, no hardcoded values
-- [ ] CI: GitHub Actions build + lint on push
+1. **No real OTP for patients.** Requirement doc says existing patients log in via phone+OTP; the actual implementation is phone+PIN only. OTP exists but is wired only to the doctor login path. Decide: either update the requirement doc to match (PIN is arguably fine for a kiosk with no SMS cost), or add OTP to patient login.
+2. **Doctor "availability" is not real presence.** `DoctorProfile.isAvailable` is a plain boolean flipped from 5 different, uncoordinated code paths (assign, reject, end, manual toggle, socket disconnect). No heartbeat/reaper — if a doctor's browser crashes mid-call, the `CallSession` stays ACTIVE forever with no automatic recovery, and the patient is never notified. Needs a stale-call sweep (e.g. a periodic job that ends calls with no doctor heartbeat past N seconds).
+3. **In-call image/document sharing has no UI.** The schema (`SendChatSchema` IMAGE variant) and server handler support it; `CallChatPanel.tsx` has no file input or send button for it. Needed per requirement §2.4 ("send documents, send pictures").
+4. **Two independent "call end" paths can race.** `call:end` (socket) and the PDF-render worker both set `CallSession.status = ENDED` independently. A doctor navigating away immediately after submitting a prescription leaves a window where the DB is still ACTIVE until the async worker catches up.
+5. **Wallet credit is coupled to prescription submission, not consult completion.** If a call ends via `call:end` without a prescription ever being submitted, the doctor earns nothing for that consult — there's no fallback commission path.
+6. **Test coverage gap.** BullMQ workers are disabled under `NODE_ENV=test`, so the 47 passing tests validate the REST/auth/CRUD layer only — auto-assignment, the PDF/wallet pipeline, and the entire Socket.IO layer (call/chat/presence) have zero automated coverage. (The manual E2E run above exercises this path but isn't a repeatable test.)
+7. **No franchise/multi-center modeling.** All doctors are one flat pool; if the business needs per-center routing or reporting later, this needs a schema addition.
 
 ---
 
-## Folder Structure
+## First-Time Setup (after clone or dependency changes)
+
+These two steps are easy to forget and will cause spurious "Cannot find module" typecheck errors — they are not code bugs:
+
+```bash
+npm install
+npm run build --workspace @madamgy/api-client
+cd packages/server && npx prisma generate --schema src/prisma/schema.prisma
+```
+
+Then bring up infra and migrate:
+
+```bash
+docker compose up -d postgres redis minio livekit
+cd packages/server && npx prisma migrate deploy --schema src/prisma/schema.prisma
+DATABASE_URL=... ADMIN_PHONE=... ADMIN_PASSWORD=... npx tsx src/prisma/seed.ts
+```
+
+---
+
+## Folder Structure (actual)
 
 ```
-graveyard-chat/
+new/
 ├── docker-compose.yml
-├── package.json                  (pnpm workspace root)
+├── package.json                  (npm workspace root)
 ├── packages/
-│   ├── server/                   (Node.js API)
-│   │   ├── src/
-│   │   │   ├── routes/           (auth, users, conversations, calls)
-│   │   │   ├── socket/           (socket.io event handlers)
-│   │   │   ├── services/         (livekit, auth, message logic)
-│   │   │   ├── prisma/           (schema.prisma + migrations)
-│   │   │   └── index.ts
-│   │   └── package.json
-│   ├── web/                      (React web app)
-│   │   ├── src/
-│   │   │   ├── components/
-│   │   │   ├── pages/
-│   │   │   ├── hooks/
-│   │   │   ├── store/            (zustand)
-│   │   │   └── main.tsx
-│   │   └── package.json
-│   ├── mobile/                   (Expo React Native)
-│   │   ├── app/                  (expo-router file-based routing)
-│   │   ├── components/
-│   │   └── package.json
-│   └── api-client/               (shared typed fetch client)
-│       ├── src/
-│       └── package.json
-└── livekit/
-    └── livekit.yaml              (livekit server config)
-```
-
----
-
-## Database Schema (Prisma)
-
-```prisma
-model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
-  email        String   @unique
-  passwordHash String
-  avatarUrl    String?
-  status       String   @default("Hey there, I'm using GraveyardChat")
-  online       Boolean  @default(false)
-  lastSeen     DateTime @default(now())
-  createdAt    DateTime @default(now())
-
-  sentMessages     Message[]       @relation("sender")
-  participants     Participant[]
-  callsInitiated   CallSession[]   @relation("caller")
-}
-
-model Conversation {
-  id        String   @id @default(cuid())
-  isGroup   Boolean  @default(false)
-  name      String?
-  avatarUrl String?
-  createdAt DateTime @default(now())
-
-  participants Participant[]
-  messages     Message[]
-  calls        CallSession[]
-}
-
-model Participant {
-  userId         String
-  conversationId String
-  joinedAt       DateTime @default(now())
-  role           String   @default("member")  // member | admin
-
-  user         User         @relation(fields: [userId], references: [id])
-  conversation Conversation @relation(fields: [conversationId], references: [id])
-
-  @@id([userId, conversationId])
-}
-
-model Message {
-  id             String   @id @default(cuid())
-  conversationId String
-  senderId       String
-  content        String
-  type           String   @default("text")   // text | image | file | system
-  status         String   @default("sent")   // sent | delivered | read
-  replyToId      String?
-  createdAt      DateTime @default(now())
-  editedAt       DateTime?
-
-  conversation Conversation @relation(fields: [conversationId], references: [id])
-  sender       User         @relation("sender", fields: [senderId], references: [id])
-  replyTo      Message?     @relation("replies", fields: [replyToId], references: [id])
-  replies      Message[]    @relation("replies")
-  reactions    Reaction[]
-}
-
-model Reaction {
-  id        String @id @default(cuid())
-  messageId String
-  userId    String
-  emoji     String
-
-  message Message @relation(fields: [messageId], references: [id])
-
-  @@unique([messageId, userId])
-}
-
-model CallSession {
-  id             String    @id @default(cuid())
-  conversationId String
-  callerId       String
-  type           String    // voice | video
-  status         String    // ringing | active | ended | missed | rejected
-  livekitRoom    String    @unique
-  startedAt      DateTime?
-  endedAt        DateTime?
-  createdAt      DateTime  @default(now())
-
-  conversation Conversation @relation(fields: [conversationId], references: [id])
-  caller       User         @relation("caller", fields: [callerId], references: [id])
-}
-```
-
----
-
-## Socket.io Events
-
-### Client → Server
-| Event                  | Payload                              |
-|------------------------|--------------------------------------|
-| `chat:send`            | `{ conversationId, content, type }`  |
-| `chat:typing`          | `{ conversationId, isTyping }`       |
-| `chat:read`            | `{ conversationId, messageId }`      |
-| `call:invite`          | `{ conversationId, type }`           |
-| `call:accept`          | `{ callSessionId }`                  |
-| `call:reject`          | `{ callSessionId }`                  |
-| `call:end`             | `{ callSessionId }`                  |
-| `presence:ping`        | (heartbeat every 30s)                |
-
-### Server → Client
-| Event                  | Payload                              |
-|------------------------|--------------------------------------|
-| `chat:message`         | `Message` object                     |
-| `chat:typing`          | `{ conversationId, userId, isTyping }`|
-| `chat:status`          | `{ messageId, status }`              |
-| `call:incoming`        | `{ callSession, caller }`            |
-| `call:accepted`        | `{ callSession, livekitToken }`      |
-| `call:rejected`        | `{ callSessionId }`                  |
-| `call:ended`           | `{ callSessionId }`                  |
-| `presence:update`      | `{ userId, online, lastSeen }`       |
-
----
-
-## Call Flow
-
-```
-Caller                      Server                      Callee
-  |                            |                            |
-  |--- call:invite ----------->|                            |
-  |                            |--- call:incoming -------->|
-  |                            |                            |
-  |                            |<-- call:accept ------------|
-  |                            |                            |
-  |                    generate LiveKit tokens              |
-  |                    for both users in room               |
-  |                            |                            |
-  |<-- call:accepted ----------|--- call:accepted -------->|
-  |    (with LK token)         |    (with LK token)         |
-  |                            |                            |
-  |-- join LiveKit room ------>|<-- join LiveKit room ------|
-  |                            |                            |
-  |<======= WebRTC audio/video via LiveKit SFU ============>|
-```
-
----
-
-## Hosting Setup (Self-hosted VPS)
-
-```yaml
-# docker-compose.yml (simplified)
-services:
-  postgres:
-    image: postgres:16
-    volumes: [pgdata:/var/lib/postgresql/data]
-
-  livekit:
-    image: livekit/livekit-server
-    ports: ["7880:7880", "40000-49999:40000-49999/udp"]
-    volumes: [./livekit/livekit.yaml:/etc/livekit.yaml]
-
-  api:
-    build: ./packages/server
-    depends_on: [postgres, livekit]
-    environment:
-      DATABASE_URL: postgresql://...
-      LIVEKIT_API_KEY: ...
-      LIVEKIT_API_SECRET: ...
-
-  web:
-    build: ./packages/web
-    # serves static files
-
-  caddy:
-    image: caddy:2
-    ports: ["80:80", "443:443"]
-    volumes: [./Caddyfile:/etc/caddy/Caddyfile]
+│   ├── server/
+│   │   └── src/{routes,socket,services,workers,prisma,middleware,lib,components}
+│   ├── web/
+│   │   └── src/{pages/{kiosk,doctor,admin},components,hooks,store,lib}
+│   └── api-client/
+│       └── src/schemas/
+└── livekit/livekit.yaml
 ```
 
 ---
 
 ## Status Tracking
 
-- [ ] Phase 1 — Foundation
-- [ ] Phase 2 — Chat
-- [ ] Phase 3 — Voice & Video
-- [ ] Phase 4 — Mobile App
-- [ ] Phase 5 — Dashboards
-- [ ] Phase 6 — Hosting
+- [x] Phase 1 — Foundation (auth, schema, monorepo)
+- [x] Phase 2 — Consult flow (queue, assignment, chat, vitals)
+- [x] Phase 3 — Video (LiveKit integration)
+- [x] Phase 4 — Prescriptions (editor, PDF, Health Folder, print)
+- [x] Phase 5 — Wallet (balance, transactions, withdrawal request + admin processing)
+- [x] Phase 6 — Admin panel (doctors, users, stats, calls, withdrawals, user detail)
+- [ ] Phase 7 — Close open items above (presence/reaper, image chat UI, patient OTP decision)
+- [ ] Phase 8 — Hosting hardening (production LiveKit TURN/UDP, real MSG91 keys, secrets rotation)

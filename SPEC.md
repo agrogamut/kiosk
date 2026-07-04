@@ -1,6 +1,8 @@
 # Language & Technology Spec Sheet
 
-## Project: graveyard-chat
+## Project: MadamGy Kiosk
+
+Android kiosk-based telemedicine platform. Three panels — Patient (kiosk), Doctor, Admin — built around instant video consultation, PDF prescriptions, and a Health Folder per patient. See `MadamGy Kiosk App – Requirement Sheet.docx` at repo root for the source requirements.
 
 ---
 
@@ -9,13 +11,14 @@
 | Layer          | Language      | Reason                                                      |
 |----------------|---------------|-------------------------------------------------------------|
 | Backend        | TypeScript    | Type safety, matches frontend, large ecosystem              |
-| Web frontend   | TypeScript    | Catches prop/API mismatches at compile time                 |
-| Mobile         | TypeScript    | Shared types with server via `api-client` package           |
+| Web frontend   | TypeScript    | Catches prop/API mismatches at compile time; also serves as the kiosk UI (loaded in Android WebView/Chrome kiosk mode) |
 | Config/Infra   | YAML / Shell  | Docker compose, LiveKit config, CI scripts                  |
 | Database DSL   | Prisma Schema | Co-located with migrations, auto-generates TS types         |
 
-Runtime: **Node.js 20 LTS** (server), **Bun** optional as drop-in  
-Package manager: **pnpm 9** with workspaces
+Runtime: **Node.js 20 LTS**
+Package manager: **npm workspaces** (monorepo root `package.json`)
+
+There is no native mobile app in this repo. The Android kiosk device runs the web app (`packages/web`) in kiosk/WebView mode.
 
 ---
 
@@ -23,37 +26,37 @@ Package manager: **pnpm 9** with workspaces
 
 ### Core
 
-| Library              | Version  | Purpose                                    | License  |
-|----------------------|----------|--------------------------------------------|----------|
-| `express`            | ^4.19    | HTTP server, routing                       | MIT      |
-| `socket.io`          | ^4.7     | Real-time bidirectional events             | MIT      |
-| `prisma`             | ^5.14    | ORM + migrations                           | Apache-2 |
-| `@prisma/client`     | ^5.14    | Generated DB client                        | Apache-2 |
-| `typescript`         | ^5.4     | Type checking                              | Apache-2 |
-| `tsx`                | ^4.11    | TS execution in dev (no build step needed) | MIT      |
+| Library              | Purpose                                    |
+|----------------------|--------------------------------------------|
+| `express`            | HTTP server, routing                       |
+| `socket.io`          | Real-time bidirectional events (call/chat/presence) |
+| `prisma` / `@prisma/client` | ORM + migrations, generated client   |
+| `bullmq` + `ioredis`  | Job queues: doctor auto-assignment, PDF rendering |
+| `typescript` / `tsx` | Type checking / dev execution              |
 
 ### Auth
 
-| Library              | Version  | Purpose                                    | License  |
-|----------------------|----------|--------------------------------------------|----------|
-| `jsonwebtoken`       | ^9.0     | JWT access + refresh token signing         | MIT      |
-| `bcryptjs`           | ^2.4     | Password hashing (pure JS, no native dep)  | MIT      |
-| `zod`                | ^3.23    | Request body validation                    | MIT      |
+| Library              | Purpose                                    |
+|----------------------|---------------------------------------------|
+| `jsonwebtoken`       | JWT access + refresh token signing         |
+| `bcryptjs`           | PIN (patient) / password (doctor, admin) hashing |
+| `zod`                | Request body validation, shared with frontend via `@madamgy/api-client` |
 
-### LiveKit Integration
+Patients authenticate with **phone + 4-digit PIN** (no OTP — despite the requirement doc mentioning OTP for existing patients, the implementation is PIN-only; see PLAN.md open items). Doctors authenticate with **phone + password + OTP** (dev OTP code is fixed at `000000` outside `NODE_ENV=production`). Admin authenticates with phone + password.
 
-| Library                    | Version  | Purpose                              | License  |
-|----------------------------|----------|--------------------------------------|----------|
-| `livekit-server-sdk`       | ^2.4     | Token generation, room management    | Apache-2 |
+### Media / Storage
+
+| Library                    | Purpose                              |
+|----------------------------|---------------------------------------|
+| `livekit-server-sdk`       | LiveKit access token generation for video calls |
+| `minio`                    | S3-compatible object storage for prescription PDFs and lab report uploads |
+| `@react-pdf/renderer`      | Server-side PDF rendering of doctor's prescription |
 
 ### Dev Tools
 
-| Library              | Version  | Purpose                                    |
-|----------------------|----------|--------------------------------------------|
-| `vitest`             | ^1.6     | Unit + integration tests                   |
-| `supertest`          | ^7.0     | HTTP endpoint testing                      |
-| `eslint`             | ^9.0     | Linting                                    |
-| `prettier`           | ^3.2     | Formatting                                 |
+| Library              | Purpose                                    |
+|----------------------|---------------------------------------------|
+| `vitest` + `supertest` | Integration tests against a real Postgres/Redis (no mocking) |
 
 ---
 
@@ -61,198 +64,147 @@ Package manager: **pnpm 9** with workspaces
 
 ### Core
 
-| Library                  | Version  | Purpose                                       | License  |
-|--------------------------|----------|-----------------------------------------------|----------|
-| `react`                  | ^18.3    | UI rendering                                  | MIT      |
-| `react-dom`              | ^18.3    | DOM mounting                                  | MIT      |
-| `vite`                   | ^5.2     | Build tool / dev server                       | MIT      |
-| `typescript`             | ^5.4     | Type checking                                 | Apache-2 |
+| Library                  | Purpose                                       |
+|--------------------------|-----------------------------------------------|
+| `react` / `react-dom`    | UI rendering                                  |
+| `vite`                   | Build tool / dev server                       |
+| `typescript`             | Type checking                                 |
 
 ### Routing & State
 
-| Library                  | Version  | Purpose                                       | License  |
-|--------------------------|----------|-----------------------------------------------|----------|
-| `react-router-dom`       | ^6.23    | Client-side routing, protected routes         | MIT      |
-| `zustand`                | ^4.5     | Global state (auth, active conversation)      | MIT      |
-| `@tanstack/react-query`  | ^5.40    | Server state, caching, mutation handling      | MIT      |
+| Library                  | Purpose                                       |
+|--------------------------|-----------------------------------------------|
+| `react-router-dom`       | Client-side routing, role-gated routes (`RequireRole`) |
+| `zustand`                | Auth state                                    |
+| `@tanstack/react-query`  | Server state, caching, mutations              |
 
 ### Real-time & Calls
 
-| Library                    | Version  | Purpose                                     | License  |
-|----------------------------|----------|---------------------------------------------|----------|
-| `socket.io-client`         | ^4.7     | WebSocket connection to server              | MIT      |
-| `@livekit/components-react`| ^2.3     | Pre-built video/audio call UI components    | Apache-2 |
-| `livekit-client`           | ^2.3     | LiveKit WebRTC SDK for browser              | Apache-2 |
+| Library                    | Purpose                                     |
+|----------------------------|-----------------------------------------------|
+| `socket.io-client`         | WebSocket connection to server (call/chat/presence events) |
+| `@livekit/components-react` / `livekit-client` | Video/audio call UI + WebRTC SDK  |
 
 ### UI
 
-| Library                    | Version  | Purpose                                     | License  |
-|----------------------------|----------|---------------------------------------------|----------|
-| `tailwindcss`              | ^3.4     | Utility-first CSS                           | MIT      |
-| `clsx`                     | ^2.1     | Conditional classnames                      | MIT      |
-| `lucide-react`             | ^0.383   | Icon set (MIT, no attribution required)     | ISC      |
-| `react-hot-toast`          | ^2.4     | Notification toasts                         | MIT      |
-| `date-fns`                 | ^3.6     | Message timestamp formatting                | MIT      |
-| `react-intersection-observer` | ^9.10 | Infinite scroll / read receipt trigger      | MIT      |
-
----
-
-## Mobile App — `packages/mobile`
-
-### Core
-
-| Library                    | Version  | Purpose                                     | License  |
-|----------------------------|----------|---------------------------------------------|----------|
-| `expo`                     | ~51.0    | React Native platform + build tooling       | MIT      |
-| `expo-router`              | ~3.5     | File-based navigation (like Next.js)        | MIT      |
-| `react-native`             | 0.74     | Native mobile rendering                     | MIT      |
-| `typescript`               | ^5.4     | Type checking                               | Apache-2 |
-
-### Real-time & Calls
-
-| Library                       | Version  | Purpose                                  | License  |
-|-------------------------------|----------|------------------------------------------|----------|
-| `socket.io-client`            | ^4.7     | Same socket client as web               | MIT      |
-| `@livekit/react-native`       | ^2.1     | LiveKit voice/video for React Native    | Apache-2 |
-| `@livekit/react-native-webrtc`| ^118.0   | WebRTC native module required by above  | BSD-2    |
-
-### UI & UX
-
-| Library                    | Version  | Purpose                                     | License  |
-|----------------------------|----------|---------------------------------------------|----------|
-| `nativewind`               | ^4.0     | Tailwind-style classes in React Native      | MIT      |
-| `expo-notifications`       | ~0.28    | Push notifications (Expo infra, free)       | MIT      |
-| `expo-image-picker`        | ~15.0    | Camera roll / photo sending                 | MIT      |
-| `expo-av`                  | ~14.0    | Audio playback for voice messages           | MIT      |
-| `@shopify/flash-list`      | ^1.6     | Performant list for chat messages           | MIT      |
-| `react-native-mmkv`        | ^2.12    | Fast local storage (token persistence)      | MIT      |
+| Library                    | Purpose                                     |
+|----------------------------|-----------------------------------------------|
+| `tailwindcss`              | Utility-first CSS                           |
+| `@tiptap/react` + starter-kit | Rich text prescription editor            |
+| `react-to-print`           | Kiosk printer integration for prescriptions |
+| `react-hook-form` + `@hookform/resolvers` | Form validation against shared zod schemas |
+| `lucide-react`, `react-hot-toast`, `date-fns`, `recharts` | Icons, toasts, dates, admin stat charts |
 
 ---
 
 ## Shared Package — `packages/api-client`
 
-| Library      | Version  | Purpose                                              |
-|--------------|----------|------------------------------------------------------|
-| `zod`        | ^3.23    | Schema definitions shared between server + clients   |
-| `typescript` | ^5.4     | Generates `.d.ts` consumed by web and mobile         |
-
-All API response shapes and socket event payloads are defined here once,
-then imported in both `web` and `mobile`. No code duplication.
+Zod schemas + inferred TypeScript types for every request/response and socket payload, imported by both `server` and `web`. Must be built (`npm run build --workspace @madamgy/api-client`) before `server`/`web` typecheck or run, since they import its compiled `dist/`. **This build step is easy to forget after a fresh clone or dependency change** — if you see `Cannot find module '@madamgy/api-client'`, rebuild it and re-run `prisma generate` (see PLAN.md "First-time setup").
 
 ---
 
 ## Infrastructure
 
-### Self-hosted Services
+### Self-hosted Services (docker-compose.yml)
 
-| Service           | Image / Version         | Purpose                               | Cost     |
-|-------------------|-------------------------|---------------------------------------|----------|
-| PostgreSQL        | `postgres:16`           | Primary database                      | Free     |
-| LiveKit Server    | `livekit/livekit-server:latest` | WebRTC SFU for calls          | Free     |
-| Caddy             | `caddy:2`               | Reverse proxy + HTTPS (Let's Encrypt) | Free     |
+| Service           | Purpose                               |
+|-------------------|----------------------------------------|
+| PostgreSQL 16     | Primary database                       |
+| Redis 7           | BullMQ queues, OTP storage, PIN lockout counters |
+| LiveKit Server    | WebRTC SFU for video calls             |
+| MinIO             | Object storage for PDFs / lab reports  |
+| Caddy             | Reverse proxy + HTTPS (production)     |
 
-### VPS Requirements (minimum)
-
-| Resource  | Minimum   | Recommended           |
-|-----------|-----------|-----------------------|
-| CPU       | 2 vCPU    | 4 vCPU                |
-| RAM       | 2 GB      | 4 GB                  |
-| Disk      | 20 GB SSD | 40 GB SSD             |
-| Network   | 100 Mbps  | 1 Gbps (for calls)    |
-| Provider  | Any Linux VPS | Hetzner CX22 = ~$4/mo |
-
-### Ports Required
+### Ports
 
 | Port Range       | Protocol | Service                         |
 |------------------|----------|---------------------------------|
 | 80, 443          | TCP      | Caddy (HTTP + HTTPS)            |
-| 7880             | TCP      | LiveKit HTTP/gRPC               |
-| 7881             | TCP      | LiveKit RTC (TCP fallback)      |
+| 7880 / 7881      | TCP      | LiveKit HTTP/gRPC + RTC fallback |
 | 40000–49999      | UDP      | LiveKit WebRTC media streams    |
+| 55432, 56379, 19000/19001 | TCP | Local dev: Postgres, Redis, MinIO (mapped off default ports to avoid clashes) |
 
 ---
 
-## API Design
+## Data Model (Prisma, actual schema)
 
-### Auth
+Enums: `UserRole` (PATIENT/DOCTOR/ADMIN), `CallStatus` (QUEUED/RINGING/ACTIVE/ENDED/MISSED/REJECTED/NO_DOCTOR), `MsgType` (TEXT/IMAGE/VITALS), `FileType` (PRESCRIPTION/LAB_REPORT/OTHER), `TxnType` (CREDIT/DEBIT), `TxnStatus` (PENDING/COMPLETED/FAILED).
+
+Models: `User`, `PatientProfile`, `DoctorProfile` (includes `isAvailable`, `isApproved`, `walletBalance`, `commissionRate`), `CallSession`, `ChatMessage`, `Prescription`, `HealthFile`, `WalletTransaction`.
+
+See `packages/server/src/prisma/schema.prisma` for the source of truth — do not hand-copy this section elsewhere, it will drift.
+
+---
+
+## REST API (actual routes)
+
 ```
-POST /api/auth/register     { username, email, password }
-POST /api/auth/login        { email, password }
-POST /api/auth/refresh      { refreshToken }
+POST /api/auth/patient/register     { phone, name, dob, pin }
+POST /api/auth/patient/login        { phone, pin }
+POST /api/auth/doctor/register      { phone, name, password, degree, regNumber, specialization? }
+POST /api/auth/doctor/login/initiate { phone, password }
+POST /api/auth/doctor/login/verify  { phone, otp }
+POST /api/auth/admin/login          { phone, password }
+POST /api/auth/refresh
 POST /api/auth/logout
+
+GET  /api/calls/history
+POST /api/calls                     (patient creates a call, triggers auto-assignment)
+
+POST /api/prescriptions             { callSessionId, content }  (doctor only)
+GET  /api/prescriptions/:id
+
+GET  /api/health-files/:id
+
+GET  /api/doctor/wallet
+GET  /api/doctor/wallet/transactions
+POST /api/doctor/wallet/withdraw    { amount, bankName, accountNumber, ifsc, holderName }
+
+GET  /api/admin/doctors
+PUT  /api/admin/doctors/:id/approve
+GET  /api/admin/users
+PUT  /api/admin/users/:id/disable
+GET  /api/admin/users/:id           (patient/doctor detail: profile, health files, prescriptions, call history)
+GET  /api/admin/stats
+GET  /api/admin/calls
+GET  /api/admin/wallet/withdrawals            (pending withdrawal requests)
+PUT  /api/admin/wallet/withdrawals/:id/complete
+PUT  /api/admin/wallet/withdrawals/:id/reject
 ```
 
-### Users
-```
-GET  /api/users/me
-PUT  /api/users/me          { username?, avatarUrl?, status? }
-GET  /api/users/search?q=   (search by username)
-GET  /api/users/:id
-```
+## Socket.IO Events (actual)
 
-### Conversations
-```
-GET  /api/conversations              (list mine)
-POST /api/conversations              { participantIds, isGroup, name? }
-GET  /api/conversations/:id
-GET  /api/conversations/:id/messages (paginated, cursor-based)
-```
+### Client → Server
+| Event                     | Payload                                     |
+|----------------------------|---------------------------------------------|
+| `call:accept`             | `{ callSessionId }`                          |
+| `call:reject`             | `{ callSessionId }`                          |
+| `call:end`                | `{ callSessionId }`                          |
+| `doctor:toggle_available` | `{ isAvailable }`                             |
+| `chat:send`               | `{ type: "TEXT", callSessionId, content }` \| `{ type: "IMAGE", callSessionId, imageKey }` \| `{ type: "VITALS", callSessionId, vitals }` |
+| `presence:ping`           | (stub — echoes `presence:pong`, not wired to real presence) |
 
-### Calls
-```
-POST /api/calls/token        { callSessionId }  → { token, livekitUrl }
-GET  /api/calls/history      (paginated)
-```
+### Server → Client
+| Event                       | Payload                              |
+|------------------------------|---------------------------------------|
+| `call:ringing`               | `{ callSession }` (to patient)        |
+| `call:incoming`              | `{ callSession, patient }` (to doctor) |
+| `call:accepted`              | `{ callSessionId, livekitToken }`      |
+| `call:rejected`               | `{ callSessionId }`                   |
+| `call:ended`                  | `{ callSessionId }`                   |
+| `call:no_doctor_available`   | `{ callSessionId }`                    |
+| `chat:message`                | `ChatMessage` object                  |
+| `doctor:approved`              | (to newly approved doctor)            |
+| `doctor:new_registration`     | (to admins room)                      |
+| `prescription:ready`          | (emitted alongside `call:ended` once PDF is rendered) |
+
+Note: doctor "availability" (`DoctorProfile.isAvailable`) is a plain boolean mutated from four different code paths (assignment, reject, end, manual toggle, disconnect) — there is no real presence/heartbeat system. A doctor's crashed tab does not clean up an in-progress `CallSession`. See PLAN.md open items.
 
 ---
 
 ## Environment Variables
 
-```env
-# Server
-NODE_ENV=production
-PORT=3000
-DATABASE_URL=postgresql://user:pass@localhost:5432/graveyard
-
-JWT_ACCESS_SECRET=<64-char random>
-JWT_REFRESH_SECRET=<64-char random>
-JWT_ACCESS_EXPIRES=15m
-JWT_REFRESH_EXPIRES=30d
-
-LIVEKIT_HOST=wss://your-domain.com
-LIVEKIT_API_KEY=<from livekit.yaml>
-LIVEKIT_API_SECRET=<from livekit.yaml>
-
-# Web (Vite — must prefix VITE_)
-VITE_API_URL=https://your-domain.com/api
-VITE_SOCKET_URL=https://your-domain.com
-VITE_LIVEKIT_URL=wss://your-domain.com
-
-# Mobile (Expo)
-EXPO_PUBLIC_API_URL=https://your-domain.com/api
-EXPO_PUBLIC_SOCKET_URL=https://your-domain.com
-EXPO_PUBLIC_LIVEKIT_URL=wss://your-domain.com
-```
-
----
-
-## LiveKit Configuration
-
-```yaml
-# livekit/livekit.yaml
-port: 7880
-rtc:
-  tcp_port: 7881
-  port_range_start: 40000
-  port_range_end: 49999
-  use_external_ip: true   # required on VPS with NAT
-
-keys:
-  YOUR_API_KEY: YOUR_API_SECRET
-
-logging:
-  level: info
-```
+See `.env.example` at repo root — kept up to date there, not duplicated here.
 
 ---
 
@@ -260,22 +212,16 @@ logging:
 
 - All async functions use `async/await`, no `.then()` chains
 - Errors thrown from route handlers are caught by a single Express error middleware
-- Socket handlers mirror REST — same service layer called by both
-- All DB queries go through service functions, never direct Prisma calls in routes
-- Zod validates all inputs at the boundary (routes + socket events)
-- No `any` in TypeScript — use `unknown` + narrowing if needed
-- File naming: `kebab-case.ts` everywhere
-- Component naming: `PascalCase.tsx`
-- Constants: `UPPER_SNAKE_CASE`
+- All DB queries go through `prisma` — no raw SQL
+- Zod validates all inputs at the boundary (routes + socket events), schemas live in `@madamgy/api-client` and are shared
+- File naming: `kebab-case.ts` everywhere; components: `PascalCase.tsx`
 
 ---
 
-## What Is Not Included (Scope Boundaries)
+## Known Scope Gaps (see PLAN.md for detail)
 
-- End-to-end encryption (adds significant complexity — can layer on later with `libsodium`)
-- iOS App Store build (Expo supports it; just needs a Mac + Apple dev account)
-- SMS verification / OTP (would need Twilio or similar — not free)
-- S3-compatible file uploads (can add MinIO self-hosted later)
-- Message search (can add PostgreSQL full-text search later)
-- Disappearing messages
-- Stories / Status feature
+- No real OTP for patient login (PIN only)
+- In-call image/document sharing has server + schema support but no client UI
+- Doctor availability is not real presence — no reaper for crashed/disconnected doctor sessions mid-call
+- Wallet commission credit fires only on prescription submission, not on call completion generally
+- No franchise/multi-center modeling (single flat doctor pool)
