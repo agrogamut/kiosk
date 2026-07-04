@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { parseDateOfBirth } from "../lib/date-of-birth.js";
 import { prisma } from "../lib/prisma.js";
-import { redis } from "../lib/redis.js";
+import { checkAttemptLimit, clearAttempts, recordFailedAttempt } from "../lib/rate-limit.js";
 import { AppError } from "../middleware/error.middleware.js";
 
 export interface JwtPayload {
@@ -56,10 +56,7 @@ export async function registerPatient(data: {
 
 export async function loginPatient(phone: string, pin: string) {
   const attemptsKey = `pin_attempts:${phone}`;
-  const attempts = await redis.get(attemptsKey);
-  if (attempts && Number(attempts) >= 5) {
-    throw new AppError(429, "Account locked. Try again in 15 minutes.");
-  }
+  await checkAttemptLimit(attemptsKey);
 
   const user = await prisma.user.findUnique({ where: { phone } });
   if (!user || user.role !== "PATIENT" || !user.pinHash) {
@@ -71,12 +68,11 @@ export async function loginPatient(phone: string, pin: string) {
 
   const valid = await bcrypt.compare(pin, user.pinHash);
   if (!valid) {
-    await redis.incr(attemptsKey);
-    await redis.expire(attemptsKey, 900);
+    await recordFailedAttempt(attemptsKey);
     throw new AppError(401, "Invalid credentials");
   }
 
-  await redis.del(attemptsKey);
+  await clearAttempts(attemptsKey);
   return user;
 }
 
