@@ -36,7 +36,7 @@ export const PatientRegisterSchema = z.object({
   phone: z.string().min(10).max(15),
   name: z.string().min(1).max(100),
   dob: DateOfBirthSchema,
-  pin: z.string().length(4).regex(/^\d{4}$/),
+  pin: z.string().length(4).regex(/^\d{4}$/).optional(),
 });
 export type PatientRegister = z.infer<typeof PatientRegisterSchema>;
 
@@ -45,6 +45,17 @@ export const PatientLoginSchema = z.object({
   pin: z.string().length(4).regex(/^\d{4}$/),
 });
 export type PatientLogin = z.infer<typeof PatientLoginSchema>;
+
+export const PatientLoginOtpInitiateSchema = z.object({
+  phone: z.string().min(10).max(15),
+});
+export type PatientLoginOtpInitiate = z.infer<typeof PatientLoginOtpInitiateSchema>;
+
+export const PatientLoginOtpVerifySchema = z.object({
+  phone: z.string().min(10).max(15),
+  otp: z.string().length(6).regex(/^\d{6}$/),
+});
+export type PatientLoginOtpVerify = z.infer<typeof PatientLoginOtpVerifySchema>;
 
 export const DoctorRegisterSchema = z.object({
   phone: z.string().min(10).max(15),

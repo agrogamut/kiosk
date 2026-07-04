@@ -6,11 +6,15 @@ import {
   DoctorLoginVerifySchema,
   DoctorRegisterSchema,
   PatientLoginSchema,
+  PatientLoginOtpInitiateSchema,
+  PatientLoginOtpVerifySchema,
   PatientRegisterSchema,
 } from "@madamgy/api-client";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../middleware/error.middleware.js";
+import { checkAttemptLimit, clearAttempts, recordFailedAttempt } from "../lib/rate-limit.js";
 import {
+  findActivePatientByPhone,
   loginAdmin,
   loginDoctorInitiate,
   loginPatient,
@@ -57,6 +61,48 @@ authRouter.post(
     try {
       const { phone, pin } = PatientLoginSchema.parse(req.body);
       const user = await loginPatient(phone, pin);
+      const payload = { sub: user.id, role: user.role };
+      const accessToken = signAccessToken(payload);
+      const refreshToken = signRefreshToken(payload);
+      setRefreshCookie(res, refreshToken);
+      res.json({ accessToken, user: { id: user.id, name: user.name, role: user.role } });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+authRouter.post(
+  "/patient/login/otp/initiate",
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { phone } = PatientLoginOtpInitiateSchema.parse(req.body);
+      await findActivePatientByPhone(phone);
+      const otp = await storeOtp(phone);
+      await sendOtpSms(phone, otp);
+      res.json({ message: "OTP sent" });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+authRouter.post(
+  "/patient/login/otp/verify",
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { phone, otp } = PatientLoginOtpVerifySchema.parse(req.body);
+      const attemptKey = `otp_attempts:${phone}`;
+      await checkAttemptLimit(attemptKey);
+
+      const valid = await verifyOtp(phone, otp);
+      if (!valid) {
+        await recordFailedAttempt(attemptKey);
+        throw new AppError(401, "Invalid or expired OTP");
+      }
+      await clearAttempts(attemptKey);
+
+      const user = await findActivePatientByPhone(phone);
       const payload = { sub: user.id, role: user.role };
       const accessToken = signAccessToken(payload);
       const refreshToken = signRefreshToken(payload);

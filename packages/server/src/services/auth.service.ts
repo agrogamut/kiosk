@@ -34,7 +34,7 @@ export async function registerPatient(data: {
   phone: string;
   name: string;
   dob: string;
-  pin: string;
+  pin?: string;
 }) {
   const existing = await prisma.user.findUnique({ where: { phone: data.phone } });
   if (existing) {
@@ -42,7 +42,7 @@ export async function registerPatient(data: {
   }
 
   const dob = parseDateOfBirth(data.dob);
-  const pinHash = await bcrypt.hash(data.pin, 12);
+  const pinHash = data.pin ? await bcrypt.hash(data.pin, 12) : null;
   return prisma.user.create({
     data: {
       phone: data.phone,
@@ -52,6 +52,17 @@ export async function registerPatient(data: {
       patientProfile: { create: { dob } },
     },
   });
+}
+
+export async function findActivePatientByPhone(phone: string) {
+  const user = await prisma.user.findUnique({ where: { phone } });
+  if (!user || user.role !== "PATIENT") {
+    throw new AppError(401, "Invalid credentials");
+  }
+  if (user.disabled) {
+    throw new AppError(403, "Account disabled");
+  }
+  return user;
 }
 
 export async function loginPatient(phone: string, pin: string) {

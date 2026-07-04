@@ -7,7 +7,7 @@ import { redis } from "../lib/redis.js";
 
 async function deleteTestUsers(): Promise<void> {
   const users = await prisma.user.findMany({
-    where: { phone: { startsWith: "999900" } },
+    where: { OR: [{ phone: { startsWith: "999900" } }, { phone: { startsWith: "88885" } }] },
     select: { id: true },
   });
   const userIds = users.map((user) => user.id);
@@ -144,6 +144,49 @@ describe("Patient auth", () => {
 
     expect(response.status).toBe(429);
     await redis.del("pin_attempts:9999000001");
+  });
+
+  describe("Patient OTP login", () => {
+    it("registers a patient with no pin, then logs in via OTP", async () => {
+      const phone = "8888500001";
+      const register = await request(app).post("/api/auth/patient/register").send({
+        phone,
+        name: "OTP Patient",
+        dob: "15/06/1985",
+      });
+      expect(register.status).toBe(201);
+
+      const initiate = await request(app).post("/api/auth/patient/login/otp/initiate").send({ phone });
+      expect(initiate.status).toBe(200);
+
+      const verify = await request(app).post("/api/auth/patient/login/otp/verify").send({ phone, otp: "000000" });
+      expect(verify.status).toBe(200);
+      expect(verify.body.user.role).toBe("PATIENT");
+      expect(verify.body.accessToken).toBeTruthy();
+    });
+
+    it("rejects a wrong OTP and locks out after 5 attempts", async () => {
+      const phone = "8888500002";
+      await request(app).post("/api/auth/patient/register").send({
+        phone,
+        name: "OTP Lockout Patient",
+        dob: "15/06/1985",
+      });
+      await request(app).post("/api/auth/patient/login/otp/initiate").send({ phone });
+
+      for (let i = 0; i < 5; i++) {
+        const attempt = await request(app)
+          .post("/api/auth/patient/login/otp/verify")
+          .send({ phone, otp: "111111" });
+        expect(attempt.status).toBe(401);
+      }
+
+      const locked = await request(app)
+        .post("/api/auth/patient/login/otp/verify")
+        .send({ phone, otp: "111111" });
+      expect(locked.status).toBe(429);
+      await redis.del(`otp_attempts:${phone}`);
+    });
   });
 });
 
