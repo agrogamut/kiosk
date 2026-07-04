@@ -185,7 +185,60 @@ describe("Patient auth", () => {
         .post("/api/auth/patient/login/otp/verify")
         .send({ phone, otp: "111111" });
       expect(locked.status).toBe(429);
-      await redis.del(`otp_attempts:${phone}`);
+
+      const attemptKeys = await redis.keys(`otp_attempts:${phone}:*`);
+      if (attemptKeys.length > 0) {
+        await redis.del(...attemptKeys);
+      }
+    });
+
+    it("returns an identical response for registered and unregistered phone numbers", async () => {
+      const registeredPhone = "8888500003";
+      await request(app).post("/api/auth/patient/register").send({
+        phone: registeredPhone,
+        name: "OTP Enum Patient",
+        dob: "15/06/1985",
+      });
+
+      const unregisteredPhone = "8888500099";
+
+      const registeredResponse = await request(app)
+        .post("/api/auth/patient/login/otp/initiate")
+        .send({ phone: registeredPhone });
+      const unregisteredResponse = await request(app)
+        .post("/api/auth/patient/login/otp/initiate")
+        .send({ phone: unregisteredPhone });
+
+      expect(registeredResponse.status).toBe(200);
+      expect(unregisteredResponse.status).toBe(200);
+      expect(registeredResponse.body).toEqual(unregisteredResponse.body);
+
+      const initiateKeys = await redis.keys("otp_initiate_attempts:*");
+      if (initiateKeys.length > 0) {
+        await redis.del(...initiateKeys);
+      }
+    });
+
+    it("rejects the initiate request with 429 once the attempt cap is hit", async () => {
+      const phone = "8888500004";
+      await request(app).post("/api/auth/patient/register").send({
+        phone,
+        name: "OTP Rate Limit Patient",
+        dob: "15/06/1985",
+      });
+
+      for (let i = 0; i < 5; i++) {
+        const attempt = await request(app).post("/api/auth/patient/login/otp/initiate").send({ phone });
+        expect(attempt.status).toBe(200);
+      }
+
+      const limited = await request(app).post("/api/auth/patient/login/otp/initiate").send({ phone });
+      expect(limited.status).toBe(429);
+
+      const initiateKeys = await redis.keys("otp_initiate_attempts:*");
+      if (initiateKeys.length > 0) {
+        await redis.del(...initiateKeys);
+      }
     });
   });
 });
