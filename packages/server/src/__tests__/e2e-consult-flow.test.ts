@@ -172,18 +172,27 @@ describe("Full consult flow (real workers + sockets, no mocks)", () => {
     const incoming = await incomingPromise;
     expect(incoming.callSession.id).toBe(callSessionId);
 
-    const acceptedPromise = new Promise<void>((resolve, reject) => {
+    const acceptedPromise = new Promise<{ patient?: { livekitToken: string }; doctor?: { livekitToken: string } }>((resolve, reject) => {
+      const results: { patient?: { livekitToken: string }; doctor?: { livekitToken: string } } = {};
       let got = 0;
-      const check = () => {
+      patientSocket.once("call:accepted", (data: { livekitToken: string }) => {
+        results.patient = data;
         got++;
-        if (got === 2) resolve();
-      };
-      patientSocket.once("call:accepted", check);
-      doctorSocket.once("call:accepted", check);
+        if (got === 2) resolve(results);
+      });
+      doctorSocket.once("call:accepted", (data: { livekitToken: string }) => {
+        results.doctor = data;
+        got++;
+        if (got === 2) resolve(results);
+      });
       setTimeout(() => reject(new Error("call:accepted timeout")), 5000);
     });
     doctorSocket.emit("call:accept", { callSessionId });
-    await acceptedPromise;
+    const accepted = await acceptedPromise;
+    expect(accepted.patient?.livekitToken).toBeTruthy();
+    expect(accepted.patient!.livekitToken.length).toBeGreaterThan(20);
+    expect(accepted.doctor?.livekitToken).toBeTruthy();
+    expect(accepted.doctor!.livekitToken.length).toBeGreaterThan(20);
 
     const endedPromise = new Promise<void>((resolve, reject) => {
       patientSocket.once("call:ended", () => resolve());
