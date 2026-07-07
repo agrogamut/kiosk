@@ -154,22 +154,25 @@ authRouter.post(
   "/doctor/register",
   upload.single("licenseDocument"),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const attemptKey = `doctor_register_attempts:${req.ip}`;
     try {
-      const attemptKey = `doctor_register_attempts:${req.ip}`;
       await checkAttemptLimit(attemptKey);
 
-      if (req.file && !req.file.buffer.subarray(0, 5).toString("ascii").startsWith("%PDF-")) {
-        throw new AppError(400, "License document does not appear to be a valid PDF");
-      }
+      try {
+        if (req.file && !req.file.buffer.subarray(0, 5).toString("ascii").startsWith("%PDF-")) {
+          throw new AppError(400, "License document does not appear to be a valid PDF");
+        }
 
-      const body = DoctorRegisterSchema.parse(JSON.parse(req.body.data));
-      const user = await registerDoctor(
-        body,
-        req.file ? { buffer: req.file.buffer, mimetype: req.file.mimetype } : undefined,
-      );
-      io.to("admins").emit("doctor:new_registration", { doctorId: user.id, name: user.name });
-      await recordFailedAttempt(attemptKey);
-      res.status(201).json({ message: "Registration submitted, awaiting admin approval" });
+        const body = DoctorRegisterSchema.parse(JSON.parse(req.body.data));
+        const user = await registerDoctor(
+          body,
+          req.file ? { buffer: req.file.buffer, mimetype: req.file.mimetype } : undefined,
+        );
+        io.to("admins").emit("doctor:new_registration", { doctorId: user.id, name: user.name });
+        res.status(201).json({ message: "Registration submitted, awaiting admin approval" });
+      } finally {
+        await recordFailedAttempt(attemptKey);
+      }
     } catch (error) {
       next(error);
     }

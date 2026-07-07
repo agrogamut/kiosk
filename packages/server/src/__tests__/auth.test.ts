@@ -299,6 +299,44 @@ describe("Doctor auth", () => {
     expect(response.status).toBe(400);
   });
 
+  it("counts failed registration attempts toward the rate limit, not just successes", async () => {
+    const existingKeys = await redis.keys("doctor_register_attempts:*");
+    if (existingKeys.length > 0) {
+      await redis.del(...existingKeys);
+    }
+
+    for (let i = 0; i < 5; i++) {
+      const response = await request(app)
+        .post("/api/auth/doctor/register")
+        .field("data", JSON.stringify({
+          phone: "9999000002",
+          name: "Rate Limit Doctor",
+          password: "password123",
+          degree: "MBBS",
+          regNumber: `DOC-RATE-${i}`,
+        }));
+
+      expect(response.status).toBe(409);
+    }
+
+    const limited = await request(app)
+      .post("/api/auth/doctor/register")
+      .field("data", JSON.stringify({
+        phone: "9999000010",
+        name: "Should Be Blocked",
+        password: "password123",
+        degree: "MBBS",
+        regNumber: "DOC-9999000010",
+      }));
+
+    expect(limited.status).toBe(429);
+
+    const cleanupKeys = await redis.keys("doctor_register_attempts:*");
+    if (cleanupKeys.length > 0) {
+      await redis.del(...cleanupKeys);
+    }
+  });
+
   it("blocks doctor login before approval", async () => {
     const response = await request(app).post("/api/auth/doctor/login/initiate").send({
       phone: "9999000002",
