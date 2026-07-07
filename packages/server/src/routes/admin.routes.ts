@@ -7,6 +7,7 @@ import { AppError } from "../middleware/error.middleware.js";
 import { io } from "../index.js";
 import { completeWithdrawal, listPendingWithdrawals, rejectWithdrawal } from "../services/wallet.service.js";
 import { recordAuditLog } from "../services/audit-log.service.js";
+import { getPresignedUrl } from "../services/storage.service.js";
 
 export const adminRouter = Router();
 
@@ -22,6 +23,20 @@ adminRouter.get("/doctors", async (_req: Request, res: Response, next: NextFunct
       orderBy: { createdAt: "desc" },
     });
     res.json(doctors);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/doctors/:id/license", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const profile = await prisma.doctorProfile.findUnique({ where: { userId: req.params.id } });
+    if (!profile?.licenseDocKey) {
+      throw new AppError(404, "No license document uploaded");
+    }
+
+    const url = await getPresignedUrl(profile.licenseDocKey);
+    res.json({ url });
   } catch (error) {
     next(error);
   }

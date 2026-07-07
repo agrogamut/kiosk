@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
+import multer from "multer";
 import {
   AdminLoginSchema,
   DoctorLoginInitiateSchema,
@@ -28,6 +29,8 @@ import { sendOtpSms, storeOtp, verifyOtp } from "../services/otp.service.js";
 import { io } from "../index.js";
 
 export const authRouter = Router();
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 function setRefreshCookie(res: Response, token: string): void {
   res.cookie("refreshToken", token, {
@@ -139,10 +142,14 @@ authRouter.post(
 
 authRouter.post(
   "/doctor/register",
+  upload.single("licenseDocument"),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const body = DoctorRegisterSchema.parse(req.body);
-      const user = await registerDoctor(body);
+      const body = DoctorRegisterSchema.parse(JSON.parse(req.body.data));
+      const user = await registerDoctor(
+        body,
+        req.file ? { buffer: req.file.buffer, mimetype: req.file.mimetype } : undefined,
+      );
       io.to("admins").emit("doctor:new_registration", { doctorId: user.id, name: user.name });
       res.status(201).json({ message: "Registration submitted, awaiting admin approval" });
     } catch (error) {

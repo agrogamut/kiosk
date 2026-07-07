@@ -50,6 +50,12 @@ jobs:
       RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_TEST_KEY_ID }}
       RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_TEST_KEY_SECRET }}
       RAZORPAY_WEBHOOK_SECRET: ${{ secrets.RAZORPAY_TEST_WEBHOOK_SECRET }}
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: "19000"
+      MINIO_ACCESS_KEY: madamgy
+      MINIO_SECRET_KEY: madamgy123
+      MINIO_BUCKET: madamgy
+      MINIO_USE_SSL: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

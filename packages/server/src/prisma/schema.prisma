@@ -99,6 +99,7 @@ model DoctorProfile {
   approvedById   String?
   walletBalance  Decimal  @default(0) @db.Decimal(12, 2)
   commissionRate Decimal  @default(0.80) @db.Decimal(4, 2)
+  licenseDocKey  String?
 
   user User @relation(fields: [userId], references: [id])
 

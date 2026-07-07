@@ -242,34 +242,40 @@ describe("Patient auth", () => {
 
 describe("Doctor auth", () => {
   it("registers a doctor pending approval", async () => {
-    const response = await request(app).post("/api/auth/doctor/register").send({
-      phone: "9999000002",
-      name: "Test Doctor",
-      password: "password123",
-      degree: "MBBS",
-      regNumber: "DOC-9999000002",
-      specialization: "General Medicine",
-    });
+    const response = await request(app)
+      .post("/api/auth/doctor/register")
+      .field("data", JSON.stringify({
+        phone: "9999000002",
+        name: "Test Doctor",
+        password: "password123",
+        degree: "MBBS",
+        regNumber: "DOC-9999000002",
+        specialization: "General Medicine",
+      }));
 
     expect(response.status).toBe(201);
     expect(response.body.message).toContain("awaiting admin approval");
   });
 
   it("rejects duplicate doctor phone and registration number", async () => {
-    const duplicatePhone = await request(app).post("/api/auth/doctor/register").send({
-      phone: "9999000002",
-      name: "Duplicate Doctor",
-      password: "password123",
-      degree: "MBBS",
-      regNumber: "DOC-NEW",
-    });
-    const duplicateReg = await request(app).post("/api/auth/doctor/register").send({
-      phone: "9999000003",
-      name: "Duplicate Registration",
-      password: "password123",
-      degree: "MBBS",
-      regNumber: "DOC-9999000002",
-    });
+    const duplicatePhone = await request(app)
+      .post("/api/auth/doctor/register")
+      .field("data", JSON.stringify({
+        phone: "9999000002",
+        name: "Duplicate Doctor",
+        password: "password123",
+        degree: "MBBS",
+        regNumber: "DOC-NEW",
+      }));
+    const duplicateReg = await request(app)
+      .post("/api/auth/doctor/register")
+      .field("data", JSON.stringify({
+        phone: "9999000003",
+        name: "Duplicate Registration",
+        password: "password123",
+        degree: "MBBS",
+        regNumber: "DOC-9999000002",
+      }));
 
     expect(duplicatePhone.status).toBe(409);
     expect(duplicateReg.status).toBe(409);

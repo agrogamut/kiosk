@@ -6,6 +6,7 @@ import { parseDateOfBirth } from "../lib/date-of-birth.js";
 import { prisma } from "../lib/prisma.js";
 import { checkAttemptLimit, clearAttempts, recordFailedAttempt } from "../lib/rate-limit.js";
 import { AppError } from "../middleware/error.middleware.js";
+import { uploadBuffer } from "./storage.service.js";
 
 export interface JwtPayload {
   sub: string;
@@ -87,14 +88,17 @@ export async function loginPatient(phone: string, pin: string) {
   return user;
 }
 
-export async function registerDoctor(data: {
-  phone: string;
-  name: string;
-  password: string;
-  degree: string;
-  regNumber: string;
-  specialization?: string;
-}) {
+export async function registerDoctor(
+  data: {
+    phone: string;
+    name: string;
+    password: string;
+    degree: string;
+    regNumber: string;
+    specialization?: string;
+  },
+  licenseFile?: { buffer: Buffer; mimetype: string },
+) {
   const existing = await prisma.user.findUnique({ where: { phone: data.phone } });
   if (existing) {
     throw new AppError(409, "Phone already registered");
@@ -108,7 +112,7 @@ export async function registerDoctor(data: {
   }
 
   const passwordHash = await bcrypt.hash(data.password, 12);
-  return prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       phone: data.phone,
       name: data.name,
@@ -123,6 +127,14 @@ export async function registerDoctor(data: {
       },
     },
   });
+
+  if (licenseFile) {
+    const objectKey = `doctor-verification/${user.id}.pdf`;
+    await uploadBuffer(objectKey, licenseFile.buffer, licenseFile.mimetype);
+    await prisma.doctorProfile.update({ where: { userId: user.id }, data: { licenseDocKey: objectKey } });
+  }
+
+  return user;
 }
 
 export async function loginDoctorInitiate(phone: string, password: string) {
