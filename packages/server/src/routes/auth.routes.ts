@@ -30,7 +30,17 @@ import { io } from "../index.js";
 
 export const authRouter = Router();
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, callback) => {
+    if (file.mimetype !== "application/pdf") {
+      callback(new AppError(400, "License document must be a PDF"));
+      return;
+    }
+    callback(null, true);
+  },
+});
 
 function setRefreshCookie(res: Response, token: string): void {
   res.cookie("refreshToken", token, {
@@ -145,12 +155,20 @@ authRouter.post(
   upload.single("licenseDocument"),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const attemptKey = `doctor_register_attempts:${req.ip}`;
+      await checkAttemptLimit(attemptKey);
+
+      if (req.file && !req.file.buffer.subarray(0, 5).toString("ascii").startsWith("%PDF-")) {
+        throw new AppError(400, "License document does not appear to be a valid PDF");
+      }
+
       const body = DoctorRegisterSchema.parse(JSON.parse(req.body.data));
       const user = await registerDoctor(
         body,
         req.file ? { buffer: req.file.buffer, mimetype: req.file.mimetype } : undefined,
       );
       io.to("admins").emit("doctor:new_registration", { doctorId: user.id, name: user.name });
+      await recordFailedAttempt(attemptKey);
       res.status(201).json({ message: "Registration submitted, awaiting admin approval" });
     } catch (error) {
       next(error);

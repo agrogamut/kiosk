@@ -281,6 +281,24 @@ describe("Doctor auth", () => {
     expect(duplicateReg.status).toBe(409);
   });
 
+  it("rejects a license document that is not a valid PDF", async () => {
+    const response = await request(app)
+      .post("/api/auth/doctor/register")
+      .field("data", JSON.stringify({
+        phone: "9999000009",
+        name: "Fake License Doctor",
+        password: "password123",
+        regNumber: "DOC-9999000009",
+        degree: "MBBS",
+      }))
+      .attach("licenseDocument", Buffer.from("just a plain text file, not a pdf"), {
+        filename: "license.pdf",
+        contentType: "text/plain",
+      });
+
+    expect(response.status).toBe(400);
+  });
+
   it("blocks doctor login before approval", async () => {
     const response = await request(app).post("/api/auth/doctor/login/initiate").send({
       phone: "9999000002",

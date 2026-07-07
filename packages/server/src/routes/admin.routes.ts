@@ -35,7 +35,9 @@ adminRouter.get("/doctors/:id/license", async (req: Request, res: Response, next
       throw new AppError(404, "No license document uploaded");
     }
 
-    const url = await getPresignedUrl(profile.licenseDocKey);
+    const url = await getPresignedUrl(profile.licenseDocKey, 3600, {
+      "response-content-disposition": "attachment",
+    });
     res.json({ url });
   } catch (error) {
     next(error);

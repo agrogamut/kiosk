@@ -130,7 +130,7 @@ export async function registerDoctor(
 
   if (licenseFile) {
     const objectKey = `doctor-verification/${user.id}.pdf`;
-    await uploadBuffer(objectKey, licenseFile.buffer, licenseFile.mimetype);
+    await uploadBuffer(objectKey, licenseFile.buffer, "application/pdf");
     await prisma.doctorProfile.update({ where: { userId: user.id }, data: { licenseDocKey: objectKey } });
   }
 

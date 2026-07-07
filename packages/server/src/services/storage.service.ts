@@ -28,8 +28,12 @@ export async function uploadBuffer(
   });
 }
 
-export async function getPresignedUrl(objectKey: string, ttlSeconds = 3600): Promise<string> {
-  return client.presignedGetObject(BUCKET, objectKey, ttlSeconds);
+export async function getPresignedUrl(
+  objectKey: string,
+  ttlSeconds = 3600,
+  responseHeaders?: Record<string, string>,
+): Promise<string> {
+  return client.presignedGetObject(BUCKET, objectKey, ttlSeconds, responseHeaders);
 }
 
 export async function deleteObject(objectKey: string): Promise<void> {
