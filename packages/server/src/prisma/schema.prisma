@@ -73,6 +73,7 @@ model User {
   walletTxns     WalletTransaction[]
   chatMessages   ChatMessage[]
   payments       Payment[]
+  auditLogs      AuditLog[]
 }
 
 model PatientProfile {
@@ -202,4 +203,17 @@ model WalletTransaction {
   doctor User @relation(fields: [doctorId], references: [id])
 
   @@index([doctorId, createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  action    String
+  targetId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([actorId, createdAt])
 }

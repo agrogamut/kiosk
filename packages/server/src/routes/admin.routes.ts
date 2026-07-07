@@ -6,6 +6,7 @@ import { requireAuth } from "../middleware/auth.middleware.js";
 import { AppError } from "../middleware/error.middleware.js";
 import { io } from "../index.js";
 import { completeWithdrawal, listPendingWithdrawals, rejectWithdrawal } from "../services/wallet.service.js";
+import { recordAuditLog } from "../services/audit-log.service.js";
 
 export const adminRouter = Router();
 
@@ -39,6 +40,7 @@ adminRouter.put("/doctors/:id/approve", async (req: Request, res: Response, next
     });
 
     io.to(`user:${req.params.id}`).emit("doctor:approved");
+    await recordAuditLog(req.user!.sub, "doctor.approve", req.params.id);
     res.json({ message: "Doctor approved" });
   } catch (error) {
     next(error);
@@ -61,6 +63,7 @@ adminRouter.put("/users/:id/disable", async (req: Request, res: Response, next: 
   try {
     const { disabled } = DisableUserSchema.parse(req.body);
     await prisma.user.update({ where: { id: req.params.id }, data: { disabled } });
+    await recordAuditLog(req.user!.sub, disabled ? "user.disable" : "user.enable", req.params.id);
     res.json({ message: disabled ? "User disabled" : "User enabled" });
   } catch (error) {
     next(error);
@@ -155,6 +158,7 @@ adminRouter.get("/wallet/withdrawals", async (_req: Request, res: Response, next
 adminRouter.put("/wallet/withdrawals/:id/complete", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const transaction = await completeWithdrawal(req.params.id);
+    await recordAuditLog(req.user!.sub, "withdrawal.complete", transaction.id, { amount: transaction.amount.toString() });
     res.json(transaction);
   } catch (error) {
     next(error);
@@ -164,7 +168,27 @@ adminRouter.put("/wallet/withdrawals/:id/complete", async (req: Request, res: Re
 adminRouter.put("/wallet/withdrawals/:id/reject", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const transaction = await rejectWithdrawal(req.params.id);
+    await recordAuditLog(req.user!.sub, "withdrawal.reject", transaction.id);
     res.json(transaction);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/audit-log", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const page = Math.max(Number(req.query.page ?? "1"), 1);
+    const limit = 50;
+    const [logs, total] = await Promise.all([
+      prisma.auditLog.findMany({
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: { actor: { select: { id: true, name: true, role: true } } },
+      }),
+      prisma.auditLog.count(),
+    ]);
+    res.json({ logs, total, page, pages: Math.ceil(total / limit) });
   } catch (error) {
     next(error);
   }

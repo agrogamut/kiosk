@@ -48,6 +48,7 @@ async function deleteApiTestData(): Promise<void> {
   });
   await prisma.doctorProfile.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.patientProfile.deleteMany({ where: { userId: { in: userIds } } });
+  await prisma.auditLog.deleteMany({ where: { actorId: { in: userIds } } });
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
 }
 
