@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
 import type { Prisma } from "@prisma/client";
+import { z } from "zod";
 import { assignDoctorQueue } from "../lib/queues.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
@@ -20,9 +21,24 @@ callsRouter.post("/", requireAuth("PATIENT"), async (req: Request, res: Response
       return;
     }
 
+    let paymentId: string | undefined;
+    if (process.env.REQUIRE_PAYMENT_FOR_CALLS === "true") {
+      const body = z.object({ paymentId: z.string() }).parse(req.body);
+      const payment = await prisma.payment.findUnique({ where: { id: body.paymentId } });
+      if (!payment || payment.patientId !== patientId || payment.status !== "PAID" || payment.callSessionId) {
+        res.status(402).json({ message: "Valid unused paid payment required" });
+        return;
+      }
+      paymentId = payment.id;
+    }
+
     const call = await prisma.callSession.create({
       data: { patientId, livekitRoom: `room-${randomUUID()}`, status: "QUEUED" },
     });
+
+    if (paymentId) {
+      await prisma.payment.update({ where: { id: paymentId }, data: { callSessionId: call.id } });
+    }
 
     await assignDoctorQueue.add(
       "assign",

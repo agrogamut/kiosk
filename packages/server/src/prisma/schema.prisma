@@ -46,6 +46,13 @@ enum TxnStatus {
   FAILED
 }
 
+enum PaymentStatus {
+  CREATED
+  PAID
+  FAILED
+  REFUNDED
+}
+
 model User {
   id           String   @id @default(cuid())
   phone        String   @unique
@@ -65,6 +72,7 @@ model User {
   callsAsDoctor  CallSession[]       @relation("doctor_calls")
   walletTxns     WalletTransaction[]
   chatMessages   ChatMessage[]
+  payments       Payment[]
 }
 
 model PatientProfile {
@@ -111,9 +119,26 @@ model CallSession {
   doctor       User?         @relation("doctor_calls", fields: [doctorId], references: [id])
   prescription Prescription?
   messages     ChatMessage[]
+  payment      Payment?
 
   @@index([patientId])
   @@index([status])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  patientId         String
+  callSessionId     String?       @unique
+  amount            Decimal       @db.Decimal(10, 2)
+  razorpayOrderId   String        @unique
+  razorpayPaymentId String?
+  status            PaymentStatus @default(CREATED)
+  createdAt         DateTime      @default(now())
+
+  patient     User         @relation(fields: [patientId], references: [id])
+  callSession CallSession? @relation(fields: [callSessionId], references: [id])
+
+  @@index([patientId])
 }
 
 model ChatMessage {

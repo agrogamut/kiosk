@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { bullMqConnection } from "../lib/queues.js";
 import { prisma } from "../lib/prisma.js";
 import { io } from "../index.js";
+import { refundPayment } from "../services/payment.service.js";
 
 interface AssignDoctorJobData {
   callSessionId: string;
@@ -76,6 +77,13 @@ export function handleAssignDoctorFailed(worker: Worker<AssignDoctorJobData>): v
       where: { id: job.data.callSessionId },
       data: { status: "NO_DOCTOR" },
     });
+
+    const payment = await prisma.payment.findUnique({ where: { callSessionId: job.data.callSessionId } });
+    if (payment && payment.status === "PAID") {
+      await refundPayment(payment.id).catch((refundError: unknown) => {
+        console.error("auto-refund failed for callSession", job.data.callSessionId, refundError);
+      });
+    }
 
     io.to(`user:${call.patientId}`).emit("call:no_doctor_available", {
       callSessionId: job.data.callSessionId,

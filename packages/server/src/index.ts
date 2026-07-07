@@ -10,6 +10,7 @@ import { authRouter } from "./routes/auth.routes.js";
 import { callsRouter } from "./routes/calls.routes.js";
 import { doctorRouter } from "./routes/doctor.routes.js";
 import { healthFilesRouter } from "./routes/health-files.routes.js";
+import { paymentsRouter } from "./routes/payments.routes.js";
 import { prescriptionsRouter } from "./routes/prescriptions.routes.js";
 import { usersRouter } from "./routes/users.routes.js";
 import { initSocketHandlers } from "./socket/index.js";
@@ -31,6 +32,7 @@ initSocketHandlers(io);
 
 app.use(helmet());
 app.use(cors({ origin: webUrl, credentials: true }));
+app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
 app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 if (process.env.NODE_ENV !== "test") {
@@ -46,6 +48,7 @@ app.use("/api/users", usersRouter);
 app.use("/api/calls", callsRouter);
 app.use("/api/prescriptions", prescriptionsRouter);
 app.use("/api/health-files", healthFilesRouter);
+app.use("/api/payments", paymentsRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/doctor", doctorRouter);
 
