@@ -56,6 +56,12 @@ jobs:
       MINIO_SECRET_KEY: madamgy123
       MINIO_BUCKET: madamgy
       MINIO_USE_SSL: "false"
+      LIVEKIT_HOST: "ws://localhost:7880"
+      LIVEKIT_API_KEY: devkey
+      LIVEKIT_API_SECRET: devsecretdevsecretdevsecret
+      WEB_URL: "*"
+      REQUIRE_PAYMENT_FOR_CALLS: "false"
+      STALE_CALL_REAPER_ENABLED: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
