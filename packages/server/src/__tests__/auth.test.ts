@@ -7,7 +7,7 @@ import { redis } from "../lib/redis.js";
 
 async function deleteTestUsers(): Promise<void> {
   const users = await prisma.user.findMany({
-    where: { OR: [{ phone: { startsWith: "999900" } }, { phone: { startsWith: "88885" } }] },
+    where: { OR: [{ phone: { startsWith: "999900" } }, { phone: { startsWith: "88885" } }, { phone: { startsWith: "88891" } }] },
     select: { id: true },
   });
   const userIds = users.map((user) => user.id);
@@ -92,6 +92,7 @@ describe("Patient auth", () => {
       name: "Test Patient",
       dob: "01/01/1990",
       pin: "1234",
+      consent: true,
     });
 
     expect(response.status).toBe(201);
@@ -105,9 +106,19 @@ describe("Patient auth", () => {
       name: "Duplicate Patient",
       dob: "01/01/1990",
       pin: "1234",
+      consent: true,
     });
 
     expect(response.status).toBe(409);
+  });
+
+  it("rejects patient registration without consent", async () => {
+    const response = await request(app).post("/api/auth/patient/register").send({
+      phone: "8889100001",
+      name: "No Consent Patient",
+      dob: "01/01/1990",
+    });
+    expect(response.status).toBe(400);
   });
 
   it("logs in with correct PIN", async () => {
@@ -153,6 +164,7 @@ describe("Patient auth", () => {
         phone,
         name: "OTP Patient",
         dob: "15/06/1985",
+        consent: true,
       });
       expect(register.status).toBe(201);
 
@@ -171,6 +183,7 @@ describe("Patient auth", () => {
         phone,
         name: "OTP Lockout Patient",
         dob: "15/06/1985",
+        consent: true,
       });
       await request(app).post("/api/auth/patient/login/otp/initiate").send({ phone });
 
@@ -195,6 +208,7 @@ describe("Patient auth", () => {
         phone: registeredPhone,
         name: "OTP Enum Patient",
         dob: "15/06/1985",
+        consent: true,
       });
 
       const unregisteredPhone = "8888500099";
@@ -222,6 +236,7 @@ describe("Patient auth", () => {
         phone,
         name: "OTP Rate Limit Patient",
         dob: "15/06/1985",
+        consent: true,
       });
 
       for (let i = 0; i < 5; i++) {

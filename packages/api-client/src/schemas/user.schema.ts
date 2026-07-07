@@ -37,6 +37,7 @@ export const PatientRegisterSchema = z.object({
   name: z.string().min(1).max(100),
   dob: DateOfBirthSchema,
   pin: z.string().length(4).regex(/^\d{4}$/).optional(),
+  consent: z.literal(true),
 });
 export type PatientRegister = z.infer<typeof PatientRegisterSchema>;
 

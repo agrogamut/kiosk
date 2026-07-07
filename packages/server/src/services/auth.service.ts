@@ -50,7 +50,7 @@ export async function registerPatient(data: {
       name: data.name,
       role: "PATIENT",
       pinHash,
-      patientProfile: { create: { dob } },
+      patientProfile: { create: { dob, consentGivenAt: new Date() } },
     },
   });
 }
