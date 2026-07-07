@@ -6,6 +6,8 @@ describe("completeCall", () => {
   let patientId: string;
   let doctorId: string;
   let callId: string;
+  let nullDoctorCallId: string | undefined;
+  let concurrentCallId: string | undefined;
 
   beforeAll(async () => {
     const patient = await prisma.user.create({
@@ -32,8 +34,9 @@ describe("completeCall", () => {
   });
 
   afterAll(async () => {
+    const extraCallIds = [nullDoctorCallId, concurrentCallId].filter((id): id is string => Boolean(id));
     await prisma.walletTransaction.deleteMany({ where: { doctorId } });
-    await prisma.callSession.deleteMany({ where: { id: callId } });
+    await prisma.callSession.deleteMany({ where: { id: { in: [callId, ...extraCallIds] } } });
     await prisma.doctorProfile.deleteMany({ where: { userId: doctorId } });
     await prisma.user.deleteMany({ where: { id: { in: [patientId, doctorId] } } });
   });
@@ -58,6 +61,49 @@ describe("completeCall", () => {
     await completeCall(callId);
 
     const transactions = await prisma.walletTransaction.findMany({ where: { callSessionId: callId } });
+    expect(transactions).toHaveLength(1);
+  });
+
+  it("ends a call with no assigned doctor without crashing and credits no one", async () => {
+    const call = await prisma.callSession.create({
+      data: {
+        patientId,
+        doctorId: null,
+        status: "QUEUED",
+        livekitRoom: "room-completion-null-doctor",
+      },
+    });
+    nullDoctorCallId = call.id;
+
+    await expect(completeCall(call.id)).resolves.not.toThrow();
+
+    const updated = await prisma.callSession.findUniqueOrThrow({ where: { id: call.id } });
+    expect(updated.status).toBe("ENDED");
+
+    const transactions = await prisma.walletTransaction.findMany({ where: { callSessionId: call.id } });
+    expect(transactions).toHaveLength(0);
+  });
+
+  it("credits exactly once when completeCall is invoked concurrently on the same ACTIVE call", async () => {
+    const call = await prisma.callSession.create({
+      data: {
+        patientId,
+        doctorId,
+        status: "ACTIVE",
+        livekitRoom: "room-completion-concurrent",
+        startedAt: new Date(),
+      },
+    });
+    concurrentCallId = call.id;
+
+    await Promise.all([completeCall(call.id), completeCall(call.id)]);
+
+    const updated = await prisma.callSession.findUniqueOrThrow({ where: { id: call.id } });
+    expect(updated.status).toBe("ENDED");
+
+    const transactions = await prisma.walletTransaction.findMany({
+      where: { callSessionId: call.id, type: "CREDIT" },
+    });
     expect(transactions).toHaveLength(1);
   });
 });
