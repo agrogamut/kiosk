@@ -33,13 +33,6 @@ export const authRouter = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, callback) => {
-    if (file.mimetype !== "application/pdf") {
-      callback(new AppError(400, "License document must be a PDF"));
-      return;
-    }
-    callback(null, true);
-  },
 });
 
 function setRefreshCookie(res: Response, token: string): void {
@@ -159,8 +152,12 @@ authRouter.post(
       await checkAttemptLimit(attemptKey);
 
       try {
-        if (req.file && !req.file.buffer.subarray(0, 5).toString("ascii").startsWith("%PDF-")) {
-          throw new AppError(400, "License document does not appear to be a valid PDF");
+        if (
+          req.file &&
+          (req.file.mimetype !== "application/pdf" ||
+            !req.file.buffer.subarray(0, 5).toString("ascii").startsWith("%PDF-"))
+        ) {
+          throw new AppError(400, "License document must be a valid PDF");
         }
 
         const body = DoctorRegisterSchema.parse(JSON.parse(req.body.data));
