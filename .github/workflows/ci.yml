@@ -75,3 +75,14 @@ jobs:
       - run: npm run db:seed --workspace @madamgy/server
       - run: docker run -d --name madamgy-ci-minio -e MINIO_ROOT_USER=madamgy -e MINIO_ROOT_PASSWORD=madamgy123 -p 19000:9000 minio/minio server /data
       - run: npm run test --workspace @madamgy/server
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
