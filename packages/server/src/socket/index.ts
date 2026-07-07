@@ -40,7 +40,7 @@ export function initSocketHandlers(io: Server): void {
 
     registerCallHandlers(io, socket, userId, userRole);
     registerChatHandlers(io, socket, userId);
-    registerPresenceHandlers(socket);
+    registerPresenceHandlers(socket, userId, userRole);
 
     socket.on("disconnect", () => {
       if (userRole !== "DOCTOR") {

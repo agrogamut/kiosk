@@ -17,6 +17,7 @@ import { errorMiddleware } from "./middleware/error.middleware.js";
 import { ensureBucket } from "./services/storage.service.js";
 import { handleAssignDoctorFailed, startAssignDoctorWorker } from "./workers/assign-doctor.worker.js";
 import { startRenderPdfWorker } from "./workers/render-pdf.worker.js";
+import { startStaleCallReaper } from "./workers/stale-call-reaper.worker.js";
 
 const webUrl = process.env.WEB_URL ?? "*";
 
@@ -62,6 +63,11 @@ if (process.env.NODE_ENV !== "test") {
   handleAssignDoctorFailed(assignWorker);
   startRenderPdfWorker();
   console.log("Queue workers started");
+
+  if (process.env.STALE_CALL_REAPER_ENABLED === "true") {
+    startStaleCallReaper();
+    console.log("Stale call reaper started");
+  }
 }
 
 const port = process.env.PORT ?? 3000;
