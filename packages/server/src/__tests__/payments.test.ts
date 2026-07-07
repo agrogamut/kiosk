@@ -60,7 +60,9 @@ describe("Payments", () => {
       },
     });
 
-    const paid = await markPaymentPaid("order_fake_test_seed", "pay_fake_test_id");
+    await markPaymentPaid("order_fake_test_seed", "pay_fake_test_id");
+
+    const paid = await prisma.payment.findUniqueOrThrow({ where: { razorpayOrderId: "order_fake_test_seed" } });
     expect(paid.status).toBe("PAID");
   });
 

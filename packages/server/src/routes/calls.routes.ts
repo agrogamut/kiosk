@@ -21,23 +21,33 @@ callsRouter.post("/", requireAuth("PATIENT"), async (req: Request, res: Response
       return;
     }
 
-    let paymentId: string | undefined;
+    let claimedPaymentId: string | undefined;
     if (process.env.REQUIRE_PAYMENT_FOR_CALLS === "true") {
       const body = z.object({ paymentId: z.string() }).parse(req.body);
-      const payment = await prisma.payment.findUnique({ where: { id: body.paymentId } });
-      if (!payment || payment.patientId !== patientId || payment.status !== "PAID" || payment.callSessionId) {
+      // Atomically claim the payment before creating the call, so two concurrent requests with
+      // the same paymentId can't both pass a read-then-check and both end up with a call created.
+      // The empty-string callSessionId is a temporary "claimed but not yet linked" marker: it
+      // satisfies the @unique constraint on Payment.callSessionId (only one payment can hold it
+      // at a time) and no CallSession will ever have an empty-string id (cuid()-generated), so it
+      // can never collide with a real call. It's corrected to the real call.id right after the
+      // CallSession is created below.
+      const claim = await prisma.payment.updateMany({
+        where: { id: body.paymentId, patientId, status: "PAID", callSessionId: null },
+        data: { callSessionId: "" },
+      });
+      if (claim.count === 0) {
         res.status(402).json({ message: "Valid unused paid payment required" });
         return;
       }
-      paymentId = payment.id;
+      claimedPaymentId = body.paymentId;
     }
 
     const call = await prisma.callSession.create({
       data: { patientId, livekitRoom: `room-${randomUUID()}`, status: "QUEUED" },
     });
 
-    if (paymentId) {
-      await prisma.payment.update({ where: { id: paymentId }, data: { callSessionId: call.id } });
+    if (claimedPaymentId) {
+      await prisma.payment.update({ where: { id: claimedPaymentId }, data: { callSessionId: call.id } });
     }
 
     await assignDoctorQueue.add(
