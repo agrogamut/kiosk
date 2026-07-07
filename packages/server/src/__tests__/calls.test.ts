@@ -21,6 +21,7 @@ async function deleteTestPatient(): Promise<void> {
 
   await prisma.prescription.deleteMany({ where: { callSessionId: { in: callIds } } });
   await prisma.chatMessage.deleteMany({ where: { callSessionId: { in: callIds } } });
+  await prisma.payment.deleteMany({ where: { patientId: { in: userIds } } });
   await prisma.callSession.deleteMany({ where: { patientId: { in: userIds } } });
   await prisma.patientProfile.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
@@ -83,5 +84,96 @@ describe("GET /api/calls/history", () => {
     const response = await request(app).get("/api/calls/history");
 
     expect(response.status).toBe(401);
+  });
+});
+
+describe("POST /api/calls with REQUIRE_PAYMENT_FOR_CALLS=true", () => {
+  const previousFlag = process.env.REQUIRE_PAYMENT_FOR_CALLS;
+
+  beforeAll(async () => {
+    process.env.REQUIRE_PAYMENT_FOR_CALLS = "true";
+    // Earlier tests in this file leave an active call for this patient; resolve it so it
+    // doesn't trip the "active call already exists" 409 check in this describe block.
+    await prisma.callSession.updateMany({
+      where: { patientId, status: { in: ["QUEUED", "RINGING", "ACTIVE"] } },
+      data: { status: "ENDED" },
+    });
+  });
+
+  afterAll(() => {
+    if (previousFlag === undefined) {
+      delete process.env.REQUIRE_PAYMENT_FOR_CALLS;
+    } else {
+      process.env.REQUIRE_PAYMENT_FOR_CALLS = previousFlag;
+    }
+  });
+
+  async function createPaidPayment(): Promise<string> {
+    const payment = await prisma.payment.create({
+      data: {
+        patientId,
+        amount: "100.00",
+        razorpayOrderId: `order_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        status: "PAID",
+      },
+    });
+    return payment.id;
+  }
+
+  it("claims the payment and links it to the created call session", async () => {
+    const paymentId = await createPaidPayment();
+
+    const response = await request(app)
+      .post("/api/calls")
+      .set("Authorization", `Bearer ${patientToken}`)
+      .send({ paymentId });
+
+    expect(response.status).toBe(201);
+    const callId = response.body.id;
+
+    const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+    expect(payment?.callSessionId).toBe(callId);
+
+    // Free up the patient so subsequent tests aren't blocked by an "active call" 409.
+    await prisma.callSession.update({ where: { id: callId }, data: { status: "ENDED" } });
+  });
+
+  it("rejects reuse of an already-claimed payment and leaves no orphan call session", async () => {
+    const paymentId = await createPaidPayment();
+
+    const first = await request(app)
+      .post("/api/calls")
+      .set("Authorization", `Bearer ${patientToken}`)
+      .send({ paymentId });
+
+    expect(first.status).toBe(201);
+    const firstCallId = first.body.id;
+
+    // Resolve the first call so the "active call already exists" check doesn't short-circuit.
+    await prisma.callSession.update({ where: { id: firstCallId }, data: { status: "ENDED" } });
+
+    const second = await request(app)
+      .post("/api/calls")
+      .set("Authorization", `Bearer ${patientToken}`)
+      .send({ paymentId });
+
+    expect(second.status).toBe(402);
+
+    const orphan = await prisma.callSession.findFirst({
+      where: { patientId, id: { not: firstCallId }, status: "QUEUED" },
+    });
+    expect(orphan).toBeNull();
+
+    const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+    expect(payment?.callSessionId).toBe(firstCallId);
+  });
+
+  it("returns 402 when the payment does not exist or is not PAID", async () => {
+    const response = await request(app)
+      .post("/api/calls")
+      .set("Authorization", `Bearer ${patientToken}`)
+      .send({ paymentId: "nonexistent-payment-id" });
+
+    expect(response.status).toBe(402);
   });
 });
