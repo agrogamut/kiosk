@@ -7,6 +7,11 @@ if not set -q DATABASE_URL
     exit 1
 end
 
+if not command -q pg_dump
+    echo "pg_dump not found — install postgresql-client tools."
+    exit 1
+end
+
 set script_dir (dirname (status --current-filename))
 set backup_dir $script_dir/../backups
 mkdir -p $backup_dir
@@ -15,6 +20,11 @@ set timestamp (date +%Y%m%d-%H%M%S)
 set filename $backup_dir/madamgy-$timestamp.sql.gz
 
 pg_dump $DATABASE_URL | gzip > $filename
+if test $pipestatus[1] -ne 0
+    echo "pg_dump failed (exit code $pipestatus[1]) — removing incomplete backup file"
+    rm -f $filename
+    exit 1
+end
 echo "Backup written to $filename"
 
 set existing_backups (ls -1t $backup_dir/madamgy-*.sql.gz 2>/dev/null)
