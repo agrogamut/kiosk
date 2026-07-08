@@ -1,7 +1,7 @@
 import "../config/env.js";
 import * as Minio from "minio";
 
-const client = new Minio.Client({
+export const minioClient = new Minio.Client({
   endPoint: process.env.MINIO_ENDPOINT ?? "localhost",
   port: Number(process.env.MINIO_PORT ?? "9000"),
   useSSL: process.env.MINIO_USE_SSL === "true",
@@ -12,9 +12,9 @@ const client = new Minio.Client({
 const BUCKET = process.env.MINIO_BUCKET ?? "madamgy";
 
 export async function ensureBucket(): Promise<void> {
-  const exists = await client.bucketExists(BUCKET);
+  const exists = await minioClient.bucketExists(BUCKET);
   if (!exists) {
-    await client.makeBucket(BUCKET, "ap-south-1");
+    await minioClient.makeBucket(BUCKET, "ap-south-1");
   }
 }
 
@@ -23,7 +23,7 @@ export async function uploadBuffer(
   buffer: Buffer,
   contentType: string,
 ): Promise<void> {
-  await client.putObject(BUCKET, objectKey, buffer, buffer.length, {
+  await minioClient.putObject(BUCKET, objectKey, buffer, buffer.length, {
     "Content-Type": contentType,
   });
 }
@@ -33,9 +33,9 @@ export async function getPresignedUrl(
   ttlSeconds = 3600,
   responseHeaders?: Record<string, string>,
 ): Promise<string> {
-  return client.presignedGetObject(BUCKET, objectKey, ttlSeconds, responseHeaders);
+  return minioClient.presignedGetObject(BUCKET, objectKey, ttlSeconds, responseHeaders);
 }
 
 export async function deleteObject(objectKey: string): Promise<void> {
-  await client.removeObject(BUCKET, objectKey);
+  await minioClient.removeObject(BUCKET, objectKey);
 }

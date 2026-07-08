@@ -15,7 +15,9 @@ import { prescriptionsRouter } from "./routes/prescriptions.routes.js";
 import { usersRouter } from "./routes/users.routes.js";
 import { initSocketHandlers } from "./socket/index.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
-import { ensureBucket } from "./services/storage.service.js";
+import { prisma } from "./lib/prisma.js";
+import { redis } from "./lib/redis.js";
+import { ensureBucket, minioClient } from "./services/storage.service.js";
 import { handleAssignDoctorFailed, startAssignDoctorWorker } from "./workers/assign-doctor.worker.js";
 import { startRenderPdfWorker } from "./workers/render-pdf.worker.js";
 import { startStaleCallReaper } from "./workers/stale-call-reaper.worker.js";
@@ -39,8 +41,50 @@ if (process.env.NODE_ENV !== "test") {
   app.use(morgan("dev"));
 }
 
-app.get("/api/health", (_req, res) => {
-  res.json({ ok: true });
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("health check timed out")), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+app.get("/api/health", async (_req, res) => {
+  const checks = { db: false, redis: false, minio: false };
+
+  try {
+    await withTimeout(prisma.$queryRaw`SELECT 1`, 3000);
+    checks.db = true;
+  } catch {
+    checks.db = false;
+  }
+
+  try {
+    const pong = await withTimeout(redis.ping(), 3000);
+    checks.redis = pong === "PONG";
+  } catch {
+    checks.redis = false;
+  }
+
+  try {
+    checks.minio = await withTimeout(
+      minioClient.bucketExists(process.env.MINIO_BUCKET ?? "madamgy"),
+      3000,
+    );
+  } catch {
+    checks.minio = false;
+  }
+
+  const ok = checks.db && checks.redis && checks.minio;
+  res.status(ok ? 200 : 503).json({ ok, checks });
 });
 
 app.use("/api/auth", authRouter);
