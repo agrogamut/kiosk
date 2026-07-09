@@ -4,7 +4,7 @@
 >
 > **For agentic workers (when this plan is eventually picked up):** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Give the MadamGy kiosk a real Android delivery mechanism (native wrapper, not just a browser tab) and wire the frontend up to every backend contract the companion backend plan introduces: patient OTP login, consent capture, doctor license upload, Razorpay checkout, doctor presence heartbeat, and in-call image/document chat.
+**Goal:** Give the MadamGy kiosk a real Android delivery mechanism (native wrapper, not just a browser tab) and wire the frontend up to every backend contract the companion backend plan introduces: patient OTP login, consent capture, doctor license upload, Razorpay checkout, doctor presence heartbeat, in-call image/document chat, patient gender/email at registration, and the doctor-side patient health folder panel (Task 11 — the highest-priority item in this plan; it's a clinical-safety gap, not cosmetic).
 
 **Architecture:** The existing `packages/web` React/Vite app is wrapped in a Capacitor Android project rather than rewritten — Capacitor loads the same web build inside a native WebView shell and exposes native plugin APIs (printer, camera/mic permission handling, kiosk lockdown) to it via a JS bridge. No separate native codebase to maintain in parallel; the web app remains the single source of UI truth.
 
@@ -369,7 +369,71 @@ git commit -m "feat: add image/document sharing to in-call chat"
 
 ---
 
-### Task 10: Multi-language support (deferred — not detailed)
+### Task 10: Collect gender and email at patient registration
+
+**Backend contract** (already implemented, ahead of this frontend plan): `PatientRegisterSchema` now accepts optional `gender: "MALE" | "FEMALE" | "OTHER"` and `email` (validated email format) alongside the existing fields — see `packages/api-client/src/schemas/user.schema.ts`'s `GenderSchema`/`PatientRegisterSchema`. Both are genuinely optional; omitting them still registers the patient successfully. This closes a literal requirement-doc gap (the doc lists Patient Name, Age, Gender, Phone, Email under registration) that the original PIN/OTP-focused build missed.
+
+**Files:**
+- Modify: `packages/web/src/pages/kiosk/Register.tsx`
+
+- [ ] **Step 1: Add a gender selector**
+
+Add a simple three-option control (radio group or select) for Male / Female / Other, wired to a `gender` field in the form state, sent as `"MALE" | "FEMALE" | "OTHER"` — matching `GenderSchema`'s exact literal values (case-sensitive).
+
+- [ ] **Step 2: Add an optional email input**
+
+Add a labeled `<input type="email">` for "Email (optional)", wired to an `email` field in the form state. Leave it empty-string-omittable — if the field is empty, don't send `email` in the request body at all (an empty string would fail the backend's `z.string().email()` validation; omitting the key is what makes it genuinely optional).
+
+- [ ] **Step 3: Include both in the registration payload**
+
+In the submit handler's `POST /auth/patient/register` body, add `gender` (if selected) and `email` (if non-empty) alongside the existing fields.
+
+- [ ] **Step 4: Manually verify**
+
+Run `npm run dev`, register a patient leaving gender/email blank — confirm registration still succeeds (matches current behavior, nothing broke). Register a second patient with gender and email filled in, then confirm via the admin `UserDetail.tsx` page (or a direct API call to `GET /api/admin/users/:id`) that both values were persisted.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add packages/web/src/pages/kiosk/Register.tsx
+git commit -m "feat: collect gender and email at patient registration"
+```
+
+---
+
+### Task 11: Doctor-side patient health folder panel during consult
+
+**Backend contract** (already implemented, ahead of this frontend plan): `GET /api/doctor/patients/:patientId/records` (doctor-authed) returns `{ healthFiles: HealthFile[], prescriptions: Prescription[] }` for a given patient, but only if the requesting doctor has at least one `CallSession` (any status) with that patient — otherwise `403`. This closes a literal requirement-doc gap: *"Once the doctor accepts the consultation: Patient details will become visible, the patient's Health Folder will be accessible, previous prescriptions and records (if any) will be available to the doctor for smooth consultation."* Today `Call.tsx` shows chat, vitals, and a blank prescription editor — nothing about the patient's history. This is the highest-priority item in this entire frontend plan: it's a real clinical-safety gap, not a cosmetic one — a returning patient's doctor is currently consulting blind.
+
+**Files:**
+- Modify: `packages/web/src/pages/doctor/Call.tsx`
+- Create: `packages/web/src/components/call/PatientHistoryPanel.tsx`
+
+**Interfaces:**
+- Consumes: `GET /api/doctor/patients/:patientId/records` (the `patientId` is already available in `Call.tsx`'s call-session state, since the doctor has already accepted the call and knows who they're talking to).
+
+- [ ] **Step 1: Create the history panel component**
+
+`PatientHistoryPanel.tsx` takes a `patientId: string` prop, fetches `GET /api/doctor/patients/${patientId}/records` on mount (via `@tanstack/react-query`, matching the pattern already used throughout `packages/web/src/pages/admin/*.tsx`), and renders two sections: a list of health files (name, type, date, a link to the presigned `url` already included in each item) and a list of past prescriptions (date, and a link/expand to view `content`). If the fetch 403s (first-time patient, no prior history with this doctor — this is the expected, common case, not an error state), render a plain "No prior consultation history with this patient" message instead of an error toast.
+
+- [ ] **Step 2: Mount it in the doctor call screen**
+
+In `Call.tsx`, once the call session and `patientId` are known (check how the existing chat/vitals panels already get `patientId` in this file, likely from the `call:incoming`/`call:accepted` socket payload or route state), render `<PatientHistoryPanel patientId={patientId} />` alongside the existing chat panel — e.g. as a second tab or a collapsible side panel, whichever fits the existing layout with the least structural change.
+
+- [ ] **Step 3: Manually verify**
+
+Run `npm run dev`. Drive one full consult end to end for a brand-new patient (confirm the panel shows "no prior history"), submit a prescription to end the call, then start a second consult between the same doctor and patient (or reuse the doctor-patient pair from `packages/server/src/__tests__/doctor-patient-records.test.ts`'s fixtures as a mental model) and confirm the panel now shows the prior prescription and any health files.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add packages/web/src/pages/doctor/Call.tsx packages/web/src/components/call/PatientHistoryPanel.tsx
+git commit -m "feat: show patient health folder and prescription history during doctor consult"
+```
+
+---
+
+### Task 12: Multi-language support (deferred — not detailed)
 
 Flagged as a real requirement-adjacent gap for an Indian kiosk deployment (patients may not be comfortable in English), but this is a content/i18n-architecture decision (which library, which languages, who provides translations) that depends on business decisions not yet made. Do not start this without first deciding: target languages, translation source (professional translation vs. machine translation reviewed by a native speaker), and whether it's per-region kiosk configuration or a runtime language switcher. Revisit as its own brainstorming session when those are known.
 
