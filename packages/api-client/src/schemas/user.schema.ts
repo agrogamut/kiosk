@@ -28,6 +28,9 @@ function isValidDateOfBirth(value: string): boolean {
 export const UserRoleSchema = z.enum(["PATIENT", "DOCTOR", "ADMIN"]);
 export type UserRole = z.infer<typeof UserRoleSchema>;
 
+export const GenderSchema = z.enum(["MALE", "FEMALE", "OTHER"]);
+export type Gender = z.infer<typeof GenderSchema>;
+
 export const DateOfBirthSchema = z.string().refine(isValidDateOfBirth, {
   message: "Date of birth must be a valid date in DD/MM/YYYY format",
 });
@@ -36,6 +39,8 @@ export const PatientRegisterSchema = z.object({
   phone: z.string().min(10).max(15),
   name: z.string().min(1).max(100),
   dob: DateOfBirthSchema,
+  gender: GenderSchema.optional(),
+  email: z.string().email().optional(),
   pin: z.string().length(4).regex(/^\d{4}$/).optional(),
   consent: z.literal(true),
 });

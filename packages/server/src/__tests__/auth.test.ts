@@ -91,6 +91,8 @@ describe("Patient auth", () => {
       phone: "9999000001",
       name: "Test Patient",
       dob: "01/01/1990",
+      gender: "FEMALE",
+      email: "test.patient@example.com",
       pin: "1234",
       consent: true,
     });
@@ -98,6 +100,25 @@ describe("Patient auth", () => {
     expect(response.status).toBe(201);
     expect(response.body.accessToken).toBeTruthy();
     expect(response.body.user.role).toBe("PATIENT");
+
+    const profile = await prisma.patientProfile.findUnique({ where: { userId: response.body.user.id } });
+    expect(profile?.gender).toBe("FEMALE");
+    expect(profile?.email).toBe("test.patient@example.com");
+  });
+
+  it("registers a patient without gender or email (both optional)", async () => {
+    const response = await request(app).post("/api/auth/patient/register").send({
+      phone: "9999000013",
+      name: "No Optional Fields Patient",
+      dob: "01/01/1990",
+      pin: "1234",
+      consent: true,
+    });
+
+    expect(response.status).toBe(201);
+    const profile = await prisma.patientProfile.findUnique({ where: { userId: response.body.user.id } });
+    expect(profile?.gender).toBeNull();
+    expect(profile?.email).toBeNull();
   });
 
   it("rejects duplicate phone on register", async () => {

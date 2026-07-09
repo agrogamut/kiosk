@@ -35,6 +35,8 @@ export async function registerPatient(data: {
   phone: string;
   name: string;
   dob: string;
+  gender?: "MALE" | "FEMALE" | "OTHER";
+  email?: string;
   pin?: string;
 }) {
   const existing = await prisma.user.findUnique({ where: { phone: data.phone } });
@@ -50,7 +52,9 @@ export async function registerPatient(data: {
       name: data.name,
       role: "PATIENT",
       pinHash,
-      patientProfile: { create: { dob, consentGivenAt: new Date() } },
+      patientProfile: {
+        create: { dob, gender: data.gender, email: data.email, consentGivenAt: new Date() },
+      },
     },
   });
 }

@@ -13,6 +13,12 @@ enum UserRole {
   ADMIN
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
 enum CallStatus {
   QUEUED
   RINGING
@@ -83,6 +89,8 @@ model PatientProfile {
   weightKg  Float?
   bloodType String?
   dob       DateTime?
+  gender    Gender?
+  email     String?
   consentGivenAt DateTime?
 
   user User @relation(fields: [userId], references: [id])
