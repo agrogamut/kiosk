@@ -86,9 +86,32 @@ describe("Full consult flow (real workers + sockets, no mocks)", () => {
     await ensureAdmin();
   }, 30_000);
 
-  afterAll(() => {
-    serverProcess.kill();
-  });
+  afterAll(async () => {
+    // Wait for the spawned server to actually exit before letting the next test file
+    // run. It has real BullMQ workers listening on the same shared Redis queues every
+    // other test file's app instance also enqueues jobs into (those jobs normally sit
+    // inert under NODE_ENV=test, since no in-process worker consumes them) -- if this
+    // process is still shutting down when the next file starts, it can pick up and
+    // process that file's jobs for real, creating rows that file's own cleanup never
+    // expects and doesn't account for.
+    await new Promise<void>((resolve) => {
+      if (serverProcess.exitCode !== null || serverProcess.signalCode !== null) {
+        resolve();
+        return;
+      }
+
+      const forceKillTimer = setTimeout(() => {
+        serverProcess.kill("SIGKILL");
+      }, 5000);
+
+      serverProcess.once("exit", () => {
+        clearTimeout(forceKillTimer);
+        resolve();
+      });
+
+      serverProcess.kill();
+    });
+  }, 10_000);
 
   it("drives registration through wallet credit end to end", async () => {
     const rand = Math.floor(Math.random() * 1e8);
