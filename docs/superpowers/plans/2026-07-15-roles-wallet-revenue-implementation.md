@@ -652,39 +652,52 @@ git commit -m "feat: split admin permissions between SUPER_ADMIN and kiosk ADMIN
 
 ---
 
-### Task 4: Staff account creation
+### Task 4: Staff account creation + self-serve license upload
 
 **Files:**
 - Modify: `packages/server/src/routes/admin.routes.ts`
+- Modify: `packages/server/src/routes/doctor.routes.ts`
 - Modify: `packages/api-client/src/schemas/user.schema.ts`
 - Test: `packages/server/src/__tests__/api-routes.test.ts`
 
 **Interfaces:**
-- Produces: `POST /api/admin/staff` (`SUPER_ADMIN`-only) — `{ phone, name, role: "DOCTOR" | "ADMIN" }` → `{ id, phone, name, role, tempPin }`.
+- Produces: `POST /api/admin/staff` (`SUPER_ADMIN`-only) — `{ phone, name, role: "ADMIN" }` or `{ phone, name, role: "DOCTOR", degree, regNumber, specialization? }` → `{ id, phone, name, role, tempPin }`. `POST /api/doctor/license` (`DOCTOR`-only, self) — multipart PDF upload → `{ message }`.
+
+The self-serve `registerDoctor` flow refuses any phone already registered, so a staff-created `DOCTOR` can never pass through it to submit real license details — there is no other endpoint today for an existing doctor to upload a license after account creation. Two things close this gap: `SUPER_ADMIN` supplies real `degree`/`regNumber` directly at creation time (they already have this from the doctor's paperwork), and a new standalone license-upload endpoint lets the doctor submit the PDF themselves after logging in with their temp PIN — reusable by self-registered doctors too, not just staff-created ones.
 
 - [ ] **Step 1: Add `StaffCreateSchema` to `api-client`**
 
 In `packages/api-client/src/schemas/user.schema.ts`, add after `UserSchema`:
 
 ```typescript
-export const StaffCreateSchema = z.object({
-  phone: z.string().min(10).max(15),
-  name: z.string().min(1).max(100),
-  role: z.enum(["DOCTOR", "ADMIN"]),
-});
+export const StaffCreateSchema = z.discriminatedUnion("role", [
+  z.object({
+    role: z.literal("ADMIN"),
+    phone: z.string().min(10).max(15),
+    name: z.string().min(1).max(100),
+  }),
+  z.object({
+    role: z.literal("DOCTOR"),
+    phone: z.string().min(10).max(15),
+    name: z.string().min(1).max(100),
+    degree: z.string().min(1),
+    regNumber: z.string().min(1),
+    specialization: z.string().optional(),
+  }),
+]);
 export type StaffCreate = z.infer<typeof StaffCreateSchema>;
 ```
 
-- [ ] **Step 2: Add the route in `admin.routes.ts`**
+- [ ] **Step 2: Add the staff-creation route in `admin.routes.ts`**
 
 Add near the top of the file, after the existing `DisableUserSchema` import block, import `StaffCreateSchema` from `@madamgy/api-client` (check the existing import style in this file — other route files import shared schemas the same way, e.g. `doctor.routes.ts:3` imports `WithdrawRequestSchema` from `"@madamgy/api-client"`). Add a `randomUUID` import from `"crypto"` and `bcrypt` from `"bcryptjs"` at the top, then the route:
 
 ```typescript
 adminRouter.post("/staff", requireAuth("SUPER_ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { phone, name, role } = StaffCreateSchema.parse(req.body);
+    const data = StaffCreateSchema.parse(req.body);
 
-    const existing = await prisma.user.findUnique({ where: { phone } });
+    const existing = await prisma.user.findUnique({ where: { phone: data.phone } });
     if (existing) {
       throw new AppError(409, "Phone already registered");
     }
@@ -694,17 +707,25 @@ adminRouter.post("/staff", requireAuth("SUPER_ADMIN"), async (req: Request, res:
 
     const user = await prisma.user.create({
       data: {
-        phone,
-        name,
-        role,
+        phone: data.phone,
+        name: data.name,
+        role: data.role,
         passwordHash,
-        ...(role === "DOCTOR"
-          ? { doctorProfile: { create: { degree: "", regNumber: `PENDING-${randomUUID()}` } } }
+        ...(data.role === "DOCTOR"
+          ? {
+              doctorProfile: {
+                create: {
+                  degree: data.degree,
+                  regNumber: data.regNumber,
+                  specialization: data.specialization,
+                },
+              },
+            }
           : {}),
       },
     });
 
-    await recordAuditLog(req.user!.sub, "staff.create", user.id, { role });
+    await recordAuditLog(req.user!.sub, "staff.create", user.id, { role: data.role });
     res.status(201).json({ id: user.id, phone: user.phone, name: user.name, role: user.role, tempPin });
   } catch (error) {
     next(error);
@@ -712,14 +733,50 @@ adminRouter.post("/staff", requireAuth("SUPER_ADMIN"), async (req: Request, res:
 });
 ```
 
-Note: a `DOCTOR` created this way gets a placeholder `degree`/`regNumber` — the super admin (or the doctor themselves on first login) must still fill in real license details before `isApproved` can be set true via the existing `/doctors/:id/approve` flow. This matches the spec's "doctor accounts still go through the existing license-upload+approval flow unchanged."
+- [ ] **Step 3: Add the self-serve license upload route in `doctor.routes.ts`**
 
-- [ ] **Step 3: Write the test**
+Import `multer` and `uploadBuffer` (from `../services/storage.service.js`, already exported and used by `auth.service.ts`'s `registerDoctor`) at the top of `doctor.routes.ts`, alongside the existing `getPresignedUrl` import. Mirror the PDF validation from `auth.routes.ts:146-177`:
+
+```typescript
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
+doctorRouter.post(
+  "/license",
+  upload.single("licenseDocument"),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.file) {
+        throw new AppError(400, "License document required");
+      }
+      if (
+        req.file.mimetype !== "application/pdf" ||
+        !req.file.buffer.subarray(0, 5).toString("ascii").startsWith("%PDF-")
+      ) {
+        throw new AppError(400, "License document must be a valid PDF");
+      }
+
+      const doctorId = req.user!.sub;
+      const objectKey = `doctor-verification/${doctorId}.pdf`;
+      await uploadBuffer(objectKey, req.file.buffer, "application/pdf");
+      await prisma.doctorProfile.update({ where: { userId: doctorId }, data: { licenseDocKey: objectKey } });
+
+      res.json({ message: "License uploaded" });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+```
+
+- [ ] **Step 4: Write the tests**
 
 Add to `api-routes.test.ts`, alongside the other admin-route tests:
 
 ```typescript
-it("lets SUPER_ADMIN create a staff account directly", async () => {
+it("lets SUPER_ADMIN create an ADMIN staff account directly", async () => {
   const response = await request(app)
     .post("/api/admin/staff")
     .set("Authorization", `Bearer ${adminToken}`)
@@ -735,6 +792,34 @@ it("lets SUPER_ADMIN create a staff account directly", async () => {
   await prisma.user.delete({ where: { id: response.body.id } });
 });
 
+it("lets SUPER_ADMIN create a DOCTOR staff account with real license fields, then the doctor uploads their license", async () => {
+  const createResponse = await request(app)
+    .post("/api/admin/staff")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({
+      phone: "8888700006",
+      name: "Staff Doctor",
+      role: "DOCTOR",
+      degree: "MBBS",
+      regNumber: "STAFF-DOC-REG-1",
+    });
+  expect(createResponse.status).toBe(201);
+
+  const doctorToken = signAccessToken({ sub: createResponse.body.id, role: "DOCTOR" });
+  const uploadResponse = await request(app)
+    .post("/api/doctor/license")
+    .set("Authorization", `Bearer ${doctorToken}`)
+    .attach("licenseDocument", Buffer.from("%PDF-1.4 fake license content"), "license.pdf");
+  expect(uploadResponse.status).toBe(200);
+
+  const profile = await prisma.doctorProfile.findUniqueOrThrow({ where: { userId: createResponse.body.id } });
+  expect(profile.degree).toBe("MBBS");
+  expect(profile.licenseDocKey).toBeTruthy();
+
+  await prisma.doctorProfile.deleteMany({ where: { userId: createResponse.body.id } });
+  await prisma.user.delete({ where: { id: createResponse.body.id } });
+});
+
 it("rejects staff creation from a non-SUPER_ADMIN role", async () => {
   const response = await request(app)
     .post("/api/admin/staff")
@@ -745,16 +830,16 @@ it("rejects staff creation from a non-SUPER_ADMIN role", async () => {
 });
 ```
 
-- [ ] **Step 4: Run the test**
+- [ ] **Step 5: Run the tests**
 
 Run: `cd packages/server && npm test -- api-routes.test.ts`
-Expected: both new tests pass.
+Expected: all three new tests pass.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add packages/server/src/routes/admin.routes.ts packages/api-client/src/schemas/user.schema.ts packages/server/src/__tests__/api-routes.test.ts
-git commit -m "feat: let SUPER_ADMIN create DOCTOR/ADMIN staff accounts directly"
+git add packages/server/src/routes/admin.routes.ts packages/server/src/routes/doctor.routes.ts packages/api-client/src/schemas/user.schema.ts packages/server/src/__tests__/api-routes.test.ts
+git commit -m "feat: let SUPER_ADMIN create staff accounts and doctors self-upload their license"
 ```
 
 ---
