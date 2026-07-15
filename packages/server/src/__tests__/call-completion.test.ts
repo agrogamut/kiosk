@@ -50,7 +50,8 @@ describe("completeCall", () => {
 
     const profile = await prisma.doctorProfile.findUniqueOrThrow({ where: { userId: doctorId } });
     expect(profile.isAvailable).toBe(true);
-    expect(Number(profile.walletBalance)).toBeGreaterThan(0);
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: doctorId } });
+    expect(Number(user.walletBalance)).toBeGreaterThan(0);
 
     const transactions = await prisma.walletTransaction.findMany({ where: { callSessionId: callId } });
     expect(transactions).toHaveLength(1);

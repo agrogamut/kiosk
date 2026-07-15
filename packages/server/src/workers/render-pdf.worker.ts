@@ -22,7 +22,7 @@ export function startRenderPdfWorker(): Worker<{ prescriptionId: string }> {
               id: true,
               name: true,
               doctorProfile: {
-                select: { degree: true, regNumber: true, specialization: true, commissionRate: true },
+                select: { degree: true, regNumber: true, specialization: true },
               },
             },
           },

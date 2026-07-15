@@ -12,10 +12,10 @@ describe("Audit log", () => {
 
   beforeAll(async () => {
     const admin = await prisma.user.create({
-      data: { phone: "8888900001", name: "Audit Admin", role: "ADMIN", passwordHash: "unused" },
+      data: { phone: "8888900001", name: "Audit Admin", role: "SUPER_ADMIN", passwordHash: "unused" },
     });
     adminId = admin.id;
-    adminToken = signAccessToken({ sub: admin.id, role: "ADMIN" });
+    adminToken = signAccessToken({ sub: admin.id, role: "SUPER_ADMIN" });
 
     const doctor = await prisma.user.create({
       data: {

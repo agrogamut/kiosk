@@ -33,9 +33,9 @@ describe("Doctor verification document upload", () => {
     expect(user.doctorProfile?.licenseDocKey).toBeTruthy();
 
     const admin = await prisma.user.create({
-      data: { phone: "8889000099", name: "Verify Admin", role: "ADMIN", passwordHash: "unused" },
+      data: { phone: "8889000099", name: "Verify Admin", role: "SUPER_ADMIN", passwordHash: "unused" },
     });
-    const adminToken = signAccessToken({ sub: admin.id, role: "ADMIN" });
+    const adminToken = signAccessToken({ sub: admin.id, role: "SUPER_ADMIN" });
 
     const licenseResponse = await request(app)
       .get(`/api/admin/doctors/${user.id}/license`)

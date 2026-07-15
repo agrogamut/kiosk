@@ -13,7 +13,7 @@ export const adminRouter = Router();
 
 const DisableUserSchema = z.object({ disabled: z.boolean() });
 
-adminRouter.use(requireAuth("ADMIN", "SUPER_ADMIN"));
+adminRouter.use(requireAuth("SUPER_ADMIN"));
 
 adminRouter.get("/doctors", async (_req: Request, res: Response, next: NextFunction) => {
   try {

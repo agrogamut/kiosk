@@ -60,12 +60,12 @@ beforeAll(async () => {
     data: {
       phone: "8888000001",
       name: "API Admin",
-      role: "ADMIN",
+      role: "SUPER_ADMIN",
       passwordHash: "x",
     },
   });
   adminId = admin.id;
-  adminToken = signAccessToken({ sub: admin.id, role: "ADMIN" });
+  adminToken = signAccessToken({ sub: admin.id, role: "SUPER_ADMIN" });
 
   const patient = await prisma.user.create({
     data: {
@@ -85,12 +85,12 @@ beforeAll(async () => {
       name: "API Doctor",
       role: "DOCTOR",
       passwordHash: "x",
+      walletBalance: 250,
       doctorProfile: {
         create: {
           degree: "MBBS",
           regNumber: `API-${randomUUID()}`,
           isApproved: true,
-          walletBalance: 250,
         },
       },
     },
@@ -125,7 +125,7 @@ beforeAll(async () => {
 
   await prisma.walletTransaction.create({
     data: {
-      doctorId,
+      userId: doctorId,
       callSessionId,
       amount: 100,
       type: "CREDIT",

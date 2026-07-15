@@ -32,8 +32,10 @@ export async function completeCall(callSessionId: string): Promise<void> {
         where: { callSessionId, type: "CREDIT" },
       });
       if (!existingCredit) {
-        // TODO: Task 8 will replace this with RevenueConfig-based three-way split
-        const commissionRate = 0.8;
+        // Stopgap: Task 8 will replace this with full RevenueConfig-based three-way split,
+        // Payment snapshot, and admin attribution. For now, just avoid a hardcoded percentage.
+        const config = await tx.revenueConfig.findFirst();
+        const commissionRate = Number(config?.doctorPct ?? 65) / 100;
         const earning = Number((CONSULTATION_FEE * commissionRate).toFixed(2));
         await tx.walletTransaction.create({
           data: {
