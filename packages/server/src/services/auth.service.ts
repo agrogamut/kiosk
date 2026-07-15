@@ -166,7 +166,7 @@ export async function loginDoctorInitiate(phone: string, password: string) {
 
 export async function loginAdmin(phone: string, password: string) {
   const user = await prisma.user.findUnique({ where: { phone } });
-  if (!user || user.role !== "ADMIN" || !user.passwordHash) {
+  if (!user || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") || !user.passwordHash) {
     throw new AppError(401, "Invalid credentials");
   }
   if (user.disabled) {

@@ -32,7 +32,8 @@ describe("Audit log", () => {
         phone: "8888900003",
         name: "Audit Withdrawal Doctor",
         role: "DOCTOR",
-        doctorProfile: { create: { degree: "MBBS", regNumber: "AUDIT-REG-2", walletBalance: 200 } },
+        walletBalance: 200,
+        doctorProfile: { create: { degree: "MBBS", regNumber: "AUDIT-REG-2" } },
       },
     });
     withdrawalDoctorId = withdrawalDoctor.id;
@@ -40,7 +41,7 @@ describe("Audit log", () => {
 
   afterAll(async () => {
     await prisma.auditLog.deleteMany({ where: { actorId: adminId } });
-    await prisma.walletTransaction.deleteMany({ where: { doctorId: withdrawalDoctorId } });
+    await prisma.walletTransaction.deleteMany({ where: { userId: withdrawalDoctorId } });
     await prisma.doctorProfile.deleteMany({ where: { userId: { in: [doctorId, withdrawalDoctorId] } } });
     await prisma.user.deleteMany({ where: { id: { in: [adminId, doctorId, withdrawalDoctorId] } } });
   });
@@ -59,7 +60,7 @@ describe("Audit log", () => {
   it("records an audit log entry when an admin completes a withdrawal", async () => {
     const txn = await prisma.walletTransaction.create({
       data: {
-        doctorId: withdrawalDoctorId,
+        userId: withdrawalDoctorId,
         amount: 50,
         type: "DEBIT",
         status: "PENDING",
@@ -80,7 +81,7 @@ describe("Audit log", () => {
   it("records an audit log entry when an admin rejects a withdrawal", async () => {
     const txn = await prisma.walletTransaction.create({
       data: {
-        doctorId: withdrawalDoctorId,
+        userId: withdrawalDoctorId,
         amount: 50,
         type: "DEBIT",
         status: "PENDING",

@@ -11,18 +11,33 @@ async function main(): Promise<void> {
     throw new Error("ADMIN_PHONE and ADMIN_PASSWORD env vars required");
   }
 
-  const existing = await prisma.user.findUnique({ where: { phone } });
-  if (existing) {
-    console.log("Admin already exists, skipping seed");
-    return;
+  let superAdmin = await prisma.user.findUnique({ where: { phone } });
+  if (!superAdmin) {
+    const passwordHash = await bcrypt.hash(password, 12);
+    superAdmin = await prisma.user.create({
+      data: { phone, name: "Super Admin", role: "SUPER_ADMIN", passwordHash },
+    });
+    console.log(`Super admin created: ${phone}`);
+  } else {
+    console.log("Super admin already exists, skipping user seed");
   }
 
-  const passwordHash = await bcrypt.hash(password, 12);
-  await prisma.user.create({
-    data: { phone, name: "Admin", role: "ADMIN", passwordHash },
-  });
-
-  console.log(`Admin created: ${phone}`);
+  const existingConfig = await prisma.revenueConfig.findFirst();
+  if (!existingConfig) {
+    const consultationFee = Number(process.env.CONSULTATION_FEE ?? "200");
+    await prisma.revenueConfig.create({
+      data: {
+        consultationFee,
+        doctorPct: 65,
+        adminPct: 25,
+        superAdminPct: 10,
+        updatedById: superAdmin.id,
+      },
+    });
+    console.log(`Revenue config seeded: fee=${consultationFee}, split=65/25/10`);
+  } else {
+    console.log("Revenue config already exists, skipping");
+  }
 }
 
 main()

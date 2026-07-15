@@ -61,12 +61,12 @@ doctorRouter.get("/wallet/transactions", async (req: Request, res: Response, nex
     const limit = 20;
     const [transactions, total] = await Promise.all([
       prisma.walletTransaction.findMany({
-        where: { doctorId: req.user!.sub },
+        where: { userId: req.user!.sub },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.walletTransaction.count({ where: { doctorId: req.user!.sub } }),
+      prisma.walletTransaction.count({ where: { userId: req.user!.sub } }),
     ]);
 
     res.json({ transactions, total, page, pages: Math.ceil(total / limit) });

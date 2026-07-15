@@ -34,7 +34,7 @@ async function deleteApiTestData(): Promise<void> {
   const callIds = calls.map((call) => call.id);
 
   await prisma.healthFile.deleteMany({ where: { userId: { in: userIds } } });
-  await prisma.walletTransaction.deleteMany({ where: { doctorId: { in: userIds } } });
+  await prisma.walletTransaction.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.prescription.deleteMany({
     where: {
       OR: [{ patientId: { in: userIds } }, { doctorId: { in: userIds } }, { callSessionId: { in: callIds } }],

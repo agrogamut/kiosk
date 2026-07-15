@@ -11,6 +11,7 @@ enum UserRole {
   PATIENT
   DOCTOR
   ADMIN
+  SUPER_ADMIN
 }
 
 enum Gender {
@@ -67,6 +68,7 @@ model User {
   pinHash      String?
   passwordHash String?
   disabled     Boolean  @default(false)
+  walletBalance Decimal @default(0) @db.Decimal(12, 2)
   createdAt    DateTime @default(now())
 
   patientProfile PatientProfile?
@@ -76,10 +78,13 @@ model User {
   doctorRx       Prescription[]      @relation("doctor_prescriptions")
   callsAsPatient CallSession[]       @relation("patient_calls")
   callsAsDoctor  CallSession[]       @relation("doctor_calls")
+  callsAssisted  CallSession[]       @relation("assisting_admin_calls")
   walletTxns     WalletTransaction[]
   chatMessages   ChatMessage[]
   payments       Payment[]
   auditLogs      AuditLog[]
+  kiosks         Kiosk[]
+  revenueConfigUpdates RevenueConfig[]
 }
 
 model PatientProfile {
@@ -106,8 +111,6 @@ model DoctorProfile {
   isApproved     Boolean  @default(false)
   approvedAt     DateTime?
   approvedById   String?
-  walletBalance  Decimal  @default(0) @db.Decimal(12, 2)
-  commissionRate Decimal  @default(0.80) @db.Decimal(4, 2)
   licenseDocKey  String?
 
   user User @relation(fields: [userId], references: [id])
@@ -116,21 +119,23 @@ model DoctorProfile {
 }
 
 model CallSession {
-  id          String     @id @default(cuid())
-  patientId   String
-  doctorId    String?
-  status      CallStatus @default(QUEUED)
-  livekitRoom String     @unique
-  queuedAt    DateTime   @default(now())
-  startedAt   DateTime?
-  endedAt     DateTime?
-  createdAt   DateTime   @default(now())
+  id                String     @id @default(cuid())
+  patientId         String
+  doctorId          String?
+  assistingAdminId  String?
+  status            CallStatus @default(QUEUED)
+  livekitRoom       String     @unique
+  queuedAt          DateTime   @default(now())
+  startedAt         DateTime?
+  endedAt           DateTime?
+  createdAt         DateTime   @default(now())
 
-  patient      User          @relation("patient_calls", fields: [patientId], references: [id])
-  doctor       User?         @relation("doctor_calls", fields: [doctorId], references: [id])
-  prescription Prescription?
-  messages     ChatMessage[]
-  payment      Payment?
+  patient        User          @relation("patient_calls", fields: [patientId], references: [id])
+  doctor         User?         @relation("doctor_calls", fields: [doctorId], references: [id])
+  assistingAdmin User?         @relation("assisting_admin_calls", fields: [assistingAdminId], references: [id])
+  prescription   Prescription?
+  messages       ChatMessage[]
+  payment        Payment?
 
   @@index([patientId])
   @@index([status])
@@ -144,6 +149,9 @@ model Payment {
   razorpayOrderId   String        @unique
   razorpayPaymentId String?
   status            PaymentStatus @default(CREATED)
+  doctorPct         Decimal?      @db.Decimal(5, 2)
+  adminPct          Decimal?      @db.Decimal(5, 2)
+  superAdminPct     Decimal?      @db.Decimal(5, 2)
   createdAt         DateTime      @default(now())
 
   patient     User         @relation(fields: [patientId], references: [id])
@@ -202,7 +210,7 @@ model HealthFile {
 
 model WalletTransaction {
   id            String    @id @default(cuid())
-  doctorId      String
+  userId        String
   callSessionId String?
   amount        Decimal   @db.Decimal(10, 2)
   type          TxnType
@@ -210,9 +218,9 @@ model WalletTransaction {
   description   String?
   createdAt     DateTime  @default(now())
 
-  doctor User @relation(fields: [doctorId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
-  @@index([doctorId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model AuditLog {
@@ -226,4 +234,29 @@ model AuditLog {
   actor User @relation(fields: [actorId], references: [id])
 
   @@index([actorId, createdAt])
+}
+
+model Kiosk {
+  id        String   @id @default(cuid())
+  deviceId  String   @unique
+  adminId   String
+  label     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  admin User @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+}
+
+model RevenueConfig {
+  id              String   @id @default(cuid())
+  consultationFee Decimal  @db.Decimal(10, 2)
+  doctorPct       Decimal  @db.Decimal(5, 2)
+  adminPct        Decimal  @db.Decimal(5, 2)
+  superAdminPct   Decimal  @db.Decimal(5, 2)
+  updatedAt       DateTime @updatedAt
+  updatedById     String
+
+  updatedBy User @relation(fields: [updatedById], references: [id])
 }

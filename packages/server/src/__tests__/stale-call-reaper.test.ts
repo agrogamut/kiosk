@@ -32,7 +32,7 @@ describe("reapStaleCalls", () => {
 
   afterAll(async () => {
     await redis.del(`doctor_heartbeat:${doctorId}`);
-    await prisma.walletTransaction.deleteMany({ where: { doctorId } });
+    await prisma.walletTransaction.deleteMany({ where: { userId: doctorId } });
     await prisma.callSession.deleteMany({ where: { id: callId } });
     await prisma.doctorProfile.deleteMany({ where: { userId: doctorId } });
     await prisma.user.deleteMany({ where: { id: { in: [patientId, doctorId] } } });

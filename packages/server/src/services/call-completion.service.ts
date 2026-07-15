@@ -32,12 +32,12 @@ export async function completeCall(callSessionId: string): Promise<void> {
         where: { callSessionId, type: "CREDIT" },
       });
       if (!existingCredit) {
-        const profile = await tx.doctorProfile.findUnique({ where: { userId: call.doctorId } });
-        const commissionRate = Number(profile?.commissionRate ?? 0.8);
+        // TODO: Task 8 will replace this with RevenueConfig-based three-way split
+        const commissionRate = 0.8;
         const earning = Number((CONSULTATION_FEE * commissionRate).toFixed(2));
         await tx.walletTransaction.create({
           data: {
-            doctorId: call.doctorId,
+            userId: call.doctorId,
             callSessionId,
             amount: earning,
             type: "CREDIT",
@@ -45,8 +45,8 @@ export async function completeCall(callSessionId: string): Promise<void> {
             description: `Consultation fee - ${callSessionId}`,
           },
         });
-        await tx.doctorProfile.update({
-          where: { userId: call.doctorId },
+        await tx.user.update({
+          where: { id: call.doctorId },
           data: { walletBalance: { increment: earning } },
         });
       }
