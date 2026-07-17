@@ -34,7 +34,7 @@ export function initSocketHandlers(io: Server): void {
     const userRole = socket.data.userRole as string;
 
     socket.join(`user:${userId}`);
-    if (userRole === "ADMIN") {
+    if (userRole === "ADMIN" || userRole === "SUPER_ADMIN") {
       socket.join("admins");
     }
 

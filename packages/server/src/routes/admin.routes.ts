@@ -13,9 +13,7 @@ export const adminRouter = Router();
 
 const DisableUserSchema = z.object({ disabled: z.boolean() });
 
-adminRouter.use(requireAuth("SUPER_ADMIN"));
-
-adminRouter.get("/doctors", async (_req: Request, res: Response, next: NextFunction) => {
+adminRouter.get("/doctors", requireAuth("SUPER_ADMIN"), async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const doctors = await prisma.user.findMany({
       where: { role: "DOCTOR" },
@@ -28,7 +26,7 @@ adminRouter.get("/doctors", async (_req: Request, res: Response, next: NextFunct
   }
 });
 
-adminRouter.get("/doctors/:id/license", async (req: Request, res: Response, next: NextFunction) => {
+adminRouter.get("/doctors/:id/license", requireAuth("SUPER_ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const profile = await prisma.doctorProfile.findUnique({ where: { userId: req.params.id } });
     if (!profile?.licenseDocKey) {
@@ -44,7 +42,7 @@ adminRouter.get("/doctors/:id/license", async (req: Request, res: Response, next
   }
 });
 
-adminRouter.put("/doctors/:id/approve", async (req: Request, res: Response, next: NextFunction) => {
+adminRouter.put("/doctors/:id/approve", requireAuth("SUPER_ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.params.id } });
     if (!user || user.role !== "DOCTOR") {
@@ -64,7 +62,7 @@ adminRouter.put("/doctors/:id/approve", async (req: Request, res: Response, next
   }
 });
 
-adminRouter.get("/users", async (_req: Request, res: Response, next: NextFunction) => {
+adminRouter.get("/users", requireAuth("SUPER_ADMIN", "ADMIN"), async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const users = await prisma.user.findMany({
       orderBy: { createdAt: "desc" },
@@ -76,18 +74,30 @@ adminRouter.get("/users", async (_req: Request, res: Response, next: NextFunctio
   }
 });
 
-adminRouter.put("/users/:id/disable", async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { disabled } = DisableUserSchema.parse(req.body);
-    await prisma.user.update({ where: { id: req.params.id }, data: { disabled } });
-    await recordAuditLog(req.user!.sub, disabled ? "user.disable" : "user.enable", req.params.id);
-    res.json({ message: disabled ? "User disabled" : "User enabled" });
-  } catch (error) {
-    next(error);
-  }
-});
+adminRouter.put(
+  "/users/:id/disable",
+  requireAuth("SUPER_ADMIN", "ADMIN"),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { disabled } = DisableUserSchema.parse(req.body);
 
-adminRouter.get("/users/:id", async (req: Request, res: Response, next: NextFunction) => {
+      if (req.user!.role === "ADMIN") {
+        const target = await prisma.user.findUnique({ where: { id: req.params.id } });
+        if (!target || target.role !== "PATIENT") {
+          throw new AppError(403, "Forbidden");
+        }
+      }
+
+      await prisma.user.update({ where: { id: req.params.id }, data: { disabled } });
+      await recordAuditLog(req.user!.sub, disabled ? "user.disable" : "user.enable", req.params.id);
+      res.json({ message: disabled ? "User disabled" : "User enabled" });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+adminRouter.get("/users/:id", requireAuth("SUPER_ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.params.id },
@@ -126,7 +136,7 @@ adminRouter.get("/users/:id", async (req: Request, res: Response, next: NextFunc
   }
 });
 
-adminRouter.get("/stats", async (_req: Request, res: Response, next: NextFunction) => {
+adminRouter.get("/stats", requireAuth("SUPER_ADMIN", "ADMIN"), async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const [totalPatients, totalDoctors, totalCalls, activeCalls, totalRx] = await Promise.all([
       prisma.user.count({ where: { role: "PATIENT" } }),
@@ -141,7 +151,7 @@ adminRouter.get("/stats", async (_req: Request, res: Response, next: NextFunctio
   }
 });
 
-adminRouter.get("/calls", async (req: Request, res: Response, next: NextFunction) => {
+adminRouter.get("/calls", requireAuth("SUPER_ADMIN", "ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = Math.max(Number(req.query.page ?? "1"), 1);
     const limit = 20;
@@ -163,7 +173,7 @@ adminRouter.get("/calls", async (req: Request, res: Response, next: NextFunction
   }
 });
 
-adminRouter.get("/wallet/withdrawals", async (_req: Request, res: Response, next: NextFunction) => {
+adminRouter.get("/wallet/withdrawals", requireAuth("SUPER_ADMIN"), async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const withdrawals = await listPendingWithdrawals();
     res.json(withdrawals);
@@ -172,7 +182,7 @@ adminRouter.get("/wallet/withdrawals", async (_req: Request, res: Response, next
   }
 });
 
-adminRouter.put("/wallet/withdrawals/:id/complete", async (req: Request, res: Response, next: NextFunction) => {
+adminRouter.put("/wallet/withdrawals/:id/complete", requireAuth("SUPER_ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const transaction = await completeWithdrawal(req.params.id);
     await recordAuditLog(req.user!.sub, "withdrawal.complete", transaction.id, { amount: transaction.amount.toString() });
@@ -182,7 +192,7 @@ adminRouter.put("/wallet/withdrawals/:id/complete", async (req: Request, res: Re
   }
 });
 
-adminRouter.put("/wallet/withdrawals/:id/reject", async (req: Request, res: Response, next: NextFunction) => {
+adminRouter.put("/wallet/withdrawals/:id/reject", requireAuth("SUPER_ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const transaction = await rejectWithdrawal(req.params.id);
     await recordAuditLog(req.user!.sub, "withdrawal.reject", transaction.id);
@@ -192,7 +202,7 @@ adminRouter.put("/wallet/withdrawals/:id/reject", async (req: Request, res: Resp
   }
 });
 
-adminRouter.get("/audit-log", async (req: Request, res: Response, next: NextFunction) => {
+adminRouter.get("/audit-log", requireAuth("SUPER_ADMIN", "ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = Math.max(Number(req.query.page ?? "1"), 1);
     const limit = 50;

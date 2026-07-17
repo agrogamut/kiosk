@@ -38,7 +38,7 @@ healthFilesRouter.get("/:id", requireAuth(), async (req: Request, res: Response,
     if (!file) {
       throw new AppError(404, "File not found");
     }
-    if (file.userId !== req.user!.sub && req.user!.role !== "ADMIN") {
+    if (file.userId !== req.user!.sub && req.user!.role !== "SUPER_ADMIN") {
       throw new AppError(403, "Forbidden");
     }
 

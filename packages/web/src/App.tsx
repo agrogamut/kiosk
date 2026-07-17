@@ -51,13 +51,13 @@ export default function App() {
       <Route path="/doctor/wallet" element={<RequireRole role="DOCTOR" loginPath="/doctor/login"><DoctorWallet /></RequireRole>} />
       <Route path="/doctor/history" element={<RequireRole role="DOCTOR" loginPath="/doctor/login"><DoctorHistory /></RequireRole>} />
       <Route path="/admin/login" element={<AdminLogin />} />
-      <Route path="/admin" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminDashboard /></RequireRole>} />
-      <Route path="/admin/doctors" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminDoctors /></RequireRole>} />
-      <Route path="/admin/users" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminUsers /></RequireRole>} />
-      <Route path="/admin/users/:id" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminUserDetail /></RequireRole>} />
-      <Route path="/admin/stats" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminStats /></RequireRole>} />
-      <Route path="/admin/calls" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminCalls /></RequireRole>} />
-      <Route path="/admin/withdrawals" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminWithdrawals /></RequireRole>} />
+      <Route path="/admin" element={<RequireRole role="SUPER_ADMIN" loginPath="/admin/login"><AdminDashboard /></RequireRole>} />
+      <Route path="/admin/doctors" element={<RequireRole role="SUPER_ADMIN" loginPath="/admin/login"><AdminDoctors /></RequireRole>} />
+      <Route path="/admin/users" element={<RequireRole role="SUPER_ADMIN" loginPath="/admin/login"><AdminUsers /></RequireRole>} />
+      <Route path="/admin/users/:id" element={<RequireRole role="SUPER_ADMIN" loginPath="/admin/login"><AdminUserDetail /></RequireRole>} />
+      <Route path="/admin/stats" element={<RequireRole role="SUPER_ADMIN" loginPath="/admin/login"><AdminStats /></RequireRole>} />
+      <Route path="/admin/calls" element={<RequireRole role="SUPER_ADMIN" loginPath="/admin/login"><AdminCalls /></RequireRole>} />
+      <Route path="/admin/withdrawals" element={<RequireRole role="SUPER_ADMIN" loginPath="/admin/login"><AdminWithdrawals /></RequireRole>} />
     </Routes>
   );
 }

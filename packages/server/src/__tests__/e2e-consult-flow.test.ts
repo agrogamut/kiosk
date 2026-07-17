@@ -43,7 +43,7 @@ async function ensureAdmin(): Promise<{ phone: string; password: string }> {
       data: {
         phone,
         name: "Admin",
-        role: "ADMIN",
+        role: "SUPER_ADMIN",
         passwordHash: await bcrypt.hash(password, 12),
       },
     });

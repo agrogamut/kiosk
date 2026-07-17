@@ -8,7 +8,7 @@ interface AdminUserDetailData {
     id: string;
     phone: string;
     name: string;
-    role: "PATIENT" | "DOCTOR" | "ADMIN";
+    role: "PATIENT" | "DOCTOR" | "ADMIN" | "SUPER_ADMIN";
     disabled: boolean;
     createdAt: string;
     patientProfile: { heightCm: number | null; weightKg: number | null; bloodType: string | null; dob: string | null } | null;

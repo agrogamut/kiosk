@@ -70,7 +70,7 @@ prescriptionsRouter.get(
 
       const userId = req.user!.sub;
       const role = req.user!.role;
-      if (prescription.patientId !== userId && prescription.doctorId !== userId && role !== "ADMIN") {
+      if (prescription.patientId !== userId && prescription.doctorId !== userId && role !== "SUPER_ADMIN") {
         throw new AppError(403, "Forbidden");
       }
 

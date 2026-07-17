@@ -25,7 +25,7 @@ function isValidDateOfBirth(value: string): boolean {
   );
 }
 
-export const UserRoleSchema = z.enum(["PATIENT", "DOCTOR", "ADMIN"]);
+export const UserRoleSchema = z.enum(["PATIENT", "DOCTOR", "ADMIN", "SUPER_ADMIN"]);
 export type UserRole = z.infer<typeof UserRoleSchema>;
 
 export const GenderSchema = z.enum(["MALE", "FEMALE", "OTHER"]);

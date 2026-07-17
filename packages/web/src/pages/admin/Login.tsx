@@ -10,7 +10,7 @@ import { useAuthStore } from "../../store/auth.store";
 
 interface LoginResponse {
   accessToken: string;
-  user: { id: string; name: string; role: "ADMIN" };
+  user: { id: string; name: string; role: "SUPER_ADMIN" };
 }
 
 export default function AdminLogin() {

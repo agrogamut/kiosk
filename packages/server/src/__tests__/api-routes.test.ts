@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import bcrypt from "bcryptjs";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { app } from "../index.js";
@@ -245,6 +246,26 @@ describe("Admin API", () => {
     expect(statsResponse.body.totalDoctors).toBeGreaterThanOrEqual(2);
     expect(callsResponse.status).toBe(200);
     expect(callsResponse.body.calls.some((call: { id: string }) => call.id === callSessionId)).toBe(true);
+  });
+
+  it("rejects a kiosk ADMIN from a SUPER_ADMIN-only route but allows the shared operational route", async () => {
+    const passwordHash = await bcrypt.hash("kiosk-pass", 12);
+    const kioskAdmin = await prisma.user.create({
+      data: { phone: "8888700002", name: "Kiosk Admin Route Test", role: "ADMIN", passwordHash },
+    });
+    const kioskToken = signAccessToken({ sub: kioskAdmin.id, role: "ADMIN" });
+
+    const forbidden = await request(app)
+      .get("/api/admin/wallet/withdrawals")
+      .set("Authorization", `Bearer ${kioskToken}`);
+    expect(forbidden.status).toBe(403);
+
+    const allowed = await request(app)
+      .get("/api/admin/stats")
+      .set("Authorization", `Bearer ${kioskToken}`);
+    expect(allowed.status).toBe(200);
+
+    await prisma.user.delete({ where: { id: kioskAdmin.id } });
   });
 });
 
