@@ -267,6 +267,36 @@ describe("Admin API", () => {
 
     await prisma.user.delete({ where: { id: kioskAdmin.id } });
   });
+
+  it("restricts a kiosk ADMIN to disabling only PATIENT accounts", async () => {
+    const passwordHash = await bcrypt.hash("kiosk-pass", 12);
+    const kioskAdmin = await prisma.user.create({
+      data: { phone: "8888700003", name: "Kiosk Admin Disable Test", role: "ADMIN", passwordHash },
+    });
+    const kioskToken = signAccessToken({ sub: kioskAdmin.id, role: "ADMIN" });
+
+    const forbidden = await request(app)
+      .put(`/api/admin/users/${doctorId}/disable`)
+      .set("Authorization", `Bearer ${kioskToken}`)
+      .send({ disabled: true });
+    expect(forbidden.status).toBe(403);
+
+    const doctorAfter = await prisma.user.findUniqueOrThrow({ where: { id: doctorId } });
+    expect(doctorAfter.disabled).toBe(false);
+
+    const allowed = await request(app)
+      .put(`/api/admin/users/${patientId}/disable`)
+      .set("Authorization", `Bearer ${kioskToken}`)
+      .send({ disabled: true });
+    expect(allowed.status).toBe(200);
+
+    const patientAfter = await prisma.user.findUniqueOrThrow({ where: { id: patientId } });
+    expect(patientAfter.disabled).toBe(true);
+
+    await prisma.user.update({ where: { id: patientId }, data: { disabled: false } });
+    await prisma.auditLog.deleteMany({ where: { actorId: kioskAdmin.id } });
+    await prisma.user.delete({ where: { id: kioskAdmin.id } });
+  });
 });
 
 describe("Doctor wallet API", () => {
