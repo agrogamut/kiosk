@@ -7,7 +7,14 @@ import { redis } from "../lib/redis.js";
 
 async function deleteTestUsers(): Promise<void> {
   const users = await prisma.user.findMany({
-    where: { OR: [{ phone: { startsWith: "999900" } }, { phone: { startsWith: "88885" } }, { phone: { startsWith: "88891" } }] },
+    where: {
+      OR: [
+        { phone: { startsWith: "999900" } },
+        { phone: { startsWith: "88885" } },
+        { phone: { startsWith: "88891" } },
+        { phone: { startsWith: "88887" } },
+      ],
+    },
     select: { id: true },
   });
   const userIds = users.map((user) => user.id);
