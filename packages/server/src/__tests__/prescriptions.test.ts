@@ -43,6 +43,8 @@ async function deletePrescriptionTestUsers(): Promise<void> {
   });
   await prisma.doctorProfile.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.patientProfile.deleteMany({ where: { userId: { in: userIds } } });
+  // Re-delete: the render-pdf worker runs for real during tests and can still
+  // be inserting these rows after the first pass above. Do not remove.
   await prisma.walletTransaction.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.healthFile.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
