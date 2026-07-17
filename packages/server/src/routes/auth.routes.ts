@@ -16,7 +16,7 @@ import { AppError } from "../middleware/error.middleware.js";
 import { checkAttemptLimit, clearAttempts, recordFailedAttempt } from "../lib/rate-limit.js";
 import {
   findActivePatientByPhone,
-  loginAdmin,
+  loginStaff,
   loginDoctorInitiate,
   loginPatient,
   registerDoctor,
@@ -222,7 +222,7 @@ authRouter.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { phone, password } = AdminLoginSchema.parse(req.body);
-      const user = await loginAdmin(phone, password);
+      const user = await loginStaff(phone, password);
       const payload = { sub: user.id, role: user.role };
       const accessToken = signAccessToken(payload);
       const refreshToken = signRefreshToken(payload);

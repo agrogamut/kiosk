@@ -50,7 +50,7 @@ beforeAll(async () => {
       data: {
         phone: adminPhone,
         name: "Admin",
-        role: "ADMIN",
+        role: "SUPER_ADMIN",
         passwordHash: await bcrypt.hash(adminPassword, 12),
       },
     });
@@ -479,6 +479,23 @@ describe("Admin auth", () => {
     });
 
     expect(response.status).toBe(401);
+  });
+
+  it("logs in a kiosk ADMIN through the same /admin/login route", async () => {
+    const passwordHash = await bcrypt.hash("kiosk-pass-123", 12);
+    const kioskAdmin = await prisma.user.create({
+      data: { phone: "8888700001", name: "Kiosk Admin", role: "ADMIN", passwordHash },
+    });
+
+    const response = await request(app).post("/api/auth/admin/login").send({
+      phone: "8888700001",
+      password: "kiosk-pass-123",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.user.role).toBe("ADMIN");
+
+    await prisma.user.delete({ where: { id: kioskAdmin.id } });
   });
 });
 
