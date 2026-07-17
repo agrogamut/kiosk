@@ -342,6 +342,23 @@ describe("Admin API", () => {
     await prisma.user.delete({ where: { id: createResponse.body.id } });
   });
 
+  it("rejects a staff DOCTOR creation with a regNumber already in use", async () => {
+    const first = await request(app)
+      .post("/api/admin/staff")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ phone: "8888700007", name: "First Reg Doctor", role: "DOCTOR", degree: "MBBS", regNumber: "STAFF-DOC-REG-DUPE" });
+    expect(first.status).toBe(201);
+
+    const second = await request(app)
+      .post("/api/admin/staff")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ phone: "8888700008", name: "Second Reg Doctor", role: "DOCTOR", degree: "BAMS", regNumber: "STAFF-DOC-REG-DUPE" });
+    expect(second.status).toBe(409);
+
+    await prisma.doctorProfile.deleteMany({ where: { userId: first.body.id } });
+    await prisma.user.delete({ where: { id: first.body.id } });
+  });
+
   it("rejects staff creation from a non-SUPER_ADMIN role", async () => {
     const response = await request(app)
       .post("/api/admin/staff")

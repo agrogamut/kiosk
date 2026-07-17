@@ -25,6 +25,13 @@ adminRouter.post("/staff", requireAuth("SUPER_ADMIN"), async (req: Request, res:
       throw new AppError(409, "Phone already registered");
     }
 
+    if (data.role === "DOCTOR") {
+      const existingProfile = await prisma.doctorProfile.findUnique({ where: { regNumber: data.regNumber } });
+      if (existingProfile) {
+        throw new AppError(409, "Registration number already in use");
+      }
+    }
+
     const tempPin = randomBytes(16).toString("base64url");
     const passwordHash = await bcrypt.hash(tempPin, 12);
 
