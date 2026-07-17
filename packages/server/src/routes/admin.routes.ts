@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomBytes } from "crypto";
 import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
@@ -25,7 +25,7 @@ adminRouter.post("/staff", requireAuth("SUPER_ADMIN"), async (req: Request, res:
       throw new AppError(409, "Phone already registered");
     }
 
-    const tempPin = randomUUID().slice(0, 8);
+    const tempPin = randomBytes(16).toString("base64url");
     const passwordHash = await bcrypt.hash(tempPin, 12);
 
     const user = await prisma.user.create({
