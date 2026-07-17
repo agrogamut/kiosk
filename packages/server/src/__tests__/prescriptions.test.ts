@@ -32,7 +32,6 @@ async function deletePrescriptionTestUsers(): Promise<void> {
   const callIds = calls.map((call) => call.id);
 
   await prisma.healthFile.deleteMany({ where: { userId: { in: userIds } } });
-  await prisma.walletTransaction.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.prescription.deleteMany({
     where: {
       OR: [{ patientId: { in: userIds } }, { doctorId: { in: userIds } }, { callSessionId: { in: callIds } }],
@@ -44,6 +43,8 @@ async function deletePrescriptionTestUsers(): Promise<void> {
   });
   await prisma.doctorProfile.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.patientProfile.deleteMany({ where: { userId: { in: userIds } } });
+  await prisma.walletTransaction.deleteMany({ where: { userId: { in: userIds } } });
+  await prisma.healthFile.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
 }
 
