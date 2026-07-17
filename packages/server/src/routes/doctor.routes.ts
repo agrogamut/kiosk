@@ -1,15 +1,48 @@
 import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
+import multer from "multer";
 import { WithdrawRequestSchema } from "@madamgy/api-client";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { AppError } from "../middleware/error.middleware.js";
-import { getPresignedUrl } from "../services/storage.service.js";
+import { getPresignedUrl, uploadBuffer } from "../services/storage.service.js";
 import { createWithdrawRequest, getWalletBalance } from "../services/wallet.service.js";
 
 export const doctorRouter = Router();
 
 doctorRouter.use(requireAuth("DOCTOR"));
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
+doctorRouter.post(
+  "/license",
+  upload.single("licenseDocument"),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.file) {
+        throw new AppError(400, "License document required");
+      }
+      if (
+        req.file.mimetype !== "application/pdf" ||
+        !req.file.buffer.subarray(0, 5).toString("ascii").startsWith("%PDF-")
+      ) {
+        throw new AppError(400, "License document must be a valid PDF");
+      }
+
+      const doctorId = req.user!.sub;
+      const objectKey = `doctor-verification/${doctorId}.pdf`;
+      await uploadBuffer(objectKey, req.file.buffer, "application/pdf");
+      await prisma.doctorProfile.update({ where: { userId: doctorId }, data: { licenseDocKey: objectKey } });
+
+      res.json({ message: "License uploaded" });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 doctorRouter.get("/patients/:patientId/records", async (req: Request, res: Response, next: NextFunction) => {
   try {

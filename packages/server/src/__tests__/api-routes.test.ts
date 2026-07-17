@@ -297,6 +297,59 @@ describe("Admin API", () => {
     await prisma.auditLog.deleteMany({ where: { actorId: kioskAdmin.id } });
     await prisma.user.delete({ where: { id: kioskAdmin.id } });
   });
+
+  it("lets SUPER_ADMIN create an ADMIN staff account directly", async () => {
+    const response = await request(app)
+      .post("/api/admin/staff")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ phone: "8888700003", name: "New Kiosk Owner", role: "ADMIN" });
+
+    expect(response.status).toBe(201);
+    expect(response.body.role).toBe("ADMIN");
+    expect(typeof response.body.tempPin).toBe("string");
+
+    const created = await prisma.user.findUniqueOrThrow({ where: { id: response.body.id } });
+    expect(created.passwordHash).not.toBeNull();
+
+    await prisma.user.delete({ where: { id: response.body.id } });
+  });
+
+  it("lets SUPER_ADMIN create a DOCTOR staff account with real license fields, then the doctor uploads their license", async () => {
+    const createResponse = await request(app)
+      .post("/api/admin/staff")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        phone: "8888700006",
+        name: "Staff Doctor",
+        role: "DOCTOR",
+        degree: "MBBS",
+        regNumber: "STAFF-DOC-REG-1",
+      });
+    expect(createResponse.status).toBe(201);
+
+    const doctorToken = signAccessToken({ sub: createResponse.body.id, role: "DOCTOR" });
+    const uploadResponse = await request(app)
+      .post("/api/doctor/license")
+      .set("Authorization", `Bearer ${doctorToken}`)
+      .attach("licenseDocument", Buffer.from("%PDF-1.4 fake license content"), "license.pdf");
+    expect(uploadResponse.status).toBe(200);
+
+    const profile = await prisma.doctorProfile.findUniqueOrThrow({ where: { userId: createResponse.body.id } });
+    expect(profile.degree).toBe("MBBS");
+    expect(profile.licenseDocKey).toBeTruthy();
+
+    await prisma.doctorProfile.deleteMany({ where: { userId: createResponse.body.id } });
+    await prisma.user.delete({ where: { id: createResponse.body.id } });
+  });
+
+  it("rejects staff creation from a non-SUPER_ADMIN role", async () => {
+    const response = await request(app)
+      .post("/api/admin/staff")
+      .set("Authorization", `Bearer ${patientToken}`)
+      .send({ phone: "8888700004", name: "Nope", role: "ADMIN" });
+
+    expect(response.status).toBe(403);
+  });
 });
 
 describe("Doctor wallet API", () => {

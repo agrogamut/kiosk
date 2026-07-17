@@ -101,6 +101,23 @@ export const UserSchema = z.object({
 });
 export type User = z.infer<typeof UserSchema>;
 
+export const StaffCreateSchema = z.discriminatedUnion("role", [
+  z.object({
+    role: z.literal("ADMIN"),
+    phone: z.string().min(10).max(15),
+    name: z.string().min(1).max(100),
+  }),
+  z.object({
+    role: z.literal("DOCTOR"),
+    phone: z.string().min(10).max(15),
+    name: z.string().min(1).max(100),
+    degree: z.string().min(1),
+    regNumber: z.string().min(1),
+    specialization: z.string().optional(),
+  }),
+]);
+export type StaffCreate = z.infer<typeof StaffCreateSchema>;
+
 export const UpdateProfileSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   heightCm: z.number().positive().max(300).optional(),

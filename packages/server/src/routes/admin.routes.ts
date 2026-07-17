@@ -1,6 +1,9 @@
+import { randomUUID } from "crypto";
 import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
+import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { StaffCreateSchema } from "@madamgy/api-client";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { AppError } from "../middleware/error.middleware.js";
@@ -12,6 +15,45 @@ import { getPresignedUrl } from "../services/storage.service.js";
 export const adminRouter = Router();
 
 const DisableUserSchema = z.object({ disabled: z.boolean() });
+
+adminRouter.post("/staff", requireAuth("SUPER_ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = StaffCreateSchema.parse(req.body);
+
+    const existing = await prisma.user.findUnique({ where: { phone: data.phone } });
+    if (existing) {
+      throw new AppError(409, "Phone already registered");
+    }
+
+    const tempPin = randomUUID().slice(0, 8);
+    const passwordHash = await bcrypt.hash(tempPin, 12);
+
+    const user = await prisma.user.create({
+      data: {
+        phone: data.phone,
+        name: data.name,
+        role: data.role,
+        passwordHash,
+        ...(data.role === "DOCTOR"
+          ? {
+              doctorProfile: {
+                create: {
+                  degree: data.degree,
+                  regNumber: data.regNumber,
+                  specialization: data.specialization,
+                },
+              },
+            }
+          : {}),
+      },
+    });
+
+    await recordAuditLog(req.user!.sub, "staff.create", user.id, { role: data.role });
+    res.status(201).json({ id: user.id, phone: user.phone, name: user.name, role: user.role, tempPin });
+  } catch (error) {
+    next(error);
+  }
+});
 
 adminRouter.get("/doctors", requireAuth("SUPER_ADMIN"), async (_req: Request, res: Response, next: NextFunction) => {
   try {
