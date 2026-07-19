@@ -177,3 +177,74 @@ describe("POST /api/calls with REQUIRE_PAYMENT_FOR_CALLS=true", () => {
     expect(response.status).toBe(402);
   });
 });
+
+describe("POST /api/calls device attribution", () => {
+  it("attributes a booking to the admin who owns the registered device", async () => {
+    const admin = await prisma.user.create({
+      data: { phone: "8888800001", name: "Attribution Admin", role: "ADMIN", passwordHash: "x" },
+    });
+    await prisma.kiosk.create({ data: { deviceId: "device-attr-test-1", adminId: admin.id, active: true } });
+
+    const patient = await prisma.user.create({
+      data: { phone: "8888800002", name: "Attribution Patient", role: "PATIENT", pinHash: "x" },
+    });
+    const token = signAccessToken({ sub: patient.id, role: "PATIENT" });
+
+    const response = await request(app)
+      .post("/api/calls")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ deviceId: "device-attr-test-1" });
+
+    expect(response.status).toBe(201);
+    const call = await prisma.callSession.findUniqueOrThrow({ where: { id: response.body.id } });
+    expect(call.assistingAdminId).toBe(admin.id);
+
+    await prisma.callSession.delete({ where: { id: call.id } });
+    await prisma.kiosk.delete({ where: { deviceId: "device-attr-test-1" } });
+    await prisma.user.deleteMany({ where: { id: { in: [admin.id, patient.id] } } });
+  });
+
+  it("leaves assistingAdminId null for an unregistered device", async () => {
+    const patient = await prisma.user.create({
+      data: { phone: "8888800003", name: "No Attribution Patient", role: "PATIENT", pinHash: "x" },
+    });
+    const token = signAccessToken({ sub: patient.id, role: "PATIENT" });
+
+    const response = await request(app)
+      .post("/api/calls")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ deviceId: "device-never-registered" });
+
+    expect(response.status).toBe(201);
+    const call = await prisma.callSession.findUniqueOrThrow({ where: { id: response.body.id } });
+    expect(call.assistingAdminId).toBeNull();
+
+    await prisma.callSession.delete({ where: { id: call.id } });
+    await prisma.user.delete({ where: { id: patient.id } });
+  });
+
+  it("leaves assistingAdminId null for a deactivated device", async () => {
+    const admin = await prisma.user.create({
+      data: { phone: "8888800004", name: "Deactivated Kiosk Admin", role: "ADMIN", passwordHash: "x" },
+    });
+    await prisma.kiosk.create({ data: { deviceId: "device-attr-test-2", adminId: admin.id, active: false } });
+
+    const patient = await prisma.user.create({
+      data: { phone: "8888800005", name: "Deactivated Device Patient", role: "PATIENT", pinHash: "x" },
+    });
+    const token = signAccessToken({ sub: patient.id, role: "PATIENT" });
+
+    const response = await request(app)
+      .post("/api/calls")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ deviceId: "device-attr-test-2" });
+
+    expect(response.status).toBe(201);
+    const call = await prisma.callSession.findUniqueOrThrow({ where: { id: response.body.id } });
+    expect(call.assistingAdminId).toBeNull();
+
+    await prisma.callSession.delete({ where: { id: call.id } });
+    await prisma.kiosk.delete({ where: { deviceId: "device-attr-test-2" } });
+    await prisma.user.deleteMany({ where: { id: { in: [admin.id, patient.id] } } });
+  });
+});

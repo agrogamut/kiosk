@@ -24,6 +24,12 @@ export const CallSessionSchema = z.object({
 });
 export type CallSession = z.infer<typeof CallSessionSchema>;
 
+export const CallCreateSchema = z.object({
+  paymentId: z.string().optional(),
+  deviceId: z.string().min(1).optional(),
+});
+export type CallCreate = z.infer<typeof CallCreateSchema>;
+
 export const VitalsSchema = z.object({
   weightKg: z.number().positive().optional(),
   heightCm: z.number().positive().optional(),

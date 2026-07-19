@@ -3,9 +3,11 @@ import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { CallCreateSchema } from "@madamgy/api-client";
 import { assignDoctorQueue } from "../lib/queues.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
+import { resolveAssistingAdmin } from "../services/kiosk.service.js";
 
 export const callsRouter = Router();
 
@@ -21,24 +23,30 @@ callsRouter.post("/", requireAuth("PATIENT"), async (req: Request, res: Response
       return;
     }
 
+    const { paymentId, deviceId } = CallCreateSchema.parse(req.body ?? {});
+
     const requirePayment = process.env.REQUIRE_PAYMENT_FOR_CALLS === "true";
-    const body = requirePayment ? z.object({ paymentId: z.string() }).parse(req.body) : undefined;
+    if (requirePayment && !paymentId) {
+      z.object({ paymentId: z.string() }).parse(req.body);
+    }
+
+    const assistingAdminId = await resolveAssistingAdmin(deviceId);
 
     // Create the call first (cheap, no external side effects). The payment claim below uses the
     // real call.id directly as the callSessionId being set, never a placeholder, so it can never
     // violate the FK constraint on Payment.callSessionId and never collides across unrelated
     // payments (each claim only ever touches its own payment row).
     const call = await prisma.callSession.create({
-      data: { patientId, livekitRoom: `room-${randomUUID()}`, status: "QUEUED" },
+      data: { patientId, assistingAdminId, livekitRoom: `room-${randomUUID()}`, status: "QUEUED" },
     });
 
-    if (requirePayment && body) {
+    if (requirePayment && paymentId) {
       // Atomically claim the payment for this call. Two concurrent requests with the same
       // paymentId each create their own distinct CallSession, then race on this updateMany
       // against the same Payment row; Postgres serializes the two UPDATEs, only one can match
       // callSessionId: null, and the loser deletes its own orphan CallSession below.
       const claim = await prisma.payment.updateMany({
-        where: { id: body.paymentId, patientId, status: "PAID", callSessionId: null },
+        where: { id: paymentId, patientId, status: "PAID", callSessionId: null },
         data: { callSessionId: call.id },
       });
       if (claim.count === 0) {
