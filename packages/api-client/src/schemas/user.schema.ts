@@ -126,3 +126,9 @@ export const UpdateProfileSchema = z.object({
   dob: DateOfBirthSchema.optional(),
 });
 export type UpdateProfile = z.infer<typeof UpdateProfileSchema>;
+
+export const KioskRegisterSchema = z.object({
+  deviceId: z.string().min(1),
+  label: z.string().max(100).optional(),
+});
+export type KioskRegister = z.infer<typeof KioskRegisterSchema>;

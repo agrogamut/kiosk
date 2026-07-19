@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { RevenueConfigUpdateSchema, StaffCreateSchema } from "@madamgy/api-client";
+import { KioskRegisterSchema, RevenueConfigUpdateSchema, StaffCreateSchema } from "@madamgy/api-client";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { AppError } from "../middleware/error.middleware.js";
@@ -12,6 +12,7 @@ import { completeWithdrawal, listPendingWithdrawals, rejectWithdrawal } from "..
 import { recordAuditLog } from "../services/audit-log.service.js";
 import { getPresignedUrl } from "../services/storage.service.js";
 import { getRevenueConfig, updateRevenueConfig } from "../services/revenue-config.service.js";
+import { deactivateKioskDevice, registerKioskDevice } from "../services/kiosk.service.js";
 
 export const adminRouter = Router();
 
@@ -271,6 +272,25 @@ adminRouter.put("/revenue-config", requireAuth("SUPER_ADMIN"), async (req: Reque
       after: { fee: updated.consultationFee.toString(), doctorPct: updated.doctorPct.toString(), adminPct: updated.adminPct.toString(), superAdminPct: updated.superAdminPct.toString() },
     });
     res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.post("/kiosk-devices", requireAuth("ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { deviceId, label } = KioskRegisterSchema.parse(req.body);
+    const kiosk = await registerKioskDevice(req.user!.sub, deviceId, label);
+    res.status(201).json(kiosk);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.delete("/kiosk-devices/:deviceId", requireAuth("ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const kiosk = await deactivateKioskDevice(req.user!.sub, req.params.deviceId);
+    res.json(kiosk);
   } catch (error) {
     next(error);
   }
