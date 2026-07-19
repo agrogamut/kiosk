@@ -23,3 +23,11 @@ export const WithdrawRequestSchema = z.object({
   holderName: z.string().min(1),
 });
 export type WithdrawRequest = z.infer<typeof WithdrawRequestSchema>;
+
+export const RevenueConfigUpdateSchema = z.object({
+  consultationFee: z.number().positive(),
+  doctorPct: z.number().min(0).max(100),
+  adminPct: z.number().min(0).max(100),
+  superAdminPct: z.number().min(0).max(100),
+});
+export type RevenueConfigUpdate = z.infer<typeof RevenueConfigUpdateSchema>;

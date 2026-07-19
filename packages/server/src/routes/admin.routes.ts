@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { StaffCreateSchema } from "@madamgy/api-client";
+import { RevenueConfigUpdateSchema, StaffCreateSchema } from "@madamgy/api-client";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { AppError } from "../middleware/error.middleware.js";
@@ -11,6 +11,7 @@ import { io } from "../index.js";
 import { completeWithdrawal, listPendingWithdrawals, rejectWithdrawal } from "../services/wallet.service.js";
 import { recordAuditLog } from "../services/audit-log.service.js";
 import { getPresignedUrl } from "../services/storage.service.js";
+import { getRevenueConfig, updateRevenueConfig } from "../services/revenue-config.service.js";
 
 export const adminRouter = Router();
 
@@ -246,6 +247,30 @@ adminRouter.put("/wallet/withdrawals/:id/reject", requireAuth("SUPER_ADMIN"), as
     const transaction = await rejectWithdrawal(req.params.id);
     await recordAuditLog(req.user!.sub, "withdrawal.reject", transaction.id);
     res.json(transaction);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/revenue-config", requireAuth("SUPER_ADMIN"), async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const config = await getRevenueConfig();
+    res.json(config);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.put("/revenue-config", requireAuth("SUPER_ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = RevenueConfigUpdateSchema.parse(req.body);
+    const before = await getRevenueConfig();
+    const updated = await updateRevenueConfig(req.user!.sub, data);
+    await recordAuditLog(req.user!.sub, "revenue-config.update", updated.id, {
+      before: { fee: before.consultationFee.toString(), doctorPct: before.doctorPct.toString(), adminPct: before.adminPct.toString(), superAdminPct: before.superAdminPct.toString() },
+      after: { fee: updated.consultationFee.toString(), doctorPct: updated.doctorPct.toString(), adminPct: updated.adminPct.toString(), superAdminPct: updated.superAdminPct.toString() },
+    });
+    res.json(updated);
   } catch (error) {
     next(error);
   }
