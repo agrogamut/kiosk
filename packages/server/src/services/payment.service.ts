@@ -84,6 +84,10 @@ export async function refundPayment(paymentId: string) {
   }
 
   const razorpay = getRazorpayClient();
+  // Status is already claimed as REFUNDED above before calling the external API, to close the
+  // check-then-act race between concurrent refund attempts. If this call fails, the payment is
+  // left REFUNDED locally without a confirmed external refund — accepted trade-off for this fix;
+  // full reconciliation tracking is a separate, larger change.
   await razorpay.payments.refund(payment.razorpayPaymentId, {});
   return payment;
 }
