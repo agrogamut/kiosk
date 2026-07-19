@@ -12,7 +12,7 @@ import { completeWithdrawal, listPendingWithdrawals, rejectWithdrawal } from "..
 import { recordAuditLog } from "../services/audit-log.service.js";
 import { getPresignedUrl } from "../services/storage.service.js";
 import { getRevenueConfig, updateRevenueConfig } from "../services/revenue-config.service.js";
-import { deactivateKioskDevice, registerKioskDevice } from "../services/kiosk.service.js";
+import { deactivateKioskDevice, forceDeactivateKioskDevice, registerKioskDevice } from "../services/kiosk.service.js";
 
 export const adminRouter = Router();
 
@@ -295,6 +295,20 @@ adminRouter.delete("/kiosk-devices/:deviceId", requireAuth("ADMIN"), async (req:
     next(error);
   }
 });
+
+adminRouter.delete(
+  "/kiosk-devices/:deviceId/force",
+  requireAuth("SUPER_ADMIN"),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const kiosk = await forceDeactivateKioskDevice(req.params.deviceId);
+      await recordAuditLog(req.user!.sub, "kiosk.force-deactivate", kiosk.id);
+      res.json(kiosk);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 adminRouter.get("/audit-log", requireAuth("SUPER_ADMIN", "ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
   try {

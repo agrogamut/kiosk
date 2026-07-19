@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../lib/prisma.js";
-import { registerKioskDevice } from "../services/kiosk.service.js";
+import { forceDeactivateKioskDevice, registerKioskDevice } from "../services/kiosk.service.js";
 
 describe("kiosk.service", () => {
   let adminAId: string;
@@ -51,5 +51,14 @@ describe("kiosk.service", () => {
     const kiosk = await registerKioskDevice(adminBId, "device-kiosk-test-1");
     expect(kiosk.adminId).toBe(adminBId);
     expect(kiosk.active).toBe(true);
+  });
+
+  it("lets a SUPER_ADMIN force-deactivate a device regardless of owner", async () => {
+    const kiosk = await forceDeactivateKioskDevice("device-kiosk-test-1");
+    expect(kiosk.active).toBe(false);
+
+    await expect(forceDeactivateKioskDevice("device-kiosk-test-nonexistent")).rejects.toThrow(
+      "Kiosk device not found",
+    );
   });
 });
