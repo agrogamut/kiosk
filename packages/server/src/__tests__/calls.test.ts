@@ -176,6 +176,18 @@ describe("POST /api/calls with REQUIRE_PAYMENT_FOR_CALLS=true", () => {
 
     expect(response.status).toBe(402);
   });
+
+  it("rejects an empty-string paymentId instead of silently skipping payment enforcement", async () => {
+    const response = await request(app)
+      .post("/api/calls")
+      .set("Authorization", `Bearer ${patientToken}`)
+      .send({ paymentId: "" });
+
+    expect(response.status).toBe(400);
+
+    const orphan = await prisma.callSession.findFirst({ where: { patientId, status: "QUEUED" } });
+    expect(orphan).toBeNull();
+  });
 });
 
 describe("POST /api/calls device attribution", () => {

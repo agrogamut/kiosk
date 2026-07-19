@@ -25,7 +25,7 @@ export const CallSessionSchema = z.object({
 export type CallSession = z.infer<typeof CallSessionSchema>;
 
 export const CallCreateSchema = z.object({
-  paymentId: z.string().optional(),
+  paymentId: z.string().min(1).optional(),
   deviceId: z.string().min(1).optional(),
 });
 export type CallCreate = z.infer<typeof CallCreateSchema>;
