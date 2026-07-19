@@ -1,7 +1,7 @@
 import { prisma } from "../lib/prisma.js";
 import { io } from "../index.js";
+import { getRevenueConfig } from "./revenue-config.service.js";
 
-const CONSULTATION_FEE = Number(process.env.CONSULTATION_FEE ?? "200");
 const ACTIVE_STATUSES = ["QUEUED", "RINGING", "ACTIVE"];
 
 export async function completeCall(callSessionId: string): Promise<void> {
@@ -32,16 +32,29 @@ export async function completeCall(callSessionId: string): Promise<void> {
         where: { callSessionId, type: "CREDIT" },
       });
       if (!existingCredit) {
-        // Stopgap: Task 8 will replace this with full RevenueConfig-based three-way split,
-        // Payment snapshot, and admin attribution. For now, just avoid a hardcoded percentage.
-        const config = await tx.revenueConfig.findFirst();
-        const commissionRate = Number(config?.doctorPct ?? 65) / 100;
-        const earning = Number((CONSULTATION_FEE * commissionRate).toFixed(2));
+        const payment = await tx.payment.findUnique({ where: { callSessionId } });
+
+        let fee: number;
+        let doctorPct: number;
+        let adminPct: number;
+
+        if (payment && payment.doctorPct !== null && payment.adminPct !== null) {
+          fee = Number(payment.amount);
+          doctorPct = Number(payment.doctorPct);
+          adminPct = Number(payment.adminPct);
+        } else {
+          const config = await getRevenueConfig();
+          fee = Number(config.consultationFee);
+          doctorPct = Number(config.doctorPct);
+          adminPct = Number(config.adminPct);
+        }
+
+        const doctorEarning = Number((fee * doctorPct / 100).toFixed(2));
         await tx.walletTransaction.create({
           data: {
             userId: call.doctorId,
             callSessionId,
-            amount: earning,
+            amount: doctorEarning,
             type: "CREDIT",
             status: "COMPLETED",
             description: `Consultation fee - ${callSessionId}`,
@@ -49,8 +62,26 @@ export async function completeCall(callSessionId: string): Promise<void> {
         });
         await tx.user.update({
           where: { id: call.doctorId },
-          data: { walletBalance: { increment: earning } },
+          data: { walletBalance: { increment: doctorEarning } },
         });
+
+        if (call.assistingAdminId) {
+          const adminEarning = Number((fee * adminPct / 100).toFixed(2));
+          await tx.walletTransaction.create({
+            data: {
+              userId: call.assistingAdminId,
+              callSessionId,
+              amount: adminEarning,
+              type: "CREDIT",
+              status: "COMPLETED",
+              description: `Kiosk attribution fee - ${callSessionId}`,
+            },
+          });
+          await tx.user.update({
+            where: { id: call.assistingAdminId },
+            data: { walletBalance: { increment: adminEarning } },
+          });
+        }
       }
     }
 

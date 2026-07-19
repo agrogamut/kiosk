@@ -107,4 +107,37 @@ describe("completeCall", () => {
     });
     expect(transactions).toHaveLength(1);
   });
+
+  it("credits both doctor and admin wallets when the call is kiosk-attributed", async () => {
+    const admin = await prisma.user.create({
+      data: { phone: "9999300003", name: "Completion Admin", role: "ADMIN", passwordHash: "x" },
+    });
+
+    const call = await prisma.callSession.create({
+      data: {
+        patientId,
+        doctorId,
+        assistingAdminId: admin.id,
+        status: "ACTIVE",
+        livekitRoom: "room-completion-attributed",
+        startedAt: new Date(),
+      },
+    });
+
+    await completeCall(call.id);
+
+    const doctorTxn = await prisma.walletTransaction.findFirstOrThrow({
+      where: { callSessionId: call.id, userId: doctorId },
+    });
+    const adminTxn = await prisma.walletTransaction.findFirstOrThrow({
+      where: { callSessionId: call.id, userId: admin.id },
+    });
+
+    expect(Number(doctorTxn.amount)).toBeCloseTo(200 * 0.65, 2);
+    expect(Number(adminTxn.amount)).toBeCloseTo(200 * 0.25, 2);
+
+    await prisma.walletTransaction.deleteMany({ where: { callSessionId: call.id } });
+    await prisma.callSession.delete({ where: { id: call.id } });
+    await prisma.user.delete({ where: { id: admin.id } });
+  });
 });
