@@ -8,6 +8,7 @@ import { Server } from "socket.io";
 import { adminRouter } from "./routes/admin.routes.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { callsRouter } from "./routes/calls.routes.js";
+import { chatRouter } from "./routes/chat.routes.js";
 import { doctorRouter } from "./routes/doctor.routes.js";
 import { healthFilesRouter } from "./routes/health-files.routes.js";
 import { paymentsRouter } from "./routes/payments.routes.js";
@@ -90,6 +91,7 @@ app.get("/api/health", async (_req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/calls", callsRouter);
+app.use("/api/chat", chatRouter);
 app.use("/api/prescriptions", prescriptionsRouter);
 app.use("/api/health-files", healthFilesRouter);
 app.use("/api/payments", paymentsRouter);
