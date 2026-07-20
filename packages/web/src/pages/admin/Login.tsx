@@ -3,14 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
-import { AdminLoginSchema, type AdminLogin } from "@madamgy/api-client";
+import { AdminLoginSchema, type AdminLogin, type UserRole } from "@madamgy/api-client";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
 import { useAuthStore } from "../../store/auth.store";
 
 interface LoginResponse {
   accessToken: string;
-  user: { id: string; name: string; role: "SUPER_ADMIN" };
+  user: { id: string; name: string; role: UserRole };
 }
 
 export default function AdminLogin() {
