@@ -4,6 +4,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import toast from "react-hot-toast";
 import { CallChatPanel } from "../../components/call/CallChatPanel";
+import { PatientHistoryPanel } from "../../components/call/PatientHistoryPanel";
 import { DoctorCallView } from "../../components/video/DoctorCallView";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
@@ -18,6 +19,8 @@ export default function DoctorCall() {
   const setLivekitToken = useCallStore((state) => state.setLivekitToken);
   const clearCall = useCallStore((state) => state.clearCall);
   const [submitting, setSubmitting] = useState(false);
+  const [patientId, setPatientId] = useState<string | null>(null);
+  const [rightTab, setRightTab] = useState<"chat" | "history">("chat");
 
   useImmersiveStatusBar();
 
@@ -28,11 +31,17 @@ export default function DoctorCall() {
 
   useEffect(() => {
     const socket = connectSocket();
-    socket.on("call:accepted", ({ callSessionId: acceptedId, livekitToken }: { callSessionId: string; livekitToken: string }) => {
-      if (acceptedId === callSessionId) {
-        setLivekitToken(livekitToken);
-      }
-    });
+    socket.on(
+      "call:accepted",
+      ({ callSessionId: acceptedId, livekitToken, patientId: acceptedPatientId }: { callSessionId: string; livekitToken: string; patientId?: string }) => {
+        if (acceptedId === callSessionId) {
+          setLivekitToken(livekitToken);
+          if (acceptedPatientId) {
+            setPatientId(acceptedPatientId);
+          }
+        }
+      },
+    );
     socket.on("call:ended", () => {
       clearCall();
       navigate("/doctor");
@@ -91,7 +100,33 @@ export default function DoctorCall() {
             {submitting ? "Submitting..." : "Submit Prescription"}
           </button>
         </div>
-        {callSessionId && <CallChatPanel callSessionId={callSessionId} />}
+        <div className="flex min-h-0 flex-col rounded-2xl border border-gray-100 shadow-sm">
+          <div className="flex border-b">
+            <button
+              type="button"
+              onClick={() => setRightTab("chat")}
+              className={`flex-1 rounded-tl-2xl py-3 text-sm font-semibold ${rightTab === "chat" ? "bg-blue-600 text-white" : "bg-white text-gray-600"}`}
+            >
+              Chat
+            </button>
+            <button
+              type="button"
+              onClick={() => setRightTab("history")}
+              className={`flex-1 rounded-tr-2xl py-3 text-sm font-semibold ${rightTab === "history" ? "bg-blue-600 text-white" : "bg-white text-gray-600"}`}
+            >
+              Patient History
+            </button>
+          </div>
+          <div className="min-h-0 flex-1">
+            {rightTab === "chat" && callSessionId && <CallChatPanel callSessionId={callSessionId} />}
+            {rightTab === "history" &&
+              (patientId ? (
+                <PatientHistoryPanel patientId={patientId} />
+              ) : (
+                <p className="p-4 text-sm text-gray-500">Patient not identified yet.</p>
+              ))}
+          </div>
+        </div>
       </div>
     </div>
   );

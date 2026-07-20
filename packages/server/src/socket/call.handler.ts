@@ -27,7 +27,7 @@ export function registerCallHandlers(
         livekitService.generateToken(call.livekitRoom, call.patientId),
       ]);
 
-      socket.emit("call:accepted", { callSessionId, livekitToken: doctorToken });
+      socket.emit("call:accepted", { callSessionId, livekitToken: doctorToken, patientId: call.patientId });
       io.to(`user:${call.patientId}`).emit("call:accepted", {
         callSessionId,
         livekitToken: patientToken,
