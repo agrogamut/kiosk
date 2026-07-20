@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
+import { SplashScreen } from "@capacitor/splash-screen";
 import type { UserRole } from "@madamgy/api-client";
 import AdminAuditLog from "./pages/admin/AuditLog";
 import AdminCalls from "./pages/admin/Calls";
@@ -25,6 +28,7 @@ import KioskHome from "./pages/kiosk/Home";
 import KioskLogin from "./pages/kiosk/Login";
 import KioskPrescription from "./pages/kiosk/Prescription";
 import KioskRegister from "./pages/kiosk/Register";
+import { useAndroidBackButton } from "./hooks/useAndroidBackButton";
 import { useAuthStore } from "./store/auth.store";
 
 function RequireRole({ role, loginPath, children }: { role: UserRole | UserRole[]; loginPath?: string; children: ReactNode }) {
@@ -41,6 +45,14 @@ function RequireRole({ role, loginPath, children }: { role: UserRole | UserRole[
 }
 
 export default function App() {
+  useAndroidBackButton();
+
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      void SplashScreen.hide();
+    }
+  }, []);
+
   return (
     <Routes>
       <Route path="/" element={<KioskHome />} />

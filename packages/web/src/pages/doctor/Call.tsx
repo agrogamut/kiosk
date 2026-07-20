@@ -8,6 +8,7 @@ import { DoctorCallView } from "../../components/video/DoctorCallView";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
 import { connectSocket } from "../../lib/socket";
+import { useImmersiveStatusBar } from "../../hooks/useImmersiveStatusBar";
 import { useCallStore } from "../../store/call.store";
 
 export default function DoctorCall() {
@@ -17,6 +18,8 @@ export default function DoctorCall() {
   const setLivekitToken = useCallStore((state) => state.setLivekitToken);
   const clearCall = useCallStore((state) => state.clearCall);
   const [submitting, setSubmitting] = useState(false);
+
+  useImmersiveStatusBar();
 
   const editor = useEditor({
     extensions: [StarterKit],

@@ -9,6 +9,7 @@ import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
 import { getSocket } from "../../lib/socket";
 import { useCallListener } from "../../hooks/useCall";
+import { useImmersiveStatusBar } from "../../hooks/useImmersiveStatusBar";
 import { useCallStore } from "../../store/call.store";
 
 export default function KioskConsult() {
@@ -17,6 +18,7 @@ export default function KioskConsult() {
   const [loading, setLoading] = useState(!callSession);
 
   useCallListener();
+  useImmersiveStatusBar();
 
   useEffect(() => {
     if (callSession) {
