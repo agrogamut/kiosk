@@ -140,4 +140,52 @@ describe("completeCall", () => {
     await prisma.callSession.delete({ where: { id: call.id } });
     await prisma.user.delete({ where: { id: admin.id } });
   });
+
+  it("uses the Payment's snapshotted amount and percentages instead of live config", async () => {
+    const admin = await prisma.user.create({
+      data: { phone: "9999300004", name: "Completion Snapshot Admin", role: "ADMIN", passwordHash: "x" },
+    });
+
+    const call = await prisma.callSession.create({
+      data: {
+        patientId,
+        doctorId,
+        assistingAdminId: admin.id,
+        status: "ACTIVE",
+        livekitRoom: "room-completion-snapshot",
+        startedAt: new Date(),
+      },
+    });
+
+    await prisma.payment.create({
+      data: {
+        patientId,
+        callSessionId: call.id,
+        amount: "300.00",
+        razorpayOrderId: `order_snapshot_${Date.now()}`,
+        status: "PAID",
+        doctorPct: "60.00",
+        adminPct: "30.00",
+        superAdminPct: "10.00",
+      },
+    });
+
+    await completeCall(call.id);
+
+    const doctorTxn = await prisma.walletTransaction.findFirstOrThrow({
+      where: { callSessionId: call.id, userId: doctorId },
+    });
+    const adminTxn = await prisma.walletTransaction.findFirstOrThrow({
+      where: { callSessionId: call.id, userId: admin.id },
+    });
+
+    // Snapshotted values (300 * 60% / 300 * 30%), not the live config's 200 * 65% / 200 * 25%.
+    expect(Number(doctorTxn.amount)).toBeCloseTo(300 * 0.6, 2);
+    expect(Number(adminTxn.amount)).toBeCloseTo(300 * 0.3, 2);
+
+    await prisma.walletTransaction.deleteMany({ where: { callSessionId: call.id } });
+    await prisma.payment.deleteMany({ where: { callSessionId: call.id } });
+    await prisma.callSession.delete({ where: { id: call.id } });
+    await prisma.user.delete({ where: { id: admin.id } });
+  });
 });
