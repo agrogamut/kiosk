@@ -3,12 +3,18 @@ import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { KioskRegisterSchema, RevenueConfigUpdateSchema, StaffCreateSchema } from "@madamgy/api-client";
+import { KioskRegisterSchema, RevenueConfigUpdateSchema, StaffCreateSchema, WithdrawRequestSchema } from "@madamgy/api-client";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { AppError } from "../middleware/error.middleware.js";
 import { io } from "../index.js";
-import { completeWithdrawal, listPendingWithdrawals, rejectWithdrawal } from "../services/wallet.service.js";
+import {
+  completeWithdrawal,
+  createWithdrawRequest,
+  getWalletBalance,
+  listPendingWithdrawals,
+  rejectWithdrawal,
+} from "../services/wallet.service.js";
 import { recordAuditLog } from "../services/audit-log.service.js";
 import { getPresignedUrl } from "../services/storage.service.js";
 import { getRevenueConfig, updateRevenueConfig } from "../services/revenue-config.service.js";
@@ -248,6 +254,50 @@ adminRouter.put("/wallet/withdrawals/:id/reject", requireAuth("SUPER_ADMIN"), as
     const transaction = await rejectWithdrawal(req.params.id);
     await recordAuditLog(req.user!.sub, "withdrawal.reject", transaction.id);
     res.json(transaction);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/wallet", requireAuth("ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const balance = await getWalletBalance(req.user!.sub);
+    res.json({ balance: balance.toString() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/wallet/transactions", requireAuth("ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const page = Math.max(Number(req.query.page ?? "1"), 1);
+    const limit = 20;
+    const [transactions, total] = await Promise.all([
+      prisma.walletTransaction.findMany({
+        where: { userId: req.user!.sub },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.walletTransaction.count({ where: { userId: req.user!.sub } }),
+    ]);
+
+    res.json({ transactions, total, page, pages: Math.ceil(total / limit) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.post("/wallet/withdraw", requireAuth("ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { amount, bankName, accountNumber, ifsc, holderName } = WithdrawRequestSchema.parse(req.body);
+    const transaction = await createWithdrawRequest(req.user!.sub, amount, {
+      bankName,
+      accountNumber,
+      ifsc,
+      holderName,
+    });
+    res.status(201).json(transaction);
   } catch (error) {
     next(error);
   }

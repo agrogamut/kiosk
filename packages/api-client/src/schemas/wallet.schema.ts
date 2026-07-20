@@ -5,7 +5,7 @@ export const TxnStatusSchema = z.enum(["PENDING", "COMPLETED", "FAILED"]);
 
 export const WalletTransactionSchema = z.object({
   id: z.string(),
-  doctorId: z.string(),
+  userId: z.string(),
   callSessionId: z.string().nullable(),
   amount: z.string(),
   type: TxnTypeSchema,

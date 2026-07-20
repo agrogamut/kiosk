@@ -49,7 +49,7 @@ export async function listPendingWithdrawals() {
   return prisma.walletTransaction.findMany({
     where: { type: "DEBIT", status: "PENDING" },
     orderBy: { createdAt: "asc" },
-    include: { user: { select: { id: true, name: true, phone: true } } },
+    include: { user: { select: { id: true, name: true, phone: true, role: true } } },
   });
 }
 

@@ -423,6 +423,33 @@ describe("Doctor wallet API", () => {
     expect(createResponse.body.status).toBe("PENDING");
     expect(duplicateResponse.status).toBe(409);
   });
+
+  it("lets an ADMIN check their own wallet and request a withdrawal, but not see another user's", async () => {
+    const admin = await prisma.user.create({
+      data: { phone: "8888700005", name: "Wallet Admin", role: "ADMIN", passwordHash: "x", walletBalance: 100 },
+    });
+    const adminToken2 = signAccessToken({ sub: admin.id, role: "ADMIN" });
+
+    const balance = await request(app)
+      .get("/api/admin/wallet")
+      .set("Authorization", `Bearer ${adminToken2}`);
+    expect(balance.status).toBe(200);
+    expect(balance.body.balance).toBe("100");
+
+    const withdraw = await request(app)
+      .post("/api/admin/wallet/withdraw")
+      .set("Authorization", `Bearer ${adminToken2}`)
+      .send({ amount: 50, bankName: "Test Bank", accountNumber: "12345", ifsc: "TEST0001", holderName: "Wallet Admin" });
+    expect(withdraw.status).toBe(201);
+
+    const forbidden = await request(app)
+      .get("/api/doctor/wallet")
+      .set("Authorization", `Bearer ${adminToken2}`);
+    expect(forbidden.status).toBe(403);
+
+    await prisma.walletTransaction.deleteMany({ where: { userId: admin.id } });
+    await prisma.user.delete({ where: { id: admin.id } });
+  });
 });
 
 describe("Health files API", () => {
