@@ -12,6 +12,31 @@ import { useCallListener } from "../../hooks/useCall";
 import { useImmersiveStatusBar } from "../../hooks/useImmersiveStatusBar";
 import { useCallStore } from "../../store/call.store";
 
+interface PaymentOrder {
+  paymentId: string;
+  razorpayOrderId: string;
+  amount: number;
+  keyId: string;
+}
+
+interface RazorpayCheckoutOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  order_id: string;
+  handler: () => void;
+  modal: { ondismiss: () => void };
+}
+
+declare global {
+  interface Window {
+    Razorpay: new (options: RazorpayCheckoutOptions) => { open: () => void };
+  }
+}
+
+const PAYMENT_RETRY_DELAY_MS = 1500;
+
 export default function KioskConsult() {
   const navigate = useNavigate();
   const { callSession, livekitToken, setCall, clearCall } = useCallStore();
@@ -25,19 +50,74 @@ export default function KioskConsult() {
       return;
     }
 
-    api
-      .post("/calls")
-      .then((response) => setCall(response.data))
-      .catch((error: unknown) => {
+    async function createCallWithPayment(paymentId: string, retried = false): Promise<void> {
+      try {
+        const response = await api.post("/calls", { paymentId });
+        setCall(response.data);
+      } catch (error: unknown) {
+        if (axios.isAxiosError(error) && error.response?.status === 402 && !retried) {
+          // The client-side checkout succeeded but the payment webhook may not have
+          // landed yet -- give it one short retry before treating this as a failure.
+          await new Promise((resolve) => setTimeout(resolve, PAYMENT_RETRY_DELAY_MS));
+          await createCallWithPayment(paymentId, true);
+          return;
+        }
+
+        toast.error(getApiErrorMessage(error, "Failed to start call after payment"));
+        navigate("/dashboard");
+      }
+    }
+
+    async function payAndCreateCall(): Promise<void> {
+      try {
+        const order = await api.post<PaymentOrder>("/payments/order");
+        await new Promise<void>((resolve) => {
+          const razorpay = new window.Razorpay({
+            key: order.data.keyId,
+            amount: order.data.amount * 100,
+            currency: "INR",
+            name: "MadamGy Consultation",
+            order_id: order.data.razorpayOrderId,
+            handler: () => {
+              void createCallWithPayment(order.data.paymentId).finally(resolve);
+            },
+            modal: {
+              ondismiss: () => {
+                toast("Payment cancelled");
+                navigate("/dashboard");
+                resolve();
+              },
+            },
+          });
+          razorpay.open();
+        });
+      } catch (error) {
+        toast.error(getApiErrorMessage(error, "Payment could not be started"));
+        navigate("/dashboard");
+      }
+    }
+
+    async function startConsult(): Promise<void> {
+      try {
+        const response = await api.post("/calls");
+        setCall(response.data);
+      } catch (error: unknown) {
         if (axios.isAxiosError<{ callSession?: CallSession }>(error) && error.response?.status === 409 && error.response.data.callSession) {
           setCall(error.response.data.callSession);
           return;
         }
 
+        if (axios.isAxiosError(error) && error.response?.status === 402) {
+          await payAndCreateCall();
+          return;
+        }
+
         toast.error(getApiErrorMessage(error, "Failed to start call"));
         navigate("/dashboard");
-      })
-      .finally(() => setLoading(false));
+      }
+    }
+
+    void startConsult().finally(() => setLoading(false));
   }, [callSession, navigate, setCall]);
 
   function cancel(): void {
