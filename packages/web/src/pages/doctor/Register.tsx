@@ -10,6 +10,7 @@ import { getApiErrorMessage } from "../../lib/errors";
 export default function DoctorRegister() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const [licenseDocument, setLicenseDocument] = useState<File | null>(null);
   const {
     register,
     handleSubmit,
@@ -19,7 +20,12 @@ export default function DoctorRegister() {
   async function submit(data: DoctorRegister): Promise<void> {
     setSubmitting(true);
     try {
-      await api.post("/auth/doctor/register", data);
+      const formData = new FormData();
+      formData.append("data", JSON.stringify(data));
+      if (licenseDocument) {
+        formData.append("licenseDocument", licenseDocument);
+      }
+      await api.post("/auth/doctor/register", formData);
       toast.success("Registration submitted for approval");
       navigate("/doctor/login");
     } catch (error) {
@@ -64,8 +70,17 @@ export default function DoctorRegister() {
             <span className="mb-1 block text-sm font-medium text-gray-600">Specialization</span>
             <input {...register("specialization")} className="w-full rounded-xl border-2 p-3" />
           </label>
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-sm font-medium text-gray-600">Degree certificate or medical license (PDF)</span>
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={(event) => setLicenseDocument(event.target.files?.[0] ?? null)}
+              className="w-full rounded-xl border-2 p-3"
+            />
+          </label>
         </div>
-        <button type="submit" disabled={submitting} className="mt-6 w-full rounded-xl bg-blue-600 py-4 font-semibold text-white disabled:opacity-50">
+        <button type="submit" disabled={submitting || !licenseDocument} className="mt-6 w-full rounded-xl bg-blue-600 py-4 font-semibold text-white disabled:opacity-50">
           {submitting ? "Submitting..." : "Submit Registration"}
         </button>
         <p className="mt-4 text-center text-sm text-gray-600">
