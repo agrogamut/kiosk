@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import type { UserRole } from "@madamgy/api-client";
+import AdminAuditLog from "./pages/admin/AuditLog";
 import AdminCalls from "./pages/admin/Calls";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminDevices from "./pages/admin/Devices";
@@ -65,6 +66,7 @@ export default function App() {
       <Route path="/admin/devices" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminDevices /></RequireRole>} />
       <Route path="/admin/wallet" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminWallet /></RequireRole>} />
       <Route path="/admin/patients" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminPatients /></RequireRole>} />
+      <Route path="/admin/audit-log" element={<RequireRole role={["SUPER_ADMIN", "ADMIN"]} loginPath="/admin/login"><AdminAuditLog /></RequireRole>} />
     </Routes>
   );
 }
