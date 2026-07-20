@@ -18,7 +18,12 @@ import {
 import { recordAuditLog } from "../services/audit-log.service.js";
 import { getPresignedUrl } from "../services/storage.service.js";
 import { getRevenueConfig, updateRevenueConfig } from "../services/revenue-config.service.js";
-import { deactivateKioskDevice, forceDeactivateKioskDevice, registerKioskDevice } from "../services/kiosk.service.js";
+import {
+  deactivateKioskDevice,
+  forceDeactivateKioskDevice,
+  listKioskDevicesForAdmin,
+  registerKioskDevice,
+} from "../services/kiosk.service.js";
 
 export const adminRouter = Router();
 
@@ -323,6 +328,15 @@ adminRouter.put("/revenue-config", requireAuth("SUPER_ADMIN"), async (req: Reque
       after: { fee: updated.consultationFee.toString(), doctorPct: updated.doctorPct.toString(), adminPct: updated.adminPct.toString(), superAdminPct: updated.superAdminPct.toString() },
     });
     res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/kiosk-devices", requireAuth("ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const kiosks = await listKioskDevicesForAdmin(req.user!.sub);
+    res.json(kiosks);
   } catch (error) {
     next(error);
   }

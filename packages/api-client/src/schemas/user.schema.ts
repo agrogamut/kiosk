@@ -132,3 +132,13 @@ export const KioskRegisterSchema = z.object({
   label: z.string().max(100).optional(),
 });
 export type KioskRegister = z.infer<typeof KioskRegisterSchema>;
+
+export const KioskSchema = z.object({
+  id: z.string(),
+  deviceId: z.string(),
+  adminId: z.string(),
+  label: z.string().nullable(),
+  active: z.boolean(),
+  createdAt: z.string(),
+});
+export type Kiosk = z.infer<typeof KioskSchema>;

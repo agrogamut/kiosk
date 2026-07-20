@@ -28,6 +28,10 @@ export async function registerKioskDevice(adminId: string, deviceId: string, lab
   }
 }
 
+export async function listKioskDevicesForAdmin(adminId: string) {
+  return prisma.kiosk.findMany({ where: { adminId }, orderBy: { createdAt: "desc" } });
+}
+
 export async function deactivateKioskDevice(adminId: string, deviceId: string) {
   const existing = await prisma.kiosk.findUnique({ where: { deviceId } });
   if (!existing || existing.adminId !== adminId) {

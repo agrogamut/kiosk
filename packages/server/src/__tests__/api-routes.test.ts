@@ -367,6 +367,29 @@ describe("Admin API", () => {
 
     expect(response.status).toBe(403);
   });
+
+  it("lets an ADMIN list only their own kiosk devices", async () => {
+    const passwordHash = await bcrypt.hash("pw12345", 10);
+    const ownAdmin = await prisma.user.create({
+      data: { phone: "8888700009", name: "Devices Admin Own", role: "ADMIN", passwordHash },
+    });
+    const otherAdmin = await prisma.user.create({
+      data: { phone: "8888700010", name: "Devices Admin Other", role: "ADMIN", passwordHash },
+    });
+    const ownToken = signAccessToken({ sub: ownAdmin.id, role: "ADMIN" });
+
+    await prisma.kiosk.create({ data: { deviceId: "device-list-test-own", adminId: ownAdmin.id, active: true } });
+    await prisma.kiosk.create({ data: { deviceId: "device-list-test-other", adminId: otherAdmin.id, active: true } });
+
+    const response = await request(app).get("/api/admin/kiosk-devices").set("Authorization", `Bearer ${ownToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveLength(1);
+    expect(response.body[0].deviceId).toBe("device-list-test-own");
+
+    await prisma.kiosk.deleteMany({ where: { deviceId: { in: ["device-list-test-own", "device-list-test-other"] } } });
+    await prisma.user.deleteMany({ where: { id: { in: [ownAdmin.id, otherAdmin.id] } } });
+  });
 });
 
 describe("Doctor wallet API", () => {
