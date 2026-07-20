@@ -45,6 +45,15 @@ export default function DoctorDashboard() {
     };
   }, [navigate, setLivekitToken]);
 
+  useEffect(() => {
+    getSocket().emit("presence:ping");
+    const interval = setInterval(() => {
+      getSocket().emit("presence:ping");
+    }, 20_000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   function toggleAvailable(): void {
     const next = !isAvailable;
     setIsAvailable(next);
