@@ -353,7 +353,7 @@ git commit -m "refactor: extract shared Redis attempt-lockout helper from patien
 
 **Interfaces:**
 - Consumes: `checkAttemptLimit`, `recordFailedAttempt`, `clearAttempts` from Task 3.
-- Produces: `POST /api/auth/patient/login/otp/initiate` and `POST /api/auth/patient/login/otp/verify`. The existing `POST /api/auth/patient/login` (PIN) is left untouched and fully functional — the frontend plan (not applied yet) is responsible for cutting the UI over to the new endpoints, at which point a follow-up change can remove the PIN path.
+- Produces: `POST /api/auth/patient/login/otp/initiate` and `POST /api/auth/patient/login/otp/verify`. The existing `POST /api/auth/patient/login` (PIN) is left untouched and fully functional — the frontend plan (status: READY as of 2026-07-21, see `2026-07-04-frontend-kiosk-client.md` Task 5) is responsible for cutting the UI over to the new endpoints, at which point a follow-up change can remove the PIN path.
 
 - [ ] **Step 1: Make `pin` optional at registration (non-breaking schema change)**
 

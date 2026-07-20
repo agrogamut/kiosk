@@ -1,7 +1,7 @@
 # Roles, Kiosk Attribution & Revenue Wallet — Design Spec
 
 **Date:** 2026-07-15
-**Status:** Approved (pending user sign-off on this written spec)
+**Status:** Approved and implemented — confirmed 2026-07-21 by code inspection (`role_split_and_wallet_rework` migration applied, `revenue-config.service.ts` and its tests exist in `packages/server`).
 **Approach:** Rework existing 3-role/2-way-split system into 4-role/3-way-split, incrementally
 
 ---
