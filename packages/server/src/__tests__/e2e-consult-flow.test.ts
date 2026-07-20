@@ -244,88 +244,115 @@ describe("Full consult flow (real workers + sockets, no mocks)", () => {
     const { completeCall } = await import("../services/call-completion.service.js");
 
     const originalConfig = await getRevenueConfig();
+    const originalDoctorPct = Number(originalConfig.doctorPct);
 
-    const doctor = await prisma.user.create({
-      data: {
-        phone: "9999600001",
-        name: "Snapshot Doctor",
-        role: "DOCTOR",
-        doctorProfile: { create: { degree: "MBBS", regNumber: "SNAPSHOT-REG-1", isApproved: true } },
-      },
-    });
-    const patient = await prisma.user.create({
-      data: { phone: "9999600002", name: "Snapshot Patient", role: "PATIENT", pinHash: "x" },
-    });
+    let doctorId: string | undefined;
+    let patientId: string | undefined;
+    let callId: string | undefined;
+    let configChanged = false;
 
-    // Not calling the real createPaymentOrder here: it hits the live Razorpay orders API, and
-    // this environment (like the rest of this suite -- see the skipped "creates a real Razorpay
-    // order" test in payments.test.ts) only has placeholder RAZORPAY_KEY_ID/SECRET, so that call
-    // 401s. Instead, replicate exactly what createPaymentOrder writes to the DB -- a Payment row
-    // snapshotting the *current* RevenueConfig's fee and split -- which is the only part of it
-    // this test cares about. markPaymentPaid and completeCall below are the real, unmocked
-    // service functions.
-    const config = await getRevenueConfig();
-    const order = {
-      razorpayOrderId: `order_snapshot_test_${Date.now()}`,
-      amount: Number(config.consultationFee),
-    };
-    await prisma.payment.create({
-      data: {
-        patientId: patient.id,
-        amount: order.amount,
-        razorpayOrderId: order.razorpayOrderId,
-        status: "CREATED",
-        doctorPct: config.doctorPct,
-        adminPct: config.adminPct,
-        superAdminPct: config.superAdminPct,
-      },
-    });
-    await markPaymentPaid(order.razorpayOrderId, "razorpay_pay_snapshot_test");
+    try {
+      const doctor = await prisma.user.create({
+        data: {
+          phone: "9999600001",
+          name: "Snapshot Doctor",
+          role: "DOCTOR",
+          doctorProfile: { create: { degree: "MBBS", regNumber: "SNAPSHOT-REG-1", isApproved: true } },
+        },
+      });
+      doctorId = doctor.id;
+      const patient = await prisma.user.create({
+        data: { phone: "9999600002", name: "Snapshot Patient", role: "PATIENT", pinHash: "x" },
+      });
+      patientId = patient.id;
 
-    const call = await prisma.callSession.create({
-      data: {
-        patientId: patient.id,
-        doctorId: doctor.id,
-        status: "ACTIVE",
-        livekitRoom: "room-snapshot-test",
-        startedAt: new Date(),
-      },
-    });
-    await prisma.payment.update({
-      where: { razorpayOrderId: order.razorpayOrderId },
-      data: { callSessionId: call.id },
-    });
+      // Not calling the real createPaymentOrder here: it hits the live Razorpay orders API, and
+      // this environment (like the rest of this suite -- see the skipped "creates a real Razorpay
+      // order" test in payments.test.ts) only has placeholder RAZORPAY_KEY_ID/SECRET, so that call
+      // 401s. Instead, replicate exactly what createPaymentOrder writes to the DB -- a Payment row
+      // snapshotting the *current* RevenueConfig's fee and split -- which is the only part of it
+      // this test cares about. markPaymentPaid and completeCall below are the real, unmocked
+      // service functions.
+      const config = await getRevenueConfig();
+      const order = {
+        razorpayOrderId: `order_snapshot_test_${Date.now()}`,
+        amount: Number(config.consultationFee),
+      };
+      await prisma.payment.create({
+        data: {
+          patientId: patient.id,
+          amount: order.amount,
+          razorpayOrderId: order.razorpayOrderId,
+          status: "CREATED",
+          doctorPct: config.doctorPct,
+          adminPct: config.adminPct,
+          superAdminPct: config.superAdminPct,
+        },
+      });
+      await markPaymentPaid(order.razorpayOrderId, "razorpay_pay_snapshot_test");
 
-    // Use the config's existing owner as the actor for these updates, not doctor.id: RevenueConfig
-    // .updatedById is a required FK with no cascade, and this test deletes the doctor row in its
-    // own cleanup below, so attributing the update to a row we're about to delete would leave
-    // RevenueConfig pointing at nothing and fail that cleanup with a foreign key violation.
-    await updateRevenueConfig(originalConfig.updatedById, {
-      consultationFee: 999,
-      doctorPct: 10,
-      adminPct: 10,
-      superAdminPct: 80,
-    });
+      const call = await prisma.callSession.create({
+        data: {
+          patientId: patient.id,
+          doctorId: doctor.id,
+          status: "ACTIVE",
+          livekitRoom: "room-snapshot-test",
+          startedAt: new Date(),
+        },
+      });
+      callId = call.id;
+      await prisma.payment.update({
+        where: { razorpayOrderId: order.razorpayOrderId },
+        data: { callSessionId: call.id },
+      });
 
-    await completeCall(call.id);
+      // Use the config's existing owner as the actor for these updates, not doctor.id: RevenueConfig
+      // .updatedById is a required FK with no cascade, and this test deletes the doctor row in its
+      // own cleanup below, so attributing the update to a row we're about to delete would leave
+      // RevenueConfig pointing at nothing and fail that cleanup with a foreign key violation.
+      await updateRevenueConfig(originalConfig.updatedById, {
+        consultationFee: 999,
+        doctorPct: 10,
+        adminPct: 10,
+        superAdminPct: 80,
+      });
+      configChanged = true;
 
-    const doctorTxn = await prisma.walletTransaction.findFirstOrThrow({
-      where: { callSessionId: call.id, userId: doctor.id },
-    });
-    expect(Number(doctorTxn.amount)).toBeCloseTo(Number(order.amount) * 0.65, 2);
-    expect(Number(doctorTxn.amount)).not.toBeCloseTo(999 * 0.1, 2);
+      await completeCall(call.id);
 
-    await updateRevenueConfig(originalConfig.updatedById, {
-      consultationFee: Number(originalConfig.consultationFee),
-      doctorPct: Number(originalConfig.doctorPct),
-      adminPct: Number(originalConfig.adminPct),
-      superAdminPct: Number(originalConfig.superAdminPct),
-    });
-
-    await prisma.walletTransaction.deleteMany({ where: { callSessionId: call.id } });
-    await prisma.payment.deleteMany({ where: { patientId: patient.id } });
-    await prisma.callSession.delete({ where: { id: call.id } });
-    await prisma.doctorProfile.deleteMany({ where: { userId: doctor.id } });
-    await prisma.user.deleteMany({ where: { id: { in: [doctor.id, patient.id] } } });
+      const doctorTxn = await prisma.walletTransaction.findFirstOrThrow({
+        where: { callSessionId: call.id, userId: doctor.id },
+      });
+      expect(Number(doctorTxn.amount)).toBeCloseTo(Number(order.amount) * (originalDoctorPct / 100), 2);
+      expect(Number(doctorTxn.amount)).not.toBeCloseTo(999 * 0.1, 2);
+    } finally {
+      // Runs even if an assertion above throws, so a failed run can never leave the shared
+      // RevenueConfig singleton mutated or orphan unique-phone users that would block every
+      // subsequent run of this test.
+      if (configChanged) {
+        await updateRevenueConfig(originalConfig.updatedById, {
+          consultationFee: Number(originalConfig.consultationFee),
+          doctorPct: Number(originalConfig.doctorPct),
+          adminPct: Number(originalConfig.adminPct),
+          superAdminPct: Number(originalConfig.superAdminPct),
+        });
+      }
+      if (callId) {
+        await prisma.walletTransaction.deleteMany({ where: { callSessionId: callId } });
+      }
+      if (patientId) {
+        await prisma.payment.deleteMany({ where: { patientId } });
+      }
+      if (callId) {
+        await prisma.callSession.delete({ where: { id: callId } });
+      }
+      if (doctorId) {
+        await prisma.doctorProfile.deleteMany({ where: { userId: doctorId } });
+      }
+      const idsToDelete = [doctorId, patientId].filter((id): id is string => Boolean(id));
+      if (idsToDelete.length > 0) {
+        await prisma.user.deleteMany({ where: { id: { in: idsToDelete } } });
+      }
+    }
   });
 });
