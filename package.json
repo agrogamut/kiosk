@@ -5,7 +5,8 @@
   "workspaces": [
     "packages/api-client",
     "packages/server",
-    "packages/web"
+    "packages/web",
+    "packages/kiosk-android"
   ],
   "scripts": {
     "dev": "npm run dev --workspace @madamgy/server & npm run dev --workspace @madamgy/web & wait",

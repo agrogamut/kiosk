@@ -25,7 +25,4 @@ data/uploads/
 # Database backups
 backups/
 
-# Expo
-android/
-ios/
 .superpowers/
