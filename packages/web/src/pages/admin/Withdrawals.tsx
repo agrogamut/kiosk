@@ -6,7 +6,7 @@ import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
 
 interface WithdrawalRequest extends WalletTransaction {
-  doctor: { id: string; name: string; phone: string };
+  user: { id: string; name: string; phone: string; role: "DOCTOR" | "ADMIN" | "PATIENT" | "SUPER_ADMIN" };
 }
 
 export default function AdminWithdrawals() {
@@ -46,8 +46,10 @@ export default function AdminWithdrawals() {
           <div key={withdrawal.id} className="rounded-2xl border-2 border-amber-200 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-lg font-bold">{withdrawal.doctor.name}</p>
-                <p className="text-sm text-gray-500">{withdrawal.doctor.phone}</p>
+                <p className="text-lg font-bold">
+                  {withdrawal.user.name} <span className="text-sm font-normal text-gray-400">({withdrawal.user.role})</span>
+                </p>
+                <p className="text-sm text-gray-500">{withdrawal.user.phone}</p>
                 <p className="mt-2 text-2xl font-bold text-blue-700">Rs. {withdrawal.amount}</p>
                 <p className="mt-1 text-sm text-gray-600">{withdrawal.description}</p>
                 <p className="mt-1 text-xs text-gray-400">{format(new Date(withdrawal.createdAt), "dd MMM yyyy HH:mm")}</p>

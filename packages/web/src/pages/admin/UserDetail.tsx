@@ -11,13 +11,13 @@ interface AdminUserDetailData {
     role: "PATIENT" | "DOCTOR" | "ADMIN" | "SUPER_ADMIN";
     disabled: boolean;
     createdAt: string;
+    walletBalance: string;
     patientProfile: { heightCm: number | null; weightKg: number | null; bloodType: string | null; dob: string | null } | null;
     doctorProfile: {
       degree: string;
       regNumber: string;
       specialization: string | null;
       isApproved: boolean;
-      walletBalance: string;
     } | null;
   };
   healthFiles: { id: string; name: string; type: string; sizeBytes: number; createdAt: string }[];
@@ -73,7 +73,7 @@ export default function AdminUserDetail() {
             {user.doctorProfile.degree} - Reg: {user.doctorProfile.regNumber} - {user.doctorProfile.specialization ?? "General"}
           </p>
           <p className="mt-2 text-gray-700">
-            Approved: {user.doctorProfile.isApproved ? "Yes" : "No"} - Wallet Balance: Rs. {user.doctorProfile.walletBalance}
+            Approved: {user.doctorProfile.isApproved ? "Yes" : "No"} - Wallet Balance: Rs. {user.walletBalance}
           </p>
         </section>
       )}

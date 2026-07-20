@@ -165,6 +165,7 @@ adminRouter.get("/users/:id", requireAuth("SUPER_ADMIN"), async (req: Request, r
         role: true,
         disabled: true,
         createdAt: true,
+        walletBalance: true,
         patientProfile: true,
         doctorProfile: true,
       },
