@@ -9,6 +9,7 @@ import AdminLogin from "./pages/admin/Login";
 import AdminStats from "./pages/admin/Stats";
 import AdminUserDetail from "./pages/admin/UserDetail";
 import AdminUsers from "./pages/admin/Users";
+import AdminWallet from "./pages/admin/Wallet";
 import AdminWithdrawals from "./pages/admin/Withdrawals";
 import DoctorCall from "./pages/doctor/Call";
 import DoctorDashboard from "./pages/doctor/Dashboard";
@@ -61,6 +62,7 @@ export default function App() {
       <Route path="/admin/calls" element={<RequireRole role={["SUPER_ADMIN", "ADMIN"]} loginPath="/admin/login"><AdminCalls /></RequireRole>} />
       <Route path="/admin/withdrawals" element={<RequireRole role="SUPER_ADMIN" loginPath="/admin/login"><AdminWithdrawals /></RequireRole>} />
       <Route path="/admin/devices" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminDevices /></RequireRole>} />
+      <Route path="/admin/wallet" element={<RequireRole role="ADMIN" loginPath="/admin/login"><AdminWallet /></RequireRole>} />
     </Routes>
   );
 }
