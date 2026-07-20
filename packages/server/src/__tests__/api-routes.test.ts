@@ -390,6 +390,33 @@ describe("Admin API", () => {
     await prisma.kiosk.deleteMany({ where: { deviceId: { in: ["device-list-test-own", "device-list-test-other"] } } });
     await prisma.user.deleteMany({ where: { id: { in: [ownAdmin.id, otherAdmin.id] } } });
   });
+
+  it("scopes the audit log to the caller's own actions for an ADMIN, but not for SUPER_ADMIN", async () => {
+    const passwordHash = await bcrypt.hash("pw12345", 10);
+    const scopedAdmin = await prisma.user.create({
+      data: { phone: "8888700011", name: "Audit Scoped Admin", role: "ADMIN", passwordHash },
+    });
+    const scopedToken = signAccessToken({ sub: scopedAdmin.id, role: "ADMIN" });
+
+    await prisma.auditLog.create({ data: { actorId: scopedAdmin.id, action: "test.own-action" } });
+    await prisma.auditLog.create({ data: { actorId: adminId, action: "test.other-action" } });
+
+    const asAdmin = await request(app).get("/api/admin/audit-log").set("Authorization", `Bearer ${scopedToken}`);
+    const asSuperAdmin = await request(app).get("/api/admin/audit-log").set("Authorization", `Bearer ${adminToken}`);
+
+    expect(asAdmin.status).toBe(200);
+    const adminActions = asAdmin.body.logs.map((log: { action: string }) => log.action);
+    expect(adminActions).toContain("test.own-action");
+    expect(adminActions).not.toContain("test.other-action");
+
+    expect(asSuperAdmin.status).toBe(200);
+    const superAdminActions = asSuperAdmin.body.logs.map((log: { action: string }) => log.action);
+    expect(superAdminActions).toContain("test.own-action");
+    expect(superAdminActions).toContain("test.other-action");
+
+    await prisma.auditLog.deleteMany({ where: { action: { in: ["test.own-action", "test.other-action"] } } });
+    await prisma.user.deleteMany({ where: { id: scopedAdmin.id } });
+  });
 });
 
 describe("Doctor wallet API", () => {

@@ -379,14 +379,16 @@ adminRouter.get("/audit-log", requireAuth("SUPER_ADMIN", "ADMIN"), async (req: R
   try {
     const page = Math.max(Number(req.query.page ?? "1"), 1);
     const limit = 50;
+    const where = req.user!.role === "ADMIN" ? { actorId: req.user!.sub } : {};
     const [logs, total] = await Promise.all([
       prisma.auditLog.findMany({
+        where,
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
         include: { actor: { select: { id: true, name: true, role: true } } },
       }),
-      prisma.auditLog.count(),
+      prisma.auditLog.count({ where }),
     ]);
     res.json({ logs, total, page, pages: Math.ceil(total / limit) });
   } catch (error) {

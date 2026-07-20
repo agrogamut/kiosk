@@ -142,3 +142,18 @@ export const KioskSchema = z.object({
   createdAt: z.string(),
 });
 export type Kiosk = z.infer<typeof KioskSchema>;
+
+export const AuditLogSchema = z.object({
+  id: z.string(),
+  actorId: z.string(),
+  action: z.string(),
+  targetId: z.string().nullable(),
+  metadata: z.unknown().nullable(),
+  createdAt: z.string(),
+  actor: z.object({
+    id: z.string(),
+    name: z.string(),
+    role: UserRoleSchema,
+  }),
+});
+export type AuditLog = z.infer<typeof AuditLogSchema>;
