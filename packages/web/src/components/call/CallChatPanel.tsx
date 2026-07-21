@@ -21,6 +21,7 @@ const emptyVitals: Vitals = {};
 
 export function CallChatPanel({ callSessionId }: CallChatPanelProps) {
   const user = useAuthStore((state) => state.user);
+  const canSendVitals = user?.role === "PATIENT";
   const [messages, setMessages] = useState<ChatMessageWithSender[]>([]);
   const [text, setText] = useState("");
   const [showVitals, setShowVitals] = useState(false);
@@ -109,7 +110,7 @@ export function CallChatPanel({ callSessionId }: CallChatPanelProps) {
           );
         })}
       </div>
-      {showVitals && (
+      {canSendVitals && showVitals && (
         <div className="border-t border-input p-4">
           <VitalsForm value={vitals} onChange={setVitals} />
           <Button type="button" onClick={sendVitals} className="mt-3 w-full">
@@ -118,9 +119,11 @@ export function CallChatPanel({ callSessionId }: CallChatPanelProps) {
         </div>
       )}
       <div className="flex gap-2 border-t border-input p-3">
-        <Button type="button" variant="outline" onClick={() => setShowVitals((current) => !current)}>
-          Vitals
-        </Button>
+        {canSendVitals && (
+          <Button type="button" variant="outline" onClick={() => setShowVitals((current) => !current)}>
+            Vitals
+          </Button>
+        )}
         <input
           ref={fileInputRef}
           type="file"

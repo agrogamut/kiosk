@@ -1,5 +1,13 @@
 import type { ReactNode } from "react";
-import { LiveKitRoom, VideoConference } from "@livekit/components-react";
+import { Track } from "livekit-client";
+import {
+  ControlBar,
+  GridLayout,
+  LiveKitRoom,
+  ParticipantTile,
+  RoomAudioRenderer,
+  useTracks,
+} from "@livekit/components-react";
 import "@livekit/components-styles";
 
 interface DoctorCallViewProps {
@@ -7,6 +15,20 @@ interface DoctorCallViewProps {
   serverUrl: string;
   onDisconnected: () => void;
   children?: ReactNode;
+}
+
+function CallLayout() {
+  const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare], { onlySubscribed: false });
+
+  return (
+    <>
+      <GridLayout tracks={tracks} style={{ height: "calc(100% - 4rem)" }}>
+        <ParticipantTile />
+      </GridLayout>
+      <RoomAudioRenderer />
+      <ControlBar controls={{ chat: false, screenShare: true, settings: false }} />
+    </>
+  );
 }
 
 export function DoctorCallView({ token, serverUrl, onDisconnected, children }: DoctorCallViewProps) {
@@ -20,7 +42,7 @@ export function DoctorCallView({ token, serverUrl, onDisconnected, children }: D
       onDisconnected={onDisconnected}
       style={{ height: "100%" }}
     >
-      <VideoConference />
+      <CallLayout />
       {children}
     </LiveKitRoom>
   );

@@ -13,20 +13,29 @@ interface PatientHistoryPanelProps {
   patientId: string;
 }
 
-function extractPlainText(node: unknown): string {
-  if (!node || typeof node !== "object") {
-    return "";
-  }
+interface PrescriptionFields {
+  complaint: string;
+  diagnosis: string;
+  medications: string;
+  advice: string;
+}
 
-  const typed = node as { type?: string; text?: string; content?: unknown[] };
-  if (typed.type === "text" && typeof typed.text === "string") {
-    return typed.text;
-  }
-  if (Array.isArray(typed.content)) {
-    return typed.content.map(extractPlainText).join(" ");
-  }
+const PRESCRIPTION_SECTIONS: { key: keyof PrescriptionFields; label: string }[] = [
+  { key: "complaint", label: "Complaint" },
+  { key: "diagnosis", label: "Diagnosis" },
+  { key: "medications", label: "Medications" },
+  { key: "advice", label: "Advice" },
+];
 
-  return "";
+function readPrescriptionFields(content: unknown): PrescriptionFields {
+  const record = (content && typeof content === "object" ? (content as Record<string, unknown>) : {}) as Record<string, unknown>;
+
+  return {
+    complaint: typeof record.complaint === "string" ? record.complaint : "",
+    diagnosis: typeof record.diagnosis === "string" ? record.diagnosis : "",
+    medications: typeof record.medications === "string" ? record.medications : "",
+    advice: typeof record.advice === "string" ? record.advice : "",
+  };
 }
 
 export function PatientHistoryPanel({ patientId }: PatientHistoryPanelProps) {
@@ -75,14 +84,27 @@ export function PatientHistoryPanel({ patientId }: PatientHistoryPanelProps) {
         <h4 className="font-display mb-2 font-semibold text-foreground">Past prescriptions</h4>
         {data.prescriptions.length === 0 && <p className="text-sm text-muted-foreground">No past prescriptions.</p>}
         <div className="flex flex-col gap-2">
-          {data.prescriptions.map((prescription) => (
-            <details key={prescription.id} className="rounded-lg border border-input p-3 text-sm">
-              <summary className="cursor-pointer font-medium text-foreground">
-                {format(new Date(prescription.createdAt), "dd MMM yyyy")}
-              </summary>
-              <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{extractPlainText(prescription.content) || "No content"}</p>
-            </details>
-          ))}
+          {data.prescriptions.map((prescription) => {
+            const fields = readPrescriptionFields(prescription.content);
+            const sections = PRESCRIPTION_SECTIONS.filter((section) => fields[section.key].trim().length > 0);
+
+            return (
+              <details key={prescription.id} className="rounded-lg border border-input p-3 text-sm">
+                <summary className="cursor-pointer font-medium text-foreground">
+                  {format(new Date(prescription.createdAt), "dd MMM yyyy")}
+                </summary>
+                <div className="mt-2 flex flex-col gap-2">
+                  {sections.length === 0 && <p className="text-muted-foreground">No content</p>}
+                  {sections.map((section) => (
+                    <div key={section.key}>
+                      <p className="text-xs font-semibold text-muted-foreground">{section.label}</p>
+                      <p className="whitespace-pre-wrap text-foreground">{fields[section.key]}</p>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            );
+          })}
         </div>
       </div>
     </div>

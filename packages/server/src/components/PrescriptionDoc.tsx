@@ -34,24 +34,34 @@ interface PrescriptionDocProps {
   };
 }
 
-function extractText(node: unknown): string {
-  if (!node || typeof node !== "object") {
-    return "";
-  }
+interface PrescriptionFields {
+  complaint: string;
+  diagnosis: string;
+  medications: string;
+  advice: string;
+}
 
-  const record = node as Record<string, unknown>;
-  if (typeof record.text === "string") {
-    return record.text;
-  }
-  if (Array.isArray(record.content)) {
-    return record.content.map(extractText).join(" ").replace(/\s+/g, " ").trim();
-  }
+const PRESCRIPTION_SECTIONS: { key: keyof PrescriptionFields; label: string }[] = [
+  { key: "complaint", label: "Patient complaint" },
+  { key: "diagnosis", label: "Diagnosis" },
+  { key: "medications", label: "Medications" },
+  { key: "advice", label: "Advice" },
+];
 
-  return "";
+function readPrescriptionFields(content: unknown): PrescriptionFields {
+  const record = (content && typeof content === "object" ? (content as Record<string, unknown>) : {}) as Record<string, unknown>;
+
+  return {
+    complaint: typeof record.complaint === "string" ? record.complaint : "",
+    diagnosis: typeof record.diagnosis === "string" ? record.diagnosis : "",
+    medications: typeof record.medications === "string" ? record.medications : "",
+    advice: typeof record.advice === "string" ? record.advice : "",
+  };
 }
 
 export function PrescriptionDoc({ prescription }: PrescriptionDocProps) {
-  const text = extractText(prescription.content);
+  const fields = readPrescriptionFields(prescription.content);
+  const hasAnyContent = Object.values(fields).some((value) => value.trim().length > 0);
   const date = new Date(prescription.createdAt).toLocaleDateString("en-IN");
 
   return (
@@ -80,10 +90,18 @@ export function PrescriptionDoc({ prescription }: PrescriptionDocProps) {
           </View>
         </View>
 
-        <View style={[styles.section, { marginTop: 24 }]}>
-          <Text style={styles.label}>Prescription</Text>
-          <Text style={styles.content}>{text || "No prescription notes entered."}</Text>
-        </View>
+        {hasAnyContent ? (
+          PRESCRIPTION_SECTIONS.filter((section) => fields[section.key].trim().length > 0).map((section) => (
+            <View key={section.key} style={styles.section}>
+              <Text style={styles.label}>{section.label}</Text>
+              <Text style={styles.value}>{fields[section.key]}</Text>
+            </View>
+          ))
+        ) : (
+          <View style={styles.section}>
+            <Text style={styles.value}>No prescription notes entered.</Text>
+          </View>
+        )}
 
         <Text style={styles.footer}>
           Prescription ID: {prescription.id} - MadamGy Telemedicine - This prescription is digitally generated.

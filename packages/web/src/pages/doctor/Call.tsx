@@ -1,18 +1,34 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { EditorContent, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
 import toast from "react-hot-toast";
 import { CallChatPanel } from "../../components/call/CallChatPanel";
 import { PatientHistoryPanel } from "../../components/call/PatientHistoryPanel";
 import { DoctorCallView } from "../../components/video/DoctorCallView";
 import { Button } from "../../components/ui/button";
+import { Label } from "../../components/ui/label";
+import { Textarea } from "../../components/ui/textarea";
 import { PulseRing } from "../../components/brand/PulseRing";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
 import { connectSocket } from "../../lib/socket";
 import { useImmersiveStatusBar } from "../../hooks/useImmersiveStatusBar";
 import { useCallStore } from "../../store/call.store";
+
+interface PrescriptionFields {
+  complaint: string;
+  diagnosis: string;
+  medications: string;
+  advice: string;
+}
+
+const EMPTY_PRESCRIPTION: PrescriptionFields = { complaint: "", diagnosis: "", medications: "", advice: "" };
+
+const PRESCRIPTION_FIELDS: { name: keyof PrescriptionFields; label: string; placeholder: string }[] = [
+  { name: "complaint", label: "Patient complaint", placeholder: "What the patient reported" },
+  { name: "diagnosis", label: "Diagnosis", placeholder: "Your assessment" },
+  { name: "medications", label: "Medications", placeholder: "Drug, dose, frequency, duration" },
+  { name: "advice", label: "Advice", placeholder: "Follow-up, precautions, next steps" },
+];
 
 export default function DoctorCall() {
   const { id: callSessionId } = useParams<{ id: string }>();
@@ -23,13 +39,15 @@ export default function DoctorCall() {
   const [submitting, setSubmitting] = useState(false);
   const [patientId, setPatientId] = useState<string | null>(null);
   const [rightTab, setRightTab] = useState<"chat" | "history">("chat");
+  const [prescription, setPrescription] = useState<PrescriptionFields>(EMPTY_PRESCRIPTION);
 
   useImmersiveStatusBar();
 
-  const editor = useEditor({
-    extensions: [StarterKit],
-    content: "<p>Patient complaint:<br>Diagnosis:<br>Medications:<br>Advice:</p>",
-  });
+  function updatePrescriptionField(name: keyof PrescriptionFields, value: string): void {
+    setPrescription((current) => ({ ...current, [name]: value }));
+  }
+
+  const canSubmitPrescription = Object.values(prescription).some((value) => value.trim().length > 0);
 
   useEffect(() => {
     const socket = connectSocket();
@@ -56,13 +74,13 @@ export default function DoctorCall() {
   }, [callSessionId, clearCall, navigate, setLivekitToken]);
 
   async function submitPrescription(): Promise<void> {
-    if (!editor || !callSessionId) {
+    if (!callSessionId || !canSubmitPrescription) {
       return;
     }
 
     setSubmitting(true);
     try {
-      await api.post("/prescriptions", { callSessionId, content: editor.getJSON() });
+      await api.post("/prescriptions", { callSessionId, content: prescription });
       toast.success("Prescription submitted");
       clearCall();
       navigate("/doctor");
@@ -93,15 +111,29 @@ export default function DoctorCall() {
       </div>
 
       <div className="grid min-h-0 flex-1 gap-4 border-t border-input bg-background p-4 lg:grid-cols-[1fr_24rem]">
-        <div className="flex min-h-0 flex-col">
+        <div className="flex min-h-0 flex-col overflow-y-auto">
           <h3 className="font-display mb-2 text-lg font-semibold text-foreground">Prescription</h3>
-          <div className="min-h-[120px] flex-1 rounded-lg border border-input bg-card p-3 text-foreground">
-            <EditorContent editor={editor} />
+          <div className="flex flex-col gap-3">
+            {PRESCRIPTION_FIELDS.map((field) => (
+              <div key={field.name}>
+                <Label htmlFor={`prescription-${field.name}`} className="mb-1.5">
+                  {field.label}
+                </Label>
+                <Textarea
+                  id={`prescription-${field.name}`}
+                  value={prescription[field.name]}
+                  onChange={(event) => updatePrescriptionField(field.name, event.target.value)}
+                  placeholder={field.placeholder}
+                  rows={3}
+                  className="bg-card"
+                />
+              </div>
+            ))}
           </div>
           <Button
             type="button"
             onClick={() => void submitPrescription()}
-            disabled={submitting}
+            disabled={submitting || !canSubmitPrescription}
             className="mt-3 w-full text-lg"
           >
             {submitting ? "Submitting..." : "Submit prescription"}
