@@ -48,7 +48,7 @@ export default function AdminDevices() {
       <h1 className="font-display mb-8 text-2xl font-bold text-foreground">My devices</h1>
 
       <form onSubmit={handleSubmit((data) => registerDevice.mutate(data))} className="mb-8 rounded-xl bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-xl font-bold text-foreground">Register a device</h2>
+        <h2 className="font-display mb-4 text-xl font-bold text-foreground">Register a device</h2>
         <div className="mb-4">
           <Label htmlFor="deviceId" className="mb-1.5">
             Device ID
@@ -68,7 +68,7 @@ export default function AdminDevices() {
         </Button>
       </form>
 
-      <h2 className="mb-4 text-xl font-bold text-foreground">Registered devices</h2>
+      <h2 className="font-display mb-4 text-xl font-bold text-foreground">Registered devices</h2>
       <div className="flex flex-col gap-3">
         {devices?.map((device) => (
           <div key={device.id} className="flex items-center justify-between gap-4 rounded-lg bg-card p-5 shadow-sm">

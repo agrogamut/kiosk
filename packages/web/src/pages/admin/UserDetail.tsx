@@ -58,7 +58,7 @@ export default function AdminUserDetail() {
 
       {user.patientProfile && (
         <section className="mb-8 rounded-xl bg-card p-6 shadow-sm">
-          <h2 className="mb-3 text-lg font-semibold text-foreground">Patient profile</h2>
+          <h2 className="font-display mb-3 text-lg font-semibold text-foreground">Patient profile</h2>
           <p className="text-foreground">
             Height: {user.patientProfile.heightCm ?? "-"} cm, Weight: {user.patientProfile.weightKg ?? "-"} kg, Blood type:{" "}
             {user.patientProfile.bloodType ?? "-"}
@@ -68,7 +68,7 @@ export default function AdminUserDetail() {
 
       {user.doctorProfile && (
         <section className="mb-8 rounded-xl bg-card p-6 shadow-sm">
-          <h2 className="mb-3 text-lg font-semibold text-foreground">Doctor profile</h2>
+          <h2 className="font-display mb-3 text-lg font-semibold text-foreground">Doctor profile</h2>
           <p className="text-foreground">
             {user.doctorProfile.degree} - Reg: {user.doctorProfile.regNumber} - {user.doctorProfile.specialization ?? "General"}
           </p>
@@ -79,7 +79,7 @@ export default function AdminUserDetail() {
       )}
 
       <section className="mb-8">
-        <h2 className="mb-3 text-lg font-semibold text-foreground">Health folder ({healthFiles.length})</h2>
+        <h2 className="font-display mb-3 text-lg font-semibold text-foreground">Health folder ({healthFiles.length})</h2>
         <div className="flex flex-col gap-2">
           {healthFiles.map((file) => (
             <div key={file.id} className="rounded-lg bg-card p-4 text-foreground shadow-sm">
@@ -91,7 +91,7 @@ export default function AdminUserDetail() {
       </section>
 
       <section className="mb-8">
-        <h2 className="mb-3 text-lg font-semibold text-foreground">Prescriptions ({prescriptions.length})</h2>
+        <h2 className="font-display mb-3 text-lg font-semibold text-foreground">Prescriptions ({prescriptions.length})</h2>
         <div className="flex flex-col gap-2">
           {prescriptions.map((rx) => (
             <div key={rx.id} className="rounded-lg bg-card p-4 text-foreground shadow-sm">
@@ -104,7 +104,7 @@ export default function AdminUserDetail() {
       </section>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold text-foreground">Call history ({calls.length})</h2>
+        <h2 className="font-display mb-3 text-lg font-semibold text-foreground">Call history ({calls.length})</h2>
         <div className="flex flex-col gap-2">
           {calls.map((call) => (
             <div key={call.id} className="rounded-lg bg-card p-4 text-foreground shadow-sm">

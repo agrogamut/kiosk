@@ -6,7 +6,7 @@ export default function PrivacyPolicy() {
         Last updated: check this date against the actual publish date before submitting to Play Console.
       </p>
 
-      <h2 className="mb-2 mt-8 text-xl font-bold text-foreground">What we collect</h2>
+      <h2 className="font-display mb-2 mt-8 text-xl font-bold text-foreground">What we collect</h2>
       <ul className="mb-4 list-disc space-y-2 pl-6">
         <li>
           <strong>Account details:</strong> phone number, full name, date of birth.
@@ -31,14 +31,14 @@ export default function PrivacyPolicy() {
         </li>
       </ul>
 
-      <h2 className="mb-2 mt-8 text-xl font-bold text-foreground">Who can access it</h2>
+      <h2 className="font-display mb-2 mt-8 text-xl font-bold text-foreground">Who can access it</h2>
       <ul className="mb-4 list-disc space-y-2 pl-6">
         <li>The doctor assigned to your consultation can see your health profile, uploaded files, and prior prescriptions with MadamGy, so they can treat you safely.</li>
         <li>Platform administrators can access account and consultation records for support, safety, and compliance purposes.</li>
         <li>We do not sell your personal or health data to third parties.</li>
       </ul>
 
-      <h2 className="mb-2 mt-8 text-xl font-bold text-foreground">How long we keep it</h2>
+      <h2 className="font-display mb-2 mt-8 text-xl font-bold text-foreground">How long we keep it</h2>
       <p className="mb-4">
         We retain consultation and prescription records for as long as required by applicable medical
         record-keeping regulations, even after you delete your account, so your treating doctor's
@@ -48,7 +48,7 @@ export default function PrivacyPolicy() {
         beyond what's necessary for that retention requirement.
       </p>
 
-      <h2 className="mb-2 mt-8 text-xl font-bold text-foreground">Deleting your account</h2>
+      <h2 className="font-display mb-2 mt-8 text-xl font-bold text-foreground">Deleting your account</h2>
       <p className="mb-4">
         You can delete your account and personal data at any time from within the app, or without
         installing the app at{" "}
@@ -58,7 +58,7 @@ export default function PrivacyPolicy() {
         .
       </p>
 
-      <h2 className="mb-2 mt-8 text-xl font-bold text-foreground">Contact</h2>
+      <h2 className="font-display mb-2 mt-8 text-xl font-bold text-foreground">Contact</h2>
       <p className="mb-4">Replace this line with a real support contact email before publishing.</p>
     </div>
   );

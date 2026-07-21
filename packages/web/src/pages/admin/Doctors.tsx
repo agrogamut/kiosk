@@ -40,7 +40,7 @@ export default function AdminDoctors() {
       <h1 className="font-display mb-8 text-2xl font-bold text-foreground">Doctors</h1>
       {pending.length > 0 && (
         <section className="mb-8">
-          <h2 className="mb-4 text-lg font-semibold text-foreground">Pending approval ({pending.length})</h2>
+          <h2 className="font-display mb-4 text-lg font-semibold text-foreground">Pending approval ({pending.length})</h2>
           <div className="flex flex-col gap-3">
             {pending.map((doctor) => (
               <div
@@ -60,7 +60,7 @@ export default function AdminDoctors() {
         </section>
       )}
 
-      <h2 className="mb-4 text-lg font-semibold text-foreground">Approved ({approved.length})</h2>
+      <h2 className="font-display mb-4 text-lg font-semibold text-foreground">Approved ({approved.length})</h2>
       <div className="flex flex-col gap-3">
         {approved.map((doctor) => (
           <div key={doctor.id} className="flex items-center justify-between gap-4 rounded-lg bg-card p-5 shadow-sm">
