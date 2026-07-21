@@ -24,7 +24,7 @@ export default function AdminStats() {
   ];
 
   return (
-    <div className="min-h-screen bg-background px-6 py-10">
+    <div className="mx-auto max-w-5xl">
       <h1 className="font-display mb-8 text-2xl font-bold text-foreground">Dashboard</h1>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (

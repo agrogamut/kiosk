@@ -52,7 +52,7 @@ export default function AdminDevices() {
   });
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
+    <div className="mx-auto max-w-5xl">
       <h1 className="font-display mb-8 text-2xl font-bold text-foreground">My devices</h1>
 
       <form onSubmit={handleSubmit((data) => registerDevice.mutate(data))} className="mb-8 max-w-2xl rounded-xl bg-card p-6 shadow-sm">
