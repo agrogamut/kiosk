@@ -7,6 +7,10 @@
 
 Every screen in `packages/web` currently renders in raw default Tailwind (`blue-600`, `gray-50`, system font) because the implementation plan (`2026-07-04-frontend-kiosk-client.md`) deliberately deferred all visual design to a dedicated Task 14 pass — functional wiring first, design second. That pass is this spec. Brand color tokens were already sampled and approved from the MadamGy marketing Figma file on 2026-07-21 (colors only — the marketing site's layout/typography/components are explicitly out of scope, per that plan's "Design decisions" section).
 
+## Icon policy (added 2026-07-21, doctor-flow pass)
+
+User's explicit call: keep icon usage minimal — favor color/text/badges to convey status over decorative iconography, and don't introduce new custom SVG icon graphics (illustrations, decorative marks) into the app going forward. This does not extend to the small functional glyphs already baked into the vendored shadcn primitives themselves (Select's chevron, Checkbox's check, etc. — from `lucide-react`) — those are load-bearing interaction affordances, not decoration, and stripping them would hurt usability for no visual gain. Net effect for new work: no new `lucide-react` imports in hand-written page/feature code unless a control is genuinely ambiguous without one; prefer `Badge` (color + text) over an icon+label pairing for status displays (call status, doctor online/offline, wallet state, etc.).
+
 ## Token system
 
 ### Color
