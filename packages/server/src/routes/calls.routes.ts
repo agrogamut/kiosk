@@ -59,7 +59,7 @@ callsRouter.post("/", requireAuth("PATIENT"), async (req: Request, res: Response
     await assignDoctorQueue.add(
       "assign",
       { callSessionId: call.id },
-      { attempts: 3, backoff: { type: "fixed", delay: 30_000 } },
+      { attempts: 6, backoff: { type: "fixed", delay: 20_000 } },
     );
 
     res.status(201).json(call);

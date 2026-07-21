@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { UserRole } from "@madamgy/api-client";
 
-interface AuthUser {
+export interface AuthUser {
   id: string;
   name: string;
   role: UserRole;

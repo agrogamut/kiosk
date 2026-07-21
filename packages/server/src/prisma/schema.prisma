@@ -108,7 +108,7 @@ model DoctorProfile {
   degree         String
   regNumber      String   @unique
   specialization String?
-  isAvailable    Boolean  @default(false)
+  isAvailable    Boolean  @default(true)
   isApproved     Boolean  @default(false)
   approvedAt     DateTime?
   approvedById   String?
@@ -217,6 +217,7 @@ model WalletTransaction {
   type          TxnType
   status        TxnStatus @default(PENDING)
   description   String?
+  bankDetails   Json?
   createdAt     DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id])

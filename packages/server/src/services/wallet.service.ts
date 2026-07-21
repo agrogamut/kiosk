@@ -41,6 +41,7 @@ export async function createWithdrawRequest(
       type: "DEBIT",
       status: "PENDING",
       description: `Withdrawal to ${bankDetails.bankName} ${bankDetails.accountNumber}`,
+      bankDetails,
     },
   });
 }

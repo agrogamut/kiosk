@@ -4,12 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { livekitService } from "../services/livekit.service.js";
 import { completeCall } from "../services/call-completion.service.js";
 
-export function registerCallHandlers(
-  io: Server,
-  socket: Socket,
-  userId: string,
-  userRole: string,
-): void {
+export function registerCallHandlers(io: Server, socket: Socket, userId: string): void {
   socket.on("call:accept", async ({ callSessionId }: { callSessionId: string }) => {
     try {
       const call = await prisma.callSession.findUnique({ where: { id: callSessionId } });
@@ -73,18 +68,6 @@ export function registerCallHandlers(
       await completeCall(callSessionId);
     } catch (error) {
       console.error("call:end error", error);
-    }
-  });
-
-  socket.on("doctor:toggle_available", async ({ isAvailable }: { isAvailable: boolean }) => {
-    if (userRole !== "DOCTOR") {
-      return;
-    }
-
-    try {
-      await prisma.doctorProfile.update({ where: { userId }, data: { isAvailable } });
-    } catch (error) {
-      console.error("doctor:toggle_available error", error);
     }
   });
 }

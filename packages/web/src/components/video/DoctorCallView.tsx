@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Track } from "livekit-client";
+import toast from "react-hot-toast";
+import { Track, type MediaDeviceFailure } from "livekit-client";
 import {
   ControlBar,
   GridLayout,
@@ -9,6 +10,7 @@ import {
   useTracks,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
+import { describeMediaDeviceFailure } from "../../lib/livekit";
 
 interface DoctorCallViewProps {
   token: string;
@@ -40,7 +42,12 @@ export function DoctorCallView({ token, serverUrl, onDisconnected, children }: D
       video
       audio
       onDisconnected={onDisconnected}
+      onMediaDeviceFailure={(failure?: MediaDeviceFailure, kind?: MediaDeviceKind) =>
+        toast(describeMediaDeviceFailure(failure, kind))
+      }
+      data-lk-theme="default"
       style={{ height: "100%" }}
+      options={{ adaptiveStream: true, dynacast: true, publishDefaults: { simulcast: true } }}
     >
       <CallLayout />
       {children}

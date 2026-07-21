@@ -180,7 +180,9 @@ describe("Full consult flow (real workers + sockets, no mocks)", () => {
       setTimeout(() => reject(new Error("socket connect timeout")), 5000);
     });
 
-    doctorSocket.emit("doctor:toggle_available", { isAvailable: true });
+    // Real doctor clients heartbeat over "presence:ping" (packages/web/src/pages/doctor/Dashboard.tsx)
+    // so assign-doctor.worker's Redis heartbeat check treats them as reachable; simulate that here.
+    doctorSocket.emit("presence:ping");
     await new Promise((resolve) => setTimeout(resolve, 300));
 
     const incomingPromise = new Promise<{ callSession: { id: string } }>((resolve, reject) => {
@@ -237,6 +239,84 @@ describe("Full consult flow (real workers + sockets, no mocks)", () => {
     patientSocket.close();
     doctorSocket.close();
   }, 30_000);
+
+  it("matches a doctor who logs in after the patient already started searching", async () => {
+    const rand = Math.floor(Math.random() * 1e8);
+    const patientPhone = `70002${rand}`.slice(0, 12);
+    const doctorPhone = `80002${rand}`.slice(0, 12);
+    const { phone: adminPhone, password: adminPassword } = await ensureAdmin();
+
+    const patientRegister = await api.post("/auth/patient/register", {
+      phone: patientPhone,
+      name: "E2E Late Patient",
+      dob: "01/01/1990",
+      consent: true,
+    });
+    expect(patientRegister.status).toBe(201);
+    const patientToken: string = patientRegister.data.accessToken;
+
+    const doctorForm = new FormData();
+    doctorForm.append(
+      "data",
+      JSON.stringify({
+        phone: doctorPhone,
+        name: "E2E Late Doctor",
+        password: "password123",
+        degree: "MBBS",
+        regNumber: `E2E-REG-LATE-${rand}`,
+      }),
+    );
+    const doctorRegister = await api.post("/auth/doctor/register", doctorForm, {
+      headers: doctorForm.getHeaders(),
+    });
+    expect(doctorRegister.status).toBe(201);
+
+    const adminLogin = await api.post("/auth/admin/login", { phone: adminPhone, password: adminPassword });
+    expect(adminLogin.status).toBe(200);
+    const adminToken: string = adminLogin.data.accessToken;
+
+    const doctors = await api.get("/admin/doctors", { headers: { Authorization: `Bearer ${adminToken}` } });
+    const doctor = doctors.data.find((d: { phone: string }) => d.phone === doctorPhone);
+    expect(doctor).toBeTruthy();
+    const approve = await api.put(`/admin/doctors/${doctor.id}/approve`, {}, { headers: { Authorization: `Bearer ${adminToken}` } });
+    expect(approve.status).toBe(200);
+
+    await api.post("/auth/doctor/login/initiate", { phone: doctorPhone, password: "password123" });
+    const doctorLogin = await api.post("/auth/doctor/login/verify", { phone: doctorPhone, otp: "000000" });
+    expect(doctorLogin.status).toBe(200);
+    const doctorToken: string = doctorLogin.data.accessToken;
+
+    // Patient starts searching while no doctor is online at all -- no socket connected yet, so
+    // no heartbeat exists and the assign-doctor job's immediate first attempt finds nobody.
+    const createCall = await api.post("/calls", {}, { headers: { Authorization: `Bearer ${patientToken}` } });
+    expect(createCall.status).toBe(201);
+    const callSessionId: string = createCall.data.id;
+
+    // Let the first attempt run and fail before the doctor shows up, so this genuinely exercises
+    // the "doctor logs in later" path rather than winning a lucky race against it.
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    const doctorSocket: Socket = ioClient(`http://localhost:${PORT}`, { auth: { token: doctorToken } });
+    await new Promise<void>((resolve, reject) => {
+      doctorSocket.on("connect", () => resolve());
+      doctorSocket.on("connect_error", reject);
+      setTimeout(() => reject(new Error("doctor socket connect timeout")), 5000);
+    });
+
+    const incomingPromise = new Promise<{ callSession: { id: string } }>((resolve, reject) => {
+      doctorSocket.once("call:incoming", resolve);
+      // Well under the 20s scheduled-retry interval: only presence.handler.ts's nudge on
+      // "presence:ping" (not the assign-doctor job's own backoff schedule) can plausibly
+      // deliver this in time, so this proves the nudge path specifically.
+      setTimeout(() => reject(new Error("call:incoming timeout -- presence nudge did not fire")), 6000);
+    });
+
+    doctorSocket.emit("presence:ping");
+    const incoming = await incomingPromise;
+    expect(incoming.callSession.id).toBe(callSessionId);
+
+    doctorSocket.close();
+  }, 20_000);
 
   it("keeps a call's credited split fixed even if RevenueConfig changes afterward", async () => {
     const { updateRevenueConfig, getRevenueConfig } = await import("../services/revenue-config.service.js");

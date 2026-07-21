@@ -79,6 +79,20 @@ doctorRouter.get("/patients/:patientId/records", async (req: Request, res: Respo
   }
 });
 
+doctorRouter.get("/prescriptions", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const prescriptions = await prisma.prescription.findMany({
+      where: { doctorId: req.user!.sub },
+      orderBy: { createdAt: "desc" },
+      include: { patient: { select: { id: true, name: true } } },
+    });
+
+    res.json(prescriptions);
+  } catch (error) {
+    next(error);
+  }
+});
+
 doctorRouter.get("/wallet", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const balance = await getWalletBalance(req.user!.sub);

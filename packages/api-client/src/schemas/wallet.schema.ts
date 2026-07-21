@@ -3,6 +3,14 @@ import { z } from "zod";
 export const TxnTypeSchema = z.enum(["CREDIT", "DEBIT"]);
 export const TxnStatusSchema = z.enum(["PENDING", "COMPLETED", "FAILED"]);
 
+export const BankDetailsSchema = z.object({
+  bankName: z.string(),
+  accountNumber: z.string(),
+  ifsc: z.string(),
+  holderName: z.string(),
+});
+export type BankDetails = z.infer<typeof BankDetailsSchema>;
+
 export const WalletTransactionSchema = z.object({
   id: z.string(),
   userId: z.string(),
@@ -11,6 +19,7 @@ export const WalletTransactionSchema = z.object({
   type: TxnTypeSchema,
   status: TxnStatusSchema,
   description: z.string().nullable(),
+  bankDetails: BankDetailsSchema.nullable().optional(),
   createdAt: z.string(),
 });
 export type WalletTransaction = z.infer<typeof WalletTransactionSchema>;

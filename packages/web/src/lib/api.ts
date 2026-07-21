@@ -1,5 +1,5 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
-import { useAuthStore } from "../store/auth.store";
+import { useAuthStore, type AuthUser } from "../store/auth.store";
 
 interface RetriableConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -25,8 +25,16 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && config && !config._retry) {
       config._retry = true;
       try {
-        const response = await refreshClient.post<{ accessToken: string }>("/auth/refresh");
-        useAuthStore.getState().setAccessToken(response.data.accessToken);
+        const response = await refreshClient.post<{ accessToken: string; user: AuthUser }>("/auth/refresh");
+        const previousUserId = useAuthStore.getState().user?.id;
+        useAuthStore.getState().setAuth(response.data.accessToken, response.data.user);
+
+        if (previousUserId && previousUserId !== response.data.user.id) {
+          // A different account authenticated in another tab and overwrote the shared refresh cookie.
+          useAuthStore.getState().logout();
+          return Promise.reject(error);
+        }
+
         config.headers.Authorization = `Bearer ${response.data.accessToken}`;
         return api(config);
       } catch {

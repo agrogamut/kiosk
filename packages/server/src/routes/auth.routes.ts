@@ -251,7 +251,7 @@ authRouter.post("/refresh", async (req: Request, res: Response, next: NextFuncti
     const accessToken = signAccessToken(newPayload);
     const refreshToken = signRefreshToken(newPayload);
     setRefreshCookie(res, refreshToken);
-    res.json({ accessToken });
+    res.json({ accessToken, user: { id: user.id, name: user.name, role: user.role } });
   } catch (error) {
     next(error);
   }

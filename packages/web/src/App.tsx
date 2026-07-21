@@ -6,10 +6,10 @@ import { SplashScreen } from "@capacitor/splash-screen";
 import type { UserRole } from "@madamgy/api-client";
 import AdminAuditLog from "./pages/admin/AuditLog";
 import AdminCalls from "./pages/admin/Calls";
-import AdminDashboard from "./pages/admin/Dashboard";
 import AdminDevices from "./pages/admin/Devices";
 import AdminDoctors from "./pages/admin/Doctors";
 import AdminPatients from "./pages/admin/Patients";
+import AdminPricing from "./pages/admin/Pricing";
 import AdminStats from "./pages/admin/Stats";
 import AdminUserDetail from "./pages/admin/UserDetail";
 import AdminUsers from "./pages/admin/Users";
@@ -20,6 +20,7 @@ import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
 import DoctorCall from "./pages/doctor/Call";
 import DoctorDashboard from "./pages/doctor/Dashboard";
 import DoctorHistory from "./pages/doctor/History";
+import DoctorPrescriptions from "./pages/doctor/Prescriptions";
 import DoctorRegister from "./pages/doctor/Register";
 import DoctorWallet from "./pages/doctor/Wallet";
 import Entry from "./pages/Entry";
@@ -77,6 +78,7 @@ export default function App() {
         <Route path="/doctor" element={<DoctorDashboard />} />
         <Route path="/doctor/wallet" element={<DoctorWallet />} />
         <Route path="/doctor/history" element={<DoctorHistory />} />
+        <Route path="/doctor/prescriptions" element={<DoctorPrescriptions />} />
       </Route>
       <Route path="/doctor/call/:id" element={<RequireRole role="DOCTOR" loginPath="/?role=doctor"><DoctorCall /></RequireRole>} />
       <Route path="/admin/login" element={<Navigate to="/?role=admin" replace />} />
@@ -89,13 +91,14 @@ export default function App() {
           </RequireRole>
         }
       >
-        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin" element={<Navigate to="/admin/stats" replace />} />
         <Route path="/admin/doctors" element={<RequireRole role="SUPER_ADMIN" loginPath="/?role=admin"><AdminDoctors /></RequireRole>} />
         <Route path="/admin/users" element={<RequireRole role="SUPER_ADMIN" loginPath="/?role=admin"><AdminUsers /></RequireRole>} />
         <Route path="/admin/users/:id" element={<RequireRole role="SUPER_ADMIN" loginPath="/?role=admin"><AdminUserDetail /></RequireRole>} />
         <Route path="/admin/stats" element={<AdminStats />} />
         <Route path="/admin/calls" element={<AdminCalls />} />
         <Route path="/admin/withdrawals" element={<RequireRole role="SUPER_ADMIN" loginPath="/?role=admin"><AdminWithdrawals /></RequireRole>} />
+        <Route path="/admin/pricing" element={<RequireRole role="SUPER_ADMIN" loginPath="/?role=admin"><AdminPricing /></RequireRole>} />
         <Route path="/admin/devices" element={<RequireRole role="ADMIN" loginPath="/?role=admin"><AdminDevices /></RequireRole>} />
         <Route path="/admin/wallet" element={<RequireRole role="ADMIN" loginPath="/?role=admin"><AdminWallet /></RequireRole>} />
         <Route path="/admin/patients" element={<RequireRole role="ADMIN" loginPath="/?role=admin"><AdminPatients /></RequireRole>} />

@@ -38,7 +38,7 @@ export function initSocketHandlers(io: Server): void {
       socket.join("admins");
     }
 
-    registerCallHandlers(io, socket, userId, userRole);
+    registerCallHandlers(io, socket, userId);
     registerChatHandlers(io, socket, userId);
     registerPresenceHandlers(socket, userId, userRole);
 

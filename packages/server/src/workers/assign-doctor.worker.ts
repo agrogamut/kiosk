@@ -2,6 +2,7 @@ import { Worker } from "bullmq";
 import type { Prisma } from "@prisma/client";
 import { bullMqConnection } from "../lib/queues.js";
 import { prisma } from "../lib/prisma.js";
+import { redis } from "../lib/redis.js";
 import { io } from "../index.js";
 import { refundPayment } from "../services/payment.service.js";
 
@@ -27,21 +28,30 @@ export function startAssignDoctorWorker(): Worker<AssignDoctorJobData> {
           userId: excludedDoctorIds.length > 0 ? { notIn: excludedDoctorIds } : undefined,
         };
 
-        const availableDoctor = await tx.doctorProfile.findFirst({
+        const candidates = await tx.doctorProfile.findMany({
           where,
           include: { user: true },
           orderBy: { approvedAt: "asc" },
         });
-        if (!availableDoctor) {
-          throw new Error("no_doctor");
+
+        for (const candidate of candidates) {
+          // isAvailable can go stale (e.g. a crashed tab that never fired a clean disconnect),
+          // so only hand a call to a doctor whose presence heartbeat is still fresh.
+          const heartbeat = await redis.get(`doctor_heartbeat:${candidate.userId}`);
+          if (!heartbeat) {
+            continue;
+          }
+
+          const updated = await tx.doctorProfile.updateMany({
+            where: { id: candidate.id, isAvailable: true },
+            data: { isAvailable: false },
+          });
+          if (updated.count === 1) {
+            return candidate;
+          }
         }
 
-        await tx.doctorProfile.update({
-          where: { id: availableDoctor.id, isAvailable: true },
-          data: { isAvailable: false },
-        });
-
-        return availableDoctor;
+        throw new Error("no_doctor");
       });
 
       const [patient, updatedCall] = await Promise.all([

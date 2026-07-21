@@ -3,6 +3,14 @@ import { format } from "date-fns";
 import toast from "react-hot-toast";
 import type { WalletTransaction } from "@madamgy/api-client";
 import { Button } from "../../components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { ErrorState } from "../../components/common/ErrorState";
 import { SkeletonRows } from "../../components/common/SkeletonRows";
@@ -11,6 +19,52 @@ import { getApiErrorMessage } from "../../lib/errors";
 
 interface WithdrawalRequest extends WalletTransaction {
   user: { id: string; name: string; phone: string; role: "DOCTOR" | "ADMIN" | "PATIENT" | "SUPER_ADMIN" };
+}
+
+function WithdrawalDetails({ withdrawal, children }: { withdrawal: WithdrawalRequest; children: React.ReactNode }) {
+  const bank = withdrawal.bankDetails;
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Withdrawal request</DialogTitle>
+          <DialogDescription>Requested {format(new Date(withdrawal.createdAt), "dd MMM yyyy HH:mm")}</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-4 text-sm">
+          <div className="rounded-lg bg-muted p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Requested by</p>
+            <p className="mt-1 font-bold text-foreground">
+              {withdrawal.user.name} <span className="font-normal text-muted-foreground">({withdrawal.user.role})</span>
+            </p>
+            <p className="text-muted-foreground">{withdrawal.user.phone}</p>
+          </div>
+          <div className="rounded-lg bg-muted p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Amount</p>
+            <p className="mt-1 text-2xl font-bold text-primary">Rs. {withdrawal.amount}</p>
+          </div>
+          <div className="rounded-lg border border-input p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bank details</p>
+            {bank ? (
+              <div className="grid grid-cols-2 gap-y-2">
+                <span className="text-muted-foreground">Bank name</span>
+                <span className="text-right font-medium text-foreground">{bank.bankName}</span>
+                <span className="text-muted-foreground">Account holder</span>
+                <span className="text-right font-medium text-foreground">{bank.holderName}</span>
+                <span className="text-muted-foreground">Account number</span>
+                <span className="text-right font-medium text-foreground">{bank.accountNumber}</span>
+                <span className="text-muted-foreground">IFSC code</span>
+                <span className="text-right font-medium text-foreground">{bank.ifsc}</span>
+              </div>
+            ) : (
+              <p className="text-muted-foreground">{withdrawal.description || "No bank details on file for this request."}</p>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export default function AdminWithdrawals() {
@@ -61,15 +115,17 @@ export default function AdminWithdrawals() {
             {withdrawals?.map((withdrawal) => (
               <div key={withdrawal.id} className="rounded-lg bg-card p-5 shadow-sm ring-1 ring-primary/30">
                 <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-lg font-bold text-foreground">
-                      {withdrawal.user.name} <span className="text-sm font-normal text-muted-foreground">({withdrawal.user.role})</span>
-                    </p>
-                    <p className="text-sm text-muted-foreground">{withdrawal.user.phone}</p>
-                    <p className="mt-2 text-2xl font-bold text-primary">Rs. {withdrawal.amount}</p>
-                    <p className="mt-1 text-sm text-foreground">{withdrawal.description}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{format(new Date(withdrawal.createdAt), "dd MMM yyyy HH:mm")}</p>
-                  </div>
+                  <WithdrawalDetails withdrawal={withdrawal}>
+                    <button type="button" className="flex-1 text-left">
+                      <p className="text-lg font-bold text-foreground hover:underline">
+                        {withdrawal.user.name} <span className="text-sm font-normal text-muted-foreground">({withdrawal.user.role})</span>
+                      </p>
+                      <p className="text-sm text-muted-foreground">{withdrawal.user.phone}</p>
+                      <p className="mt-2 text-2xl font-bold text-primary">Rs. {withdrawal.amount}</p>
+                      <p className="mt-1 text-sm text-foreground">{withdrawal.description}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{format(new Date(withdrawal.createdAt), "dd MMM yyyy HH:mm")}</p>
+                    </button>
+                  </WithdrawalDetails>
                   <div className="flex flex-col gap-2">
                     <Button onClick={() => complete.mutate(withdrawal.id)}>Mark paid</Button>
                     <Button variant="destructive" onClick={() => reject.mutate(withdrawal.id)}>
@@ -96,8 +152,12 @@ export default function AdminWithdrawals() {
                 {withdrawals?.map((withdrawal) => (
                   <TableRow key={withdrawal.id}>
                     <TableCell>
-                      <p className="font-bold text-foreground">{withdrawal.user.name}</p>
-                      <p className="text-xs text-muted-foreground">{withdrawal.user.role}</p>
+                      <WithdrawalDetails withdrawal={withdrawal}>
+                        <button type="button" className="text-left hover:underline">
+                          <p className="font-bold text-foreground">{withdrawal.user.name}</p>
+                          <p className="text-xs text-muted-foreground">{withdrawal.user.role}</p>
+                        </button>
+                      </WithdrawalDetails>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{withdrawal.user.phone}</TableCell>
                     <TableCell className="font-bold text-primary">Rs. {withdrawal.amount}</TableCell>

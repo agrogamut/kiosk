@@ -5,6 +5,10 @@ const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 900;
 
 export async function checkAttemptLimit(key: string): Promise<void> {
+  if (process.env.NODE_ENV === "development") {
+    return;
+  }
+
   const attempts = await redis.get(key);
   if (attempts && Number(attempts) >= MAX_ATTEMPTS) {
     throw new AppError(429, "Too many attempts. Try again in 15 minutes.");

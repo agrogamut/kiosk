@@ -59,8 +59,14 @@ prescriptionsRouter.get(
       const prescription = await prisma.prescription.findUnique({
         where: { id: req.params.id },
         include: {
-          patient: { select: { id: true, name: true } },
-          doctor: { select: { id: true, name: true } },
+          patient: { select: { id: true, name: true, phone: true } },
+          doctor: {
+            select: {
+              id: true,
+              name: true,
+              doctorProfile: { select: { degree: true, regNumber: true, specialization: true } },
+            },
+          },
           healthFile: true,
         },
       });

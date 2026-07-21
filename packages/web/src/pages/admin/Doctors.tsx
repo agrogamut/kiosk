@@ -19,7 +19,7 @@ interface Doctor {
     regNumber: string;
     specialization: string | null;
     isApproved: boolean;
-  };
+  } | null;
 }
 
 export default function AdminDoctors() {
@@ -42,8 +42,8 @@ export default function AdminDoctors() {
     },
     onError: () => toast.error("Failed to approve"),
   });
-  const pending = doctors?.filter((doctor) => !doctor.doctorProfile.isApproved) ?? [];
-  const approved = doctors?.filter((doctor) => doctor.doctorProfile.isApproved) ?? [];
+  const pending = doctors?.filter((doctor) => !doctor.doctorProfile?.isApproved) ?? [];
+  const approved = doctors?.filter((doctor) => doctor.doctorProfile?.isApproved) ?? [];
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -64,10 +64,13 @@ export default function AdminDoctors() {
                     <Link to={`/admin/users/${doctor.id}`} className="flex-1">
                       <p className="font-bold text-primary hover:underline">{doctor.name}</p>
                       <p className="text-muted-foreground">
-                        {doctor.phone} - {doctor.doctorProfile.degree} - Reg: {doctor.doctorProfile.regNumber}
+                        {doctor.phone} - {doctor.doctorProfile?.degree ?? "No profile"}
+                        {doctor.doctorProfile ? ` - Reg: ${doctor.doctorProfile.regNumber}` : ""}
                       </p>
                     </Link>
-                    <Button onClick={() => approve.mutate(doctor.id)}>Approve</Button>
+                    <Button onClick={() => approve.mutate(doctor.id)} disabled={!doctor.doctorProfile}>
+                      Approve
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -91,10 +94,12 @@ export default function AdminDoctors() {
                           </Link>
                         </TableCell>
                         <TableCell className="text-muted-foreground">{doctor.phone}</TableCell>
-                        <TableCell className="text-muted-foreground">{doctor.doctorProfile.degree}</TableCell>
-                        <TableCell className="text-muted-foreground">{doctor.doctorProfile.regNumber}</TableCell>
+                        <TableCell className="text-muted-foreground">{doctor.doctorProfile?.degree ?? "No profile"}</TableCell>
+                        <TableCell className="text-muted-foreground">{doctor.doctorProfile?.regNumber ?? "-"}</TableCell>
                         <TableCell className="text-right">
-                          <Button onClick={() => approve.mutate(doctor.id)}>Approve</Button>
+                          <Button onClick={() => approve.mutate(doctor.id)} disabled={!doctor.doctorProfile}>
+                            Approve
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -111,7 +116,7 @@ export default function AdminDoctors() {
                 <Link to={`/admin/users/${doctor.id}`} className="flex-1">
                   <p className="font-bold text-primary hover:underline">{doctor.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {doctor.phone} - {doctor.doctorProfile.degree}
+                    {doctor.phone} - {doctor.doctorProfile?.degree ?? "No profile"}
                   </p>
                 </Link>
                 <Badge>Approved</Badge>
@@ -137,7 +142,7 @@ export default function AdminDoctors() {
                       </Link>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{doctor.phone}</TableCell>
-                    <TableCell className="text-muted-foreground">{doctor.doctorProfile.degree}</TableCell>
+                    <TableCell className="text-muted-foreground">{doctor.doctorProfile?.degree ?? "No profile"}</TableCell>
                     <TableCell className="text-right">
                       <Badge>Approved</Badge>
                     </TableCell>

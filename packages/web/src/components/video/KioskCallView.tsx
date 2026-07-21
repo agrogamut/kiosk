@@ -1,4 +1,5 @@
-import { Track } from "livekit-client";
+import toast from "react-hot-toast";
+import { Track, type MediaDeviceFailure } from "livekit-client";
 import {
   ControlBar,
   GridLayout,
@@ -8,6 +9,7 @@ import {
   useTracks,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
+import { describeMediaDeviceFailure } from "../../lib/livekit";
 
 interface KioskCallViewProps {
   token: string;
@@ -38,7 +40,12 @@ export function KioskCallView({ token, serverUrl, onDisconnected }: KioskCallVie
       video
       audio
       onDisconnected={onDisconnected}
+      onMediaDeviceFailure={(failure?: MediaDeviceFailure, kind?: MediaDeviceKind) =>
+        toast(describeMediaDeviceFailure(failure, kind))
+      }
+      data-lk-theme="default"
       style={{ height: "100%" }}
+      options={{ adaptiveStream: true, dynacast: true, publishDefaults: { simulcast: true } }}
     >
       <CallLayout />
     </LiveKitRoom>

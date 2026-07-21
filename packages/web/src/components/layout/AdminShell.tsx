@@ -15,17 +15,16 @@ interface NavItem {
 }
 
 const SUPER_ADMIN_NAV: NavItem[] = [
-  { label: "Dashboard", href: "/admin" },
   { label: "Stats", href: "/admin/stats" },
   { label: "Doctors", href: "/admin/doctors" },
   { label: "Users", href: "/admin/users" },
   { label: "Call history", href: "/admin/calls" },
   { label: "Withdrawals", href: "/admin/withdrawals" },
+  { label: "Pricing", href: "/admin/pricing" },
   { label: "Audit log", href: "/admin/audit-log" },
 ];
 
 const ADMIN_NAV: NavItem[] = [
-  { label: "Dashboard", href: "/admin" },
   { label: "Stats", href: "/admin/stats" },
   { label: "Call history", href: "/admin/calls" },
   { label: "Devices", href: "/admin/devices" },
@@ -39,7 +38,7 @@ function navForRole(role: UserRole | undefined): NavItem[] {
 }
 
 function isActiveHref(pathname: string, href: string): boolean {
-  return href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+  return pathname.startsWith(href);
 }
 
 export function AdminShell({ children }: { children: ReactNode }) {
