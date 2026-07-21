@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { Button } from "../../components/ui/button";
 import { logout } from "../../lib/logout";
 import { useAuthStore } from "../../store/auth.store";
 
@@ -31,19 +32,19 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-background px-6 py-10">
       <div className="mb-8 flex items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold">Admin Panel</h1>
-        <button type="button" onClick={() => void signOut()} className="rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white">
+        <h1 className="font-display text-2xl font-bold text-foreground">Admin panel</h1>
+        <Button variant="outline" onClick={() => void signOut()}>
           Logout
-        </button>
+        </Button>
       </div>
-      <div className="grid max-w-lg grid-cols-1 gap-6 sm:grid-cols-2">
+      <div className="grid max-w-lg grid-cols-1 gap-4 sm:grid-cols-2">
         {links.map((item) => (
           <Link
             key={item.href}
             to={item.href}
-            className="rounded-2xl border border-gray-100 bg-white p-6 text-center text-xl font-semibold text-blue-700 shadow-sm transition-colors hover:border-blue-300"
+            className="rounded-lg bg-card p-6 text-center text-lg font-semibold text-primary shadow-sm transition-shadow hover:shadow-md"
           >
             {item.label}
           </Link>
