@@ -40,7 +40,7 @@ export default function AdminUsers() {
   });
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
+    <div className="mx-auto max-w-5xl">
       <h1 className="font-display mb-8 text-2xl font-bold text-foreground">Users</h1>
       {isLoading && <SkeletonRows />}
       {isError && <ErrorState message={getApiErrorMessage(error, "We couldn't load users.")} onRetry={() => void refetch()} />}

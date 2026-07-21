@@ -46,7 +46,7 @@ export default function AdminDoctors() {
   const approved = doctors?.filter((doctor) => doctor.doctorProfile.isApproved) ?? [];
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
+    <div className="mx-auto max-w-5xl">
       <h1 className="font-display mb-8 text-2xl font-bold text-foreground">Doctors</h1>
       {isLoading && <SkeletonRows />}
       {isError && <ErrorState message={getApiErrorMessage(error, "We couldn't load doctors.")} onRetry={() => void refetch()} />}
