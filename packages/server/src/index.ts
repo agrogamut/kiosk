@@ -5,6 +5,7 @@ import helmet from "helmet";
 import { createServer } from "http";
 import morgan from "morgan";
 import { Server } from "socket.io";
+import { accountRouter } from "./routes/account.routes.js";
 import { adminRouter } from "./routes/admin.routes.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { callsRouter } from "./routes/calls.routes.js";
@@ -97,6 +98,7 @@ app.use("/api/health-files", healthFilesRouter);
 app.use("/api/payments", paymentsRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/doctor", doctorRouter);
+app.use("/api/account", accountRouter);
 
 app.use(errorMiddleware);
 
