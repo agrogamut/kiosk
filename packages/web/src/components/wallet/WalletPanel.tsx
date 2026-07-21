@@ -4,6 +4,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { WithdrawRequestSchema, type WalletTransaction, type WithdrawRequest } from "@madamgy/api-client";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
 
@@ -19,6 +23,14 @@ interface TransactionResponse {
 interface WalletPanelProps {
   apiBasePath: string;
 }
+
+const FIELDS = [
+  { name: "amount" as const, label: "Amount (Rs.)", type: "number" },
+  { name: "bankName" as const, label: "Bank name", type: "text" },
+  { name: "accountNumber" as const, label: "Account number", type: "text" },
+  { name: "ifsc" as const, label: "IFSC code", type: "text" },
+  { name: "holderName" as const, label: "Account holder name", type: "text" },
+];
 
 export default function WalletPanel({ apiBasePath }: WalletPanelProps) {
   const queryClient = useQueryClient();
@@ -43,57 +55,62 @@ export default function WalletPanel({ apiBasePath }: WalletPanelProps) {
       reset();
       void queryClient.invalidateQueries({ queryKey: ["wallet-transactions", apiBasePath] });
     },
-    onError: (error: unknown) => toast.error(getApiErrorMessage(error, "Failed")),
+    onError: (error: unknown) => toast.error(getApiErrorMessage(error, "Withdrawal request failed")),
   });
 
   return (
-    <div className="mx-auto max-w-2xl p-8">
-      <h1 className="mb-2 text-3xl font-bold">Wallet</h1>
-      <div className="mb-8 rounded-2xl bg-blue-50 p-6">
-        <p className="mb-1 text-gray-500">Available balance</p>
-        <p className="text-5xl font-bold text-blue-700">Rs. {wallet?.balance ?? "-"}</p>
-      </div>
+    <div className="min-h-screen bg-background px-6 py-10">
+      <div className="mx-auto max-w-2xl">
+        <h1 className="font-display text-2xl font-bold text-foreground">Wallet</h1>
+        <div className="mb-8 mt-6 rounded-xl bg-card p-6 shadow-sm">
+          <p className="mb-1 text-muted-foreground">Available balance</p>
+          <p className="text-4xl font-bold text-primary">Rs. {wallet?.balance ?? "-"}</p>
+        </div>
 
-      <form onSubmit={handleSubmit((data) => withdraw.mutate(data))} className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-xl font-bold">Request Withdrawal</h2>
-        {[
-          { name: "amount" as const, label: "Amount (Rs.)", type: "number" },
-          { name: "bankName" as const, label: "Bank Name" },
-          { name: "accountNumber" as const, label: "Account Number" },
-          { name: "ifsc" as const, label: "IFSC Code" },
-          { name: "holderName" as const, label: "Account Holder Name" },
-        ].map((field) => (
-          <div key={field.name} className="mb-4">
-            <label className="mb-1 block text-sm text-gray-600">{field.label}</label>
-            <input
-              {...register(field.name, { valueAsNumber: field.type === "number" })}
-              type={field.type ?? "text"}
-              className="w-full rounded-xl border-2 p-3"
-            />
-            {errors[field.name] && <p className="mt-1 text-sm text-red-500">{errors[field.name]?.message}</p>}
+        <form onSubmit={handleSubmit((data) => withdraw.mutate(data))} className="mb-8 rounded-xl bg-card p-6 shadow-sm">
+          <h2 className="mb-4 text-xl font-bold text-foreground">Request withdrawal</h2>
+          <div className="flex flex-col gap-4">
+            {FIELDS.map((field) => (
+              <div key={field.name}>
+                <Label htmlFor={field.name} className="mb-1.5">
+                  {field.label}
+                </Label>
+                <Input
+                  id={field.name}
+                  type={field.type}
+                  {...register(field.name, { valueAsNumber: field.type === "number" })}
+                />
+                {errors[field.name] && <p className="mt-1 text-sm text-destructive">{errors[field.name]?.message}</p>}
+              </div>
+            ))}
           </div>
-        ))}
-        <button type="submit" disabled={withdraw.isPending} className="w-full rounded-xl bg-blue-600 py-3 font-semibold text-white disabled:opacity-50">
-          {withdraw.isPending ? "Submitting..." : "Request Withdrawal"}
-        </button>
-      </form>
+          <Button type="submit" disabled={withdraw.isPending} className="mt-6 w-full rounded-full text-lg">
+            {withdraw.isPending ? "Submitting..." : "Request withdrawal"}
+          </Button>
+        </form>
 
-      <h2 className="mb-4 text-xl font-bold">Transactions</h2>
-      <div className="flex flex-col gap-2">
-        {transactions?.transactions.map((transaction) => (
-          <div key={transaction.id} className="flex items-center justify-between rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-            <div>
-              <p className="font-medium">{transaction.description || transaction.type}</p>
-              <p className="text-sm text-gray-500">{format(new Date(transaction.createdAt), "dd MMM yyyy HH:mm")}</p>
+        <h2 className="mb-4 text-xl font-bold text-foreground">Transactions</h2>
+        <div className="flex flex-col gap-2">
+          {transactions?.transactions.length === 0 && (
+            <p className="py-8 text-center text-muted-foreground">No transactions yet.</p>
+          )}
+          {transactions?.transactions.map((transaction) => (
+            <div key={transaction.id} className="flex items-center justify-between gap-4 rounded-lg bg-card p-4 shadow-sm">
+              <div>
+                <p className="font-medium text-foreground">{transaction.description || transaction.type}</p>
+                <p className="text-sm text-muted-foreground">{format(new Date(transaction.createdAt), "dd MMM yyyy HH:mm")}</p>
+              </div>
+              <div className="text-right">
+                <p className={`text-lg font-bold ${transaction.type === "CREDIT" ? "text-primary" : "text-destructive"}`}>
+                  {transaction.type === "CREDIT" ? "+" : "-"}Rs. {transaction.amount}
+                </p>
+                <Badge variant="outline" className="mt-1">
+                  {transaction.status}
+                </Badge>
+              </div>
             </div>
-            <div className="text-right">
-              <p className={`text-lg font-bold ${transaction.type === "CREDIT" ? "text-green-600" : "text-red-600"}`}>
-                {transaction.type === "CREDIT" ? "+" : "-"}Rs. {transaction.amount}
-              </p>
-              <p className="text-xs text-gray-400">{transaction.status}</p>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
