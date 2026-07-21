@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import type { HealthFile } from "@madamgy/api-client";
 import { IdleGuard } from "../../components/kiosk/IdleGuard";
+import { PulseRing } from "../../components/brand/PulseRing";
 import { PrescriptionViewer } from "../../components/prescription/PrescriptionViewer";
 import { PrintButton } from "../../components/prescription/PrintButton";
 import { api } from "../../lib/api";
@@ -18,18 +19,26 @@ export default function KioskPrescription() {
   });
 
   if (isLoading) {
-    return <div className="flex min-h-screen items-center justify-center"><p className="text-2xl">Loading...</p></div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <PulseRing size="lg" />
+      </div>
+    );
   }
   if (!file) {
-    return <div className="flex min-h-screen items-center justify-center"><p className="text-2xl text-red-500">File not found</p></div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-lg text-red-500">We couldn't find that file.</p>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       <IdleGuard />
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-md">
         <div className="mb-6 flex items-center justify-between gap-4">
-          <button type="button" onClick={() => navigate("/dashboard")} className="text-xl text-blue-600">
+          <button type="button" onClick={() => navigate("/dashboard")} className="text-primary">
             &larr; Back
           </button>
           <PrintButton targetRef={printRef} />
