@@ -6,6 +6,7 @@ dist/
 .env
 .env.local
 .env.*.local
+CREDENTIALS.local.md
 *.tsbuildinfo
 
 # pnpm
