@@ -68,6 +68,7 @@ model User {
   pinHash      String?
   passwordHash String?
   disabled     Boolean  @default(false)
+  deletedAt    DateTime?
   walletBalance Decimal @default(0) @db.Decimal(12, 2)
   createdAt    DateTime @default(now())
 
