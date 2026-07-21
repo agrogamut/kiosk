@@ -4,6 +4,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { DoctorRegisterSchema, type DoctorRegister } from "@madamgy/api-client";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
 
@@ -36,55 +39,62 @@ export default function DoctorRegister() {
   }
 
   return (
-    <div className="min-h-screen bg-blue-50 p-8">
-      <form onSubmit={handleSubmit((data) => void submit(data))} className="mx-auto max-w-2xl rounded-3xl bg-white p-8 shadow-sm">
-        <h1 className="mb-2 text-3xl font-bold text-blue-950">Doctor Registration</h1>
-        <p className="mb-6 text-blue-700">Admin approval is required before login.</p>
+    <div className="min-h-screen bg-background px-6 py-10">
+      <form
+        onSubmit={handleSubmit((data) => void submit(data))}
+        className="mx-auto max-w-2xl rounded-xl bg-card p-8 shadow-sm"
+      >
+        <h1 className="font-display text-2xl font-bold text-foreground">Doctor registration</h1>
+        <p className="mb-6 mt-1 text-muted-foreground">Admin approval is required before you can sign in.</p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block sm:col-span-2">
-            <span className="mb-1 block text-sm font-medium text-gray-600">Full Name</span>
-            <input {...register("name")} className="w-full rounded-xl border-2 p-3" />
-            {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name.message}</p>}
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-gray-600">Phone</span>
-            <input {...register("phone")} type="tel" className="w-full rounded-xl border-2 p-3" />
-            {errors.phone && <p className="mt-1 text-sm text-red-500">{errors.phone.message}</p>}
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-gray-600">Password</span>
-            <input {...register("password")} type="password" className="w-full rounded-xl border-2 p-3" />
-            {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password.message}</p>}
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-gray-600">Degree</span>
-            <input {...register("degree")} className="w-full rounded-xl border-2 p-3" />
-            {errors.degree && <p className="mt-1 text-sm text-red-500">{errors.degree.message}</p>}
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-gray-600">Registration Number</span>
-            <input {...register("regNumber")} className="w-full rounded-xl border-2 p-3" />
-            {errors.regNumber && <p className="mt-1 text-sm text-red-500">{errors.regNumber.message}</p>}
-          </label>
-          <label className="block sm:col-span-2">
-            <span className="mb-1 block text-sm font-medium text-gray-600">Specialization</span>
-            <input {...register("specialization")} className="w-full rounded-xl border-2 p-3" />
-          </label>
-          <label className="block sm:col-span-2">
-            <span className="mb-1 block text-sm font-medium text-gray-600">Degree certificate or medical license (PDF)</span>
+          <div className="sm:col-span-2">
+            <Label htmlFor="name" className="mb-1.5">Full name</Label>
+            <Input id="name" {...register("name")} />
+            {errors.name && <p className="mt-1 text-sm text-destructive">{errors.name.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="phone" className="mb-1.5">Phone</Label>
+            <Input id="phone" type="tel" {...register("phone")} />
+            {errors.phone && <p className="mt-1 text-sm text-destructive">{errors.phone.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="password" className="mb-1.5">Password</Label>
+            <Input id="password" type="password" {...register("password")} />
+            {errors.password && <p className="mt-1 text-sm text-destructive">{errors.password.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="degree" className="mb-1.5">Degree</Label>
+            <Input id="degree" {...register("degree")} />
+            {errors.degree && <p className="mt-1 text-sm text-destructive">{errors.degree.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="regNumber" className="mb-1.5">Registration number</Label>
+            <Input id="regNumber" {...register("regNumber")} />
+            {errors.regNumber && <p className="mt-1 text-sm text-destructive">{errors.regNumber.message}</p>}
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="specialization" className="mb-1.5">Specialization</Label>
+            <Input id="specialization" {...register("specialization")} />
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="licenseDocument" className="mb-1.5">Degree certificate or medical license (PDF)</Label>
             <input
+              id="licenseDocument"
               type="file"
               accept="application/pdf"
               onChange={(event) => setLicenseDocument(event.target.files?.[0] ?? null)}
-              className="w-full rounded-xl border-2 p-3"
+              className="flex h-11 w-full items-center rounded-lg border border-input bg-transparent px-2.5 text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground"
             />
-          </label>
+          </div>
         </div>
-        <button type="submit" disabled={submitting || !licenseDocument} className="mt-6 w-full rounded-xl bg-blue-600 py-4 font-semibold text-white disabled:opacity-50">
-          {submitting ? "Submitting..." : "Submit Registration"}
-        </button>
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Already approved? <Link to="/doctor/login" className="font-semibold text-blue-700">Sign in</Link>
+        <Button type="submit" disabled={submitting || !licenseDocument} className="mt-6 w-full rounded-full text-lg">
+          {submitting ? "Submitting..." : "Submit registration"}
+        </Button>
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          Already approved?{" "}
+          <Link to="/doctor/login" className="font-semibold text-primary">
+            Sign in
+          </Link>
         </p>
       </form>
     </div>
