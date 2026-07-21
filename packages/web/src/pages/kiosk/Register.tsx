@@ -1,9 +1,13 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { PatientRegisterSchema, type Gender, type PatientRegister } from "@madamgy/api-client";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
 import { useAuthStore } from "../../store/auth.store";
@@ -57,77 +61,98 @@ export default function KioskRegister() {
       setAuth(response.data.accessToken, response.data.user);
       navigate("/dashboard");
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Registration failed"));
+      toast.error(getApiErrorMessage(error, "We couldn't create your account. Check the form and try again."));
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-6 p-8">
-      <h2 className="text-4xl font-bold text-gray-900">Create Account</h2>
-      <form onSubmit={handleSubmit(submit)} className="flex w-full flex-col gap-4">
-        <input {...register("name")} placeholder="Full Name" className="w-full rounded-2xl border-2 p-5 text-xl" />
-        {errors.name && <p className="text-red-500">{errors.name.message}</p>}
-        <input
-          {...register("phone")}
-          placeholder="Phone Number"
-          type="tel"
-          className="w-full rounded-2xl border-2 p-5 text-xl"
-        />
-        {errors.phone && <p className="text-red-500">{errors.phone.message}</p>}
-        <input
-          {...dobRegistration}
-          onChange={(event) => {
-            event.target.value = formatDateOfBirthInput(event.target.value);
-            void dobRegistration.onChange(event);
-          }}
-          type="text"
-          placeholder="DD/MM/YYYY"
-          autoComplete="bday"
-          inputMode="numeric"
-          maxLength={10}
-          className="w-full rounded-2xl border-2 p-5 text-xl"
-        />
-        {errors.dob && <p className="text-red-500">{errors.dob.message}</p>}
-        <div className="flex gap-2">
-          {GENDER_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setGender(option.value)}
-              className={`flex-1 rounded-2xl border-2 py-3 text-lg font-semibold ${
-                gender === option.value ? "border-blue-600 bg-blue-600 text-white" : "border-gray-200 text-gray-700"
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-        <input
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="Email (optional)"
-          type="email"
-          className="w-full rounded-2xl border-2 p-5 text-xl"
-        />
-        <label className="flex items-start gap-3 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={consent}
-            onChange={(event) => setConsent(event.target.checked)}
-            className="mt-1 h-5 w-5 shrink-0"
-          />
-          I consent to receiving a teleconsultation and understand my health data will be stored for this purpose.
-        </label>
-        <button
-          type="submit"
-          disabled={submitting || !consent}
-          className="mt-4 w-full rounded-3xl bg-blue-600 py-5 text-2xl font-semibold text-white disabled:opacity-40"
-        >
-          {submitting ? "Creating account..." : "Register"}
-        </button>
-      </form>
+    <div className="flex min-h-screen flex-col items-center bg-background px-6 py-10">
+      <div className="w-full max-w-sm">
+        <h1 className="mb-6 text-center font-display text-3xl font-bold text-foreground">Create account</h1>
+        <Card className="rounded-lg border-none shadow-[0_8px_24px_-8px_rgba(219,101,145,0.15)]">
+          <CardContent className="p-6">
+            <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="register-name">Full name</Label>
+                <Input id="register-name" {...register("name")} placeholder="Your name" />
+                {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="register-phone">Phone number</Label>
+                <Input id="register-phone" {...register("phone")} type="tel" placeholder="10-digit phone number" />
+                {errors.phone && <p className="text-sm text-red-500">{errors.phone.message}</p>}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="register-dob">Date of birth</Label>
+                <Input
+                  id="register-dob"
+                  {...dobRegistration}
+                  onChange={(event) => {
+                    event.target.value = formatDateOfBirthInput(event.target.value);
+                    void dobRegistration.onChange(event);
+                  }}
+                  type="text"
+                  placeholder="DD/MM/YYYY"
+                  autoComplete="bday"
+                  inputMode="numeric"
+                  maxLength={10}
+                />
+                {errors.dob && <p className="text-sm text-red-500">{errors.dob.message}</p>}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label>Gender (optional)</Label>
+                <div className="flex gap-2">
+                  {GENDER_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setGender(option.value)}
+                      className={
+                        gender === option.value
+                          ? "flex-1 rounded-full bg-primary py-2 text-sm font-semibold text-primary-foreground"
+                          : "flex-1 rounded-full border border-input py-2 text-sm font-semibold text-foreground"
+                      }
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="register-email">Email (optional)</Label>
+                <Input id="register-email" value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="you@example.com" />
+              </div>
+
+              <label className="flex items-start gap-3 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(event) => setConsent(event.target.checked)}
+                  className="mt-1 h-5 w-5 shrink-0 accent-primary"
+                />
+                I consent to receiving a teleconsultation and understand my health data will be stored for this purpose.
+              </label>
+
+              <Button type="submit" disabled={submitting || !consent} className="mt-2 w-full rounded-full">
+                {submitting ? "Creating account..." : "Register"}
+              </Button>
+
+              <p className="text-center text-sm text-muted-foreground">
+                Already have an account?{" "}
+                <Link to="/" className="font-semibold text-primary">
+                  Log in
+                </Link>
+              </p>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
