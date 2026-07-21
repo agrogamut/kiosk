@@ -17,6 +17,8 @@ import {
 } from "../../components/ui/alert-dialog";
 import { Button } from "../../components/ui/button";
 import { IdleGuard } from "../../components/kiosk/IdleGuard";
+import { ErrorState } from "../../components/common/ErrorState";
+import { SkeletonRows } from "../../components/common/SkeletonRows";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
 import { logout } from "../../lib/logout";
@@ -27,7 +29,13 @@ export default function KioskDashboard() {
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
   const [uploading, setUploading] = useState(false);
-  const { data: files, refetch } = useQuery({
+  const {
+    data: files,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["health-files"],
     queryFn: () => api.get<HealthFile[]>("/health-files").then((response) => response.data),
   });
@@ -83,7 +91,7 @@ export default function KioskDashboard() {
   return (
     <div className="min-h-screen bg-background">
       <IdleGuard />
-      <div className="mx-auto max-w-md px-6 py-10">
+      <div className="mx-auto max-w-md px-6 py-10 sm:max-w-lg lg:max-w-2xl">
         <div className="mb-8 flex flex-col gap-4">
           <div>
             <h1 className="font-display text-2xl font-bold text-foreground">Welcome, {user?.name}</h1>
@@ -112,30 +120,38 @@ export default function KioskDashboard() {
           />
         </label>
 
-        <div className="flex flex-col gap-3">
-          {files?.length === 0 && <p className="py-12 text-center text-muted-foreground">No files yet. Start a consultation.</p>}
-          {files?.map((file) => (
-            <div key={file.id} className="rounded-lg bg-card p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-4">
-                <button type="button" onClick={() => navigate(`/prescription/${file.id}`)} className="text-left">
-                  <p className="font-semibold text-foreground">{file.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {file.type === "PRESCRIPTION" ? "Prescription" : "Lab report"} · {format(new Date(file.createdAt), "dd MMM yyyy")}
-                  </p>
-                </button>
-                {file.type !== "PRESCRIPTION" && (
-                  <button
-                    type="button"
-                    onClick={() => void deleteFile(file.id)}
-                    className="rounded-full bg-destructive/10 px-4 py-2 text-sm font-semibold text-destructive"
-                  >
-                    Delete
+        {isLoading && <SkeletonRows />}
+        {isError && (
+          <ErrorState message={getApiErrorMessage(error, "We couldn't load your health folder.")} onRetry={() => void refetch()} />
+        )}
+        {!isLoading && !isError && (
+          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4">
+            {files?.length === 0 && (
+              <p className="py-12 text-center text-muted-foreground lg:col-span-2">No files yet. Start a consultation.</p>
+            )}
+            {files?.map((file) => (
+              <div key={file.id} className="rounded-lg bg-card p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <button type="button" onClick={() => navigate(`/prescription/${file.id}`)} className="text-left">
+                    <p className="font-semibold text-foreground">{file.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {file.type === "PRESCRIPTION" ? "Prescription" : "Lab report"} · {format(new Date(file.createdAt), "dd MMM yyyy")}
+                    </p>
                   </button>
-                )}
+                  {file.type !== "PRESCRIPTION" && (
+                    <button
+                      type="button"
+                      onClick={() => void deleteFile(file.id)}
+                      className="flex h-11 items-center rounded-full bg-destructive/10 px-4 text-sm font-semibold text-destructive"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         <div className="mt-8 border-t border-input pt-6 text-center">
           <AlertDialog>
