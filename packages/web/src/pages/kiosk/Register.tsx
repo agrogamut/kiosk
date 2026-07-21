@@ -69,7 +69,7 @@ export default function KioskRegister() {
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-background px-6 py-10">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg">
         <h1 className="mb-6 text-center font-display text-3xl font-bold text-foreground">Create account</h1>
         <Card className="rounded-lg border-none ring-0 shadow-[0_8px_24px_-8px_rgba(219,101,145,0.15)]">
           <CardContent className="p-6">
@@ -114,8 +114,8 @@ export default function KioskRegister() {
                       onClick={() => setGender(option.value)}
                       className={
                         gender === option.value
-                          ? "flex-1 rounded-full bg-primary py-2 text-sm font-semibold text-primary-foreground"
-                          : "flex-1 rounded-full border border-input py-2 text-sm font-semibold text-foreground"
+                          ? "flex h-11 flex-1 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
+                          : "flex h-11 flex-1 items-center justify-center rounded-full border border-input text-sm font-semibold text-foreground"
                       }
                     >
                       {option.label}

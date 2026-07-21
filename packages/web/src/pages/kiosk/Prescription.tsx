@@ -36,7 +36,7 @@ export default function KioskPrescription() {
   return (
     <div className="min-h-screen bg-background p-6">
       <IdleGuard />
-      <div className="mx-auto max-w-md">
+      <div className="mx-auto max-w-md sm:max-w-lg lg:max-w-2xl">
         <div className="mb-6 flex items-center justify-between gap-4">
           <button type="button" onClick={() => navigate("/dashboard")} className="text-primary">
             &larr; Back
