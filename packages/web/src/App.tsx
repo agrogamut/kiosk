@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useEffect } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
 import type { UserRole } from "@madamgy/api-client";
@@ -27,6 +27,8 @@ import KioskConsult from "./pages/kiosk/Consult";
 import KioskDashboard from "./pages/kiosk/Dashboard";
 import KioskPrescription from "./pages/kiosk/Prescription";
 import KioskRegister from "./pages/kiosk/Register";
+import { AdminShell } from "./components/layout/AdminShell";
+import { DoctorShell } from "./components/layout/DoctorShell";
 import { useAndroidBackButton } from "./hooks/useAndroidBackButton";
 import { useAuthStore } from "./store/auth.store";
 
@@ -63,22 +65,42 @@ export default function App() {
       <Route path="/prescription/:id" element={<RequireRole role="PATIENT"><KioskPrescription /></RequireRole>} />
       <Route path="/doctor/login" element={<Navigate to="/?role=doctor" replace />} />
       <Route path="/doctor/register" element={<DoctorRegister />} />
-      <Route path="/doctor" element={<RequireRole role="DOCTOR" loginPath="/?role=doctor"><DoctorDashboard /></RequireRole>} />
+      <Route
+        element={
+          <RequireRole role="DOCTOR" loginPath="/?role=doctor">
+            <DoctorShell>
+              <Outlet />
+            </DoctorShell>
+          </RequireRole>
+        }
+      >
+        <Route path="/doctor" element={<DoctorDashboard />} />
+        <Route path="/doctor/wallet" element={<DoctorWallet />} />
+        <Route path="/doctor/history" element={<DoctorHistory />} />
+      </Route>
       <Route path="/doctor/call/:id" element={<RequireRole role="DOCTOR" loginPath="/?role=doctor"><DoctorCall /></RequireRole>} />
-      <Route path="/doctor/wallet" element={<RequireRole role="DOCTOR" loginPath="/?role=doctor"><DoctorWallet /></RequireRole>} />
-      <Route path="/doctor/history" element={<RequireRole role="DOCTOR" loginPath="/?role=doctor"><DoctorHistory /></RequireRole>} />
       <Route path="/admin/login" element={<Navigate to="/?role=admin" replace />} />
-      <Route path="/admin" element={<RequireRole role={["SUPER_ADMIN", "ADMIN"]} loginPath="/?role=admin"><AdminDashboard /></RequireRole>} />
-      <Route path="/admin/doctors" element={<RequireRole role="SUPER_ADMIN" loginPath="/?role=admin"><AdminDoctors /></RequireRole>} />
-      <Route path="/admin/users" element={<RequireRole role="SUPER_ADMIN" loginPath="/?role=admin"><AdminUsers /></RequireRole>} />
-      <Route path="/admin/users/:id" element={<RequireRole role="SUPER_ADMIN" loginPath="/?role=admin"><AdminUserDetail /></RequireRole>} />
-      <Route path="/admin/stats" element={<RequireRole role={["SUPER_ADMIN", "ADMIN"]} loginPath="/?role=admin"><AdminStats /></RequireRole>} />
-      <Route path="/admin/calls" element={<RequireRole role={["SUPER_ADMIN", "ADMIN"]} loginPath="/?role=admin"><AdminCalls /></RequireRole>} />
-      <Route path="/admin/withdrawals" element={<RequireRole role="SUPER_ADMIN" loginPath="/?role=admin"><AdminWithdrawals /></RequireRole>} />
-      <Route path="/admin/devices" element={<RequireRole role="ADMIN" loginPath="/?role=admin"><AdminDevices /></RequireRole>} />
-      <Route path="/admin/wallet" element={<RequireRole role="ADMIN" loginPath="/?role=admin"><AdminWallet /></RequireRole>} />
-      <Route path="/admin/patients" element={<RequireRole role="ADMIN" loginPath="/?role=admin"><AdminPatients /></RequireRole>} />
-      <Route path="/admin/audit-log" element={<RequireRole role={["SUPER_ADMIN", "ADMIN"]} loginPath="/?role=admin"><AdminAuditLog /></RequireRole>} />
+      <Route
+        element={
+          <RequireRole role={["SUPER_ADMIN", "ADMIN"]} loginPath="/?role=admin">
+            <AdminShell>
+              <Outlet />
+            </AdminShell>
+          </RequireRole>
+        }
+      >
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/doctors" element={<RequireRole role="SUPER_ADMIN" loginPath="/?role=admin"><AdminDoctors /></RequireRole>} />
+        <Route path="/admin/users" element={<RequireRole role="SUPER_ADMIN" loginPath="/?role=admin"><AdminUsers /></RequireRole>} />
+        <Route path="/admin/users/:id" element={<RequireRole role="SUPER_ADMIN" loginPath="/?role=admin"><AdminUserDetail /></RequireRole>} />
+        <Route path="/admin/stats" element={<AdminStats />} />
+        <Route path="/admin/calls" element={<AdminCalls />} />
+        <Route path="/admin/withdrawals" element={<RequireRole role="SUPER_ADMIN" loginPath="/?role=admin"><AdminWithdrawals /></RequireRole>} />
+        <Route path="/admin/devices" element={<RequireRole role="ADMIN" loginPath="/?role=admin"><AdminDevices /></RequireRole>} />
+        <Route path="/admin/wallet" element={<RequireRole role="ADMIN" loginPath="/?role=admin"><AdminWallet /></RequireRole>} />
+        <Route path="/admin/patients" element={<RequireRole role="ADMIN" loginPath="/?role=admin"><AdminPatients /></RequireRole>} />
+        <Route path="/admin/audit-log" element={<AdminAuditLog />} />
+      </Route>
     </Routes>
   );
 }
