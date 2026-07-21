@@ -108,8 +108,8 @@ export default function DoctorDashboard() {
 
   return (
     <div className="min-h-screen bg-background px-6 py-10">
-      <div className="mx-auto max-w-2xl">
-        <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+      <div className="mx-auto max-w-2xl lg:max-w-4xl">
+        <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-start lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
           <div>
             <h1 className="font-display text-2xl font-bold text-foreground">Welcome, Dr. {user?.name}</h1>
             <Button
@@ -121,7 +121,7 @@ export default function DoctorDashboard() {
               {isAvailable ? "Available" : "Unavailable"}
             </Button>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 lg:justify-end">
             <Button variant="outline" onClick={() => void signOut()}>
               Logout
             </Button>
