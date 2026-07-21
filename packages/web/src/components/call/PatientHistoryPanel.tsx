@@ -37,22 +37,22 @@ export function PatientHistoryPanel({ patientId }: PatientHistoryPanelProps) {
   });
 
   if (isLoading) {
-    return <p className="p-4 text-sm text-gray-500">Loading history...</p>;
+    return <p className="p-4 text-sm text-muted-foreground">Loading history...</p>;
   }
 
   if (axios.isAxiosError(error) && error.response?.status === 403) {
-    return <p className="p-4 text-sm text-gray-500">No prior consultation history with this patient.</p>;
+    return <p className="p-4 text-sm text-muted-foreground">No prior consultation history with this patient.</p>;
   }
 
   if (error || !data) {
-    return <p className="p-4 text-sm text-red-500">Could not load patient history.</p>;
+    return <p className="p-4 text-sm text-destructive">We couldn't load patient history.</p>;
   }
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-4">
       <div>
-        <h4 className="mb-2 font-bold text-gray-900">Health Files</h4>
-        {data.healthFiles.length === 0 && <p className="text-sm text-gray-400">No health files.</p>}
+        <h4 className="mb-2 font-semibold text-foreground">Health files</h4>
+        {data.healthFiles.length === 0 && <p className="text-sm text-muted-foreground">No health files.</p>}
         <div className="flex flex-col gap-2">
           {data.healthFiles.map((file) => (
             <a
@@ -60,11 +60,11 @@ export function PatientHistoryPanel({ patientId }: PatientHistoryPanelProps) {
               href={file.url}
               target="_blank"
               rel="noreferrer"
-              className="rounded-xl border border-gray-200 p-3 text-sm hover:bg-gray-50"
+              className="rounded-lg border border-input p-3 text-sm hover:bg-muted"
             >
-              <p className="font-semibold text-gray-900">{file.name}</p>
-              <p className="text-gray-500">
-                {file.type === "PRESCRIPTION" ? "Prescription" : file.type === "LAB_REPORT" ? "Lab Report" : "Other"} -{" "}
+              <p className="font-medium text-foreground">{file.name}</p>
+              <p className="text-muted-foreground">
+                {file.type === "PRESCRIPTION" ? "Prescription" : file.type === "LAB_REPORT" ? "Lab report" : "Other"} -{" "}
                 {format(new Date(file.createdAt), "dd MMM yyyy")}
               </p>
             </a>
@@ -72,15 +72,15 @@ export function PatientHistoryPanel({ patientId }: PatientHistoryPanelProps) {
         </div>
       </div>
       <div>
-        <h4 className="mb-2 font-bold text-gray-900">Past Prescriptions</h4>
-        {data.prescriptions.length === 0 && <p className="text-sm text-gray-400">No past prescriptions.</p>}
+        <h4 className="mb-2 font-semibold text-foreground">Past prescriptions</h4>
+        {data.prescriptions.length === 0 && <p className="text-sm text-muted-foreground">No past prescriptions.</p>}
         <div className="flex flex-col gap-2">
           {data.prescriptions.map((prescription) => (
-            <details key={prescription.id} className="rounded-xl border border-gray-200 p-3 text-sm">
-              <summary className="cursor-pointer font-semibold text-gray-900">
+            <details key={prescription.id} className="rounded-lg border border-input p-3 text-sm">
+              <summary className="cursor-pointer font-medium text-foreground">
                 {format(new Date(prescription.createdAt), "dd MMM yyyy")}
               </summary>
-              <p className="mt-2 whitespace-pre-wrap text-gray-700">{extractPlainText(prescription.content) || "No content"}</p>
+              <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{extractPlainText(prescription.content) || "No content"}</p>
             </details>
           ))}
         </div>
