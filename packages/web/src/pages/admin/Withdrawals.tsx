@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import type { WalletTransaction } from "@madamgy/api-client";
+import { Button } from "../../components/ui/button";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
 
@@ -38,37 +39,27 @@ export default function AdminWithdrawals() {
   });
 
   return (
-    <div className="mx-auto max-w-4xl p-8">
-      <h1 className="mb-8 text-3xl font-bold">Withdrawal Requests</h1>
-      {withdrawals?.length === 0 && <p className="text-gray-500">No pending withdrawal requests.</p>}
+    <div className="mx-auto max-w-4xl px-6 py-10">
+      <h1 className="font-display mb-8 text-2xl font-bold text-foreground">Withdrawal requests</h1>
+      {withdrawals?.length === 0 && <p className="text-muted-foreground">No pending withdrawal requests.</p>}
       <div className="flex flex-col gap-3">
         {withdrawals?.map((withdrawal) => (
-          <div key={withdrawal.id} className="rounded-2xl border-2 border-amber-200 bg-white p-5 shadow-sm">
+          <div key={withdrawal.id} className="rounded-lg bg-card p-5 shadow-sm ring-1 ring-primary/30">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-lg font-bold">
-                  {withdrawal.user.name} <span className="text-sm font-normal text-gray-400">({withdrawal.user.role})</span>
+                <p className="text-lg font-bold text-foreground">
+                  {withdrawal.user.name} <span className="text-sm font-normal text-muted-foreground">({withdrawal.user.role})</span>
                 </p>
-                <p className="text-sm text-gray-500">{withdrawal.user.phone}</p>
-                <p className="mt-2 text-2xl font-bold text-blue-700">Rs. {withdrawal.amount}</p>
-                <p className="mt-1 text-sm text-gray-600">{withdrawal.description}</p>
-                <p className="mt-1 text-xs text-gray-400">{format(new Date(withdrawal.createdAt), "dd MMM yyyy HH:mm")}</p>
+                <p className="text-sm text-muted-foreground">{withdrawal.user.phone}</p>
+                <p className="mt-2 text-2xl font-bold text-primary">Rs. {withdrawal.amount}</p>
+                <p className="mt-1 text-sm text-foreground">{withdrawal.description}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{format(new Date(withdrawal.createdAt), "dd MMM yyyy HH:mm")}</p>
               </div>
               <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => complete.mutate(withdrawal.id)}
-                  className="rounded-xl bg-green-600 px-5 py-2 font-semibold text-white hover:bg-green-700"
-                >
-                  Mark Paid
-                </button>
-                <button
-                  type="button"
-                  onClick={() => reject.mutate(withdrawal.id)}
-                  className="rounded-xl bg-red-600 px-5 py-2 font-semibold text-white hover:bg-red-700"
-                >
+                <Button onClick={() => complete.mutate(withdrawal.id)}>Mark paid</Button>
+                <Button variant="destructive" onClick={() => reject.mutate(withdrawal.id)}>
                   Reject
-                </button>
+                </Button>
               </div>
             </div>
           </div>
