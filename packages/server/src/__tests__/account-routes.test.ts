@@ -35,17 +35,17 @@ async function registerTestDoctor(phone: string, password: string) {
   return { user: { id: doctor.id } };
 }
 
-async function registerTestAdmin(phone: string) {
+async function registerTestPrivilegedUser(phone: string, role: "ADMIN" | "SUPER_ADMIN") {
   const passwordHash = await bcrypt.hash("adminpassword123", 12);
-  const admin = await prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       phone,
-      name: "Test Admin",
-      role: "ADMIN",
+      name: `Test ${role}`,
+      role,
       passwordHash,
     },
   });
-  return { user: { id: admin.id } };
+  return { user: { id: user.id } };
 }
 
 describe("account deletion routes", () => {
@@ -61,6 +61,8 @@ describe("account deletion routes", () => {
     "8889000003",
     "9990000001",
     "9990000002",
+    "9990000003",
+    "9990000004",
     "7778999999",
     "7778999998",
   ];
@@ -202,7 +204,7 @@ describe("account deletion routes", () => {
   });
 
   it("initiate returns same message for ADMIN phone as unregistered", async () => {
-    const { user } = await registerTestAdmin("9990000001");
+    const { user } = await registerTestPrivilegedUser("9990000001", "ADMIN");
     createdIds.push(user.id);
 
     const adminPhone = await request(app).post("/api/account/delete/initiate").send({ phone: "9990000001" });
@@ -212,12 +214,36 @@ describe("account deletion routes", () => {
   });
 
   it("verify rejects ADMIN with 404 even with valid OTP", async () => {
-    const { user } = await registerTestAdmin("9990000002");
+    const { user } = await registerTestPrivilegedUser("9990000002", "ADMIN");
     createdIds.push(user.id);
 
     await request(app).post("/api/account/delete/initiate").send({ phone: "9990000002" });
     const response = await request(app).post("/api/account/delete/verify").send({
       phone: "9990000002",
+      otp: "000000",
+    });
+
+    expect(response.status).toBe(404);
+    expect(response.body.message).toBe("Account not found");
+  });
+
+  it("initiate returns same message for SUPER_ADMIN phone as unregistered", async () => {
+    const { user } = await registerTestPrivilegedUser("9990000003", "SUPER_ADMIN");
+    createdIds.push(user.id);
+
+    const superAdminPhone = await request(app).post("/api/account/delete/initiate").send({ phone: "9990000003" });
+    const unregistered = await request(app).post("/api/account/delete/initiate").send({ phone: "7778999998" });
+
+    expect(superAdminPhone.body.message).toBe(unregistered.body.message);
+  });
+
+  it("verify rejects SUPER_ADMIN with 404 even with valid OTP", async () => {
+    const { user } = await registerTestPrivilegedUser("9990000004", "SUPER_ADMIN");
+    createdIds.push(user.id);
+
+    await request(app).post("/api/account/delete/initiate").send({ phone: "9990000004" });
+    const response = await request(app).post("/api/account/delete/verify").send({
+      phone: "9990000004",
       otp: "000000",
     });
 
