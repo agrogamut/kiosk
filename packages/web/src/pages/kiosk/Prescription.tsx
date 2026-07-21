@@ -28,7 +28,7 @@ export default function KioskPrescription() {
   if (!file) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <p className="text-lg text-red-500">We couldn't find that file.</p>
+        <p className="text-lg text-destructive">We couldn't find that file.</p>
       </div>
     );
   }

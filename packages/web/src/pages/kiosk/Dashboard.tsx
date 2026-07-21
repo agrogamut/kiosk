@@ -89,7 +89,7 @@ export default function KioskDashboard() {
             <h1 className="font-display text-2xl font-bold text-foreground">Welcome, {user?.name}</h1>
             <p className="text-muted-foreground">Your health folder</p>
           </div>
-          <Button onClick={() => navigate("/consult")} className="w-full rounded-full py-6 text-lg">
+          <Button onClick={() => navigate("/consult")} className="w-full rounded-full text-lg">
             Consult doctor
           </Button>
         </div>
@@ -127,7 +127,7 @@ export default function KioskDashboard() {
                   <button
                     type="button"
                     onClick={() => void deleteFile(file.id)}
-                    className="rounded-full bg-[#DC262614] px-4 py-2 text-sm font-semibold text-red-600"
+                    className="rounded-full bg-destructive/10 px-4 py-2 text-sm font-semibold text-destructive"
                   >
                     Delete
                   </button>
@@ -140,7 +140,7 @@ export default function KioskDashboard() {
         <div className="mt-8 border-t border-input pt-6 text-center">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <button type="button" className="text-sm text-red-600 underline">
+              <button type="button" className="text-sm text-destructive underline">
                 Delete my account
               </button>
             </AlertDialogTrigger>
@@ -151,7 +151,7 @@ export default function KioskDashboard() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => void deleteAccount()} className="bg-red-600 hover:bg-red-700">
+                <AlertDialogAction onClick={() => void deleteAccount()} className="bg-destructive hover:bg-destructive/90">
                   Yes, delete my account
                 </AlertDialogAction>
               </AlertDialogFooter>

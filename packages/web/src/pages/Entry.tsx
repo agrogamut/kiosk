@@ -149,7 +149,7 @@ export default function Entry() {
           <p className="mt-2 text-muted-foreground">Your health, in one tap.</p>
         </div>
 
-        <Card className="w-full rounded-lg border-none shadow-[0_8px_24px_-8px_rgba(219,101,145,0.15)]">
+        <Card className="w-full rounded-lg border-none ring-0 shadow-[0_8px_24px_-8px_rgba(219,101,145,0.15)]">
           <CardContent className="flex flex-col gap-6 p-6">
             <div className="flex flex-col gap-2">
               <Label htmlFor="entry-role">I am a</Label>
@@ -189,7 +189,7 @@ export default function Entry() {
                   <Label htmlFor="patient-phone">Phone number</Label>
                   <Input id="patient-phone" type="tel" placeholder="10-digit phone number" {...patientForm.register("phone")} />
                   {patientForm.formState.errors.phone && (
-                    <p className="text-sm text-red-500">{patientForm.formState.errors.phone.message}</p>
+                    <p className="text-sm text-destructive">{patientForm.formState.errors.phone.message}</p>
                   )}
                 </div>
                 <Button type="submit" disabled={submitting} className="w-full rounded-full">
@@ -208,14 +208,14 @@ export default function Entry() {
                   <Label htmlFor="doctor-phone">Phone number</Label>
                   <Input id="doctor-phone" type="tel" {...doctorForm.register("phone")} />
                   {doctorForm.formState.errors.phone && (
-                    <p className="text-sm text-red-500">{doctorForm.formState.errors.phone.message}</p>
+                    <p className="text-sm text-destructive">{doctorForm.formState.errors.phone.message}</p>
                   )}
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="doctor-password">Password</Label>
                   <Input id="doctor-password" type="password" {...doctorForm.register("password")} />
                   {doctorForm.formState.errors.password && (
-                    <p className="text-sm text-red-500">{doctorForm.formState.errors.password.message}</p>
+                    <p className="text-sm text-destructive">{doctorForm.formState.errors.password.message}</p>
                   )}
                 </div>
                 <Button type="submit" disabled={submitting} className="w-full rounded-full">
@@ -234,14 +234,14 @@ export default function Entry() {
                   <Label htmlFor="admin-phone">Phone number</Label>
                   <Input id="admin-phone" type="tel" {...adminForm.register("phone")} />
                   {adminForm.formState.errors.phone && (
-                    <p className="text-sm text-red-500">{adminForm.formState.errors.phone.message}</p>
+                    <p className="text-sm text-destructive">{adminForm.formState.errors.phone.message}</p>
                   )}
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="admin-password">Password</Label>
                   <Input id="admin-password" type="password" {...adminForm.register("password")} />
                   {adminForm.formState.errors.password && (
-                    <p className="text-sm text-red-500">{adminForm.formState.errors.password.message}</p>
+                    <p className="text-sm text-destructive">{adminForm.formState.errors.password.message}</p>
                   )}
                 </div>
                 <Button type="submit" disabled={submitting} className="w-full rounded-full">

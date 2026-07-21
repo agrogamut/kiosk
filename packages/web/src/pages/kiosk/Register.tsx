@@ -71,19 +71,19 @@ export default function KioskRegister() {
     <div className="flex min-h-screen flex-col items-center bg-background px-6 py-10">
       <div className="w-full max-w-sm">
         <h1 className="mb-6 text-center font-display text-3xl font-bold text-foreground">Create account</h1>
-        <Card className="rounded-lg border-none shadow-[0_8px_24px_-8px_rgba(219,101,145,0.15)]">
+        <Card className="rounded-lg border-none ring-0 shadow-[0_8px_24px_-8px_rgba(219,101,145,0.15)]">
           <CardContent className="p-6">
             <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="register-name">Full name</Label>
                 <Input id="register-name" {...register("name")} placeholder="Your name" />
-                {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
+                {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
               </div>
 
               <div className="flex flex-col gap-2">
                 <Label htmlFor="register-phone">Phone number</Label>
                 <Input id="register-phone" {...register("phone")} type="tel" placeholder="10-digit phone number" />
-                {errors.phone && <p className="text-sm text-red-500">{errors.phone.message}</p>}
+                {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
               </div>
 
               <div className="flex flex-col gap-2">
@@ -101,7 +101,7 @@ export default function KioskRegister() {
                   inputMode="numeric"
                   maxLength={10}
                 />
-                {errors.dob && <p className="text-sm text-red-500">{errors.dob.message}</p>}
+                {errors.dob && <p className="text-sm text-destructive">{errors.dob.message}</p>}
               </div>
 
               <div className="flex flex-col gap-2">
