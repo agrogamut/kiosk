@@ -30,15 +30,14 @@ accountRouter.post(
 
       const user = await prisma.user.findUnique({ where: { phone } });
       // Same response whether the phone exists or not -- don't let this endpoint
-      // become a way to enumerate registered phone numbers.
-      if (user && !user.deletedAt) {
+      // become a way to enumerate registered phone numbers. ADMIN/SUPER_ADMIN accounts
+      // never get an OTP stored at all (not just SMS-suppressed) -- storing one here would
+      // be new, pointless attack surface against the same Redis key the login flow shares.
+      if (user && !user.deletedAt && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
         Promise.resolve()
           .then(async () => {
             const otp = await storeOtp(phone);
-            // Only send SMS for non-ADMIN/SUPER_ADMIN accounts
-            if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
-              await sendOtpSms(phone, otp);
-            }
+            await sendOtpSms(phone, otp);
           })
           .catch((error) => {
             console.error("otp send failed for", phone, error);

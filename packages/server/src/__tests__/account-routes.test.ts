@@ -217,7 +217,10 @@ describe("account deletion routes", () => {
     const { user } = await registerTestPrivilegedUser("9990000002", "ADMIN");
     createdIds.push(user.id);
 
-    await request(app).post("/api/account/delete/initiate").send({ phone: "9990000002" });
+    // initiate no longer stores an OTP for ADMIN/SUPER_ADMIN phones at all (not just
+    // SMS-suppressed) -- seed one directly so this test still proves verify's role check
+    // rejects even a technically-valid OTP, without the route needing to store one in prod.
+    await redis.set("otp:9990000002", "000000", "EX", 300);
     const response = await request(app).post("/api/account/delete/verify").send({
       phone: "9990000002",
       otp: "000000",
@@ -241,7 +244,9 @@ describe("account deletion routes", () => {
     const { user } = await registerTestPrivilegedUser("9990000004", "SUPER_ADMIN");
     createdIds.push(user.id);
 
-    await request(app).post("/api/account/delete/initiate").send({ phone: "9990000004" });
+    // Same reasoning as the ADMIN case above -- seed the OTP directly since initiate no
+    // longer stores one for SUPER_ADMIN phones.
+    await redis.set("otp:9990000004", "000000", "EX", 300);
     const response = await request(app).post("/api/account/delete/verify").send({
       phone: "9990000004",
       otp: "000000",
