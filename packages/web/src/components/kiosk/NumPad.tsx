@@ -23,10 +23,7 @@ export function NumPad({ value, onChange, maxLength = 4 }: NumPadProps) {
         {Array.from({ length: maxLength }).map((_, index) => (
           <div
             key={index}
-            className={clsx(
-              "h-10 w-10 rounded-full border-2",
-              index < value.length ? "border-blue-600 bg-blue-600" : "border-gray-400",
-            )}
+            className={clsx("h-3 w-3 rounded-full transition-colors", index < value.length ? "bg-primary" : "bg-border")}
           />
         ))}
       </div>
@@ -38,8 +35,8 @@ export function NumPad({ value, onChange, maxLength = 4 }: NumPadProps) {
             disabled={!key}
             onClick={() => (key === "Del" ? pop() : push(key))}
             className={clsx(
-              "h-20 w-20 rounded-2xl text-2xl font-bold transition-colors",
-              key ? "bg-gray-100 text-gray-900 hover:bg-gray-200 active:bg-gray-300" : "invisible",
+              "h-16 w-16 rounded-full font-display text-2xl font-semibold transition-colors",
+              key ? "bg-card text-foreground shadow-sm hover:bg-[#EE908D33] active:bg-[#EE908D4D]" : "invisible",
             )}
           >
             {key}
