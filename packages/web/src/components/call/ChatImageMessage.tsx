@@ -19,11 +19,11 @@ export function ChatImageMessage({ imageKey }: ChatImageMessageProps) {
   });
 
   if (isLoading || !data) {
-    return <p className="text-sm opacity-70">Loading attachment...</p>;
+    return <p className="text-sm text-muted-foreground">Loading attachment...</p>;
   }
 
   if (isImageKey(imageKey)) {
-    return <img src={data} alt="Shared attachment" className="max-w-full rounded-xl" />;
+    return <img src={data} alt="Shared attachment" className="max-w-full rounded-lg" />;
   }
 
   return (
