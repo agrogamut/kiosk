@@ -1,6 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../../components/ui/alert-dialog";
+import { Button } from "../../components/ui/button";
 import { api } from "../../lib/api";
 import { logout } from "../../lib/logout";
 import { getApiErrorMessage } from "../../lib/errors";
@@ -23,7 +35,6 @@ export default function DoctorDashboard() {
   const navigate = useNavigate();
   const [isAvailable, setIsAvailable] = useState(false);
   const [incoming, setIncoming] = useState<IncomingCall | null>(null);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     api
@@ -91,79 +102,77 @@ export default function DoctorDashboard() {
       await logout();
       navigate("/doctor/login");
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Could not delete account"));
+      toast.error(getApiErrorMessage(error, "We couldn't delete your account. Try again."));
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-background px-6 py-10">
       <div className="mx-auto max-w-2xl">
         <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
           <div>
-            <h1 className="mb-2 text-3xl font-bold">Welcome, Dr. {user?.name}</h1>
-            <div className="flex items-center gap-4">
-              <span className="text-gray-600">Availability:</span>
-              <button
-                type="button"
-                onClick={toggleAvailable}
-                className={`rounded-full px-6 py-3 font-semibold text-white transition-colors ${
-                  isAvailable ? "bg-green-500 hover:bg-green-600" : "bg-gray-400 hover:bg-gray-500"
-                }`}
-              >
-                {isAvailable ? "Available" : "Unavailable"}
-              </button>
-            </div>
+            <h1 className="font-display text-2xl font-bold text-foreground">Welcome, Dr. {user?.name}</h1>
+            <Button
+              type="button"
+              onClick={toggleAvailable}
+              variant={isAvailable ? "default" : "secondary"}
+              className="mt-3 rounded-full"
+            >
+              {isAvailable ? "Available" : "Unavailable"}
+            </Button>
           </div>
           <div className="flex gap-3">
-            <button type="button" onClick={() => void signOut()} className="rounded-xl bg-white px-4 py-3 font-semibold text-blue-700 shadow-sm">
+            <Button variant="outline" onClick={() => void signOut()}>
               Logout
-            </button>
-            <Link to="/doctor/history" className="rounded-xl bg-white px-4 py-3 font-semibold text-blue-700 shadow-sm">
-              History
-            </Link>
-            <Link to="/doctor/wallet" className="rounded-xl bg-white px-4 py-3 font-semibold text-blue-700 shadow-sm">
-              Wallet
-            </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/doctor/history">History</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/doctor/wallet">Wallet</Link>
+            </Button>
           </div>
         </div>
 
         {incoming && (
-          <div className="rounded-2xl border-2 border-blue-400 bg-white p-6 shadow-lg">
-            <h2 className="mb-2 text-xl font-bold">Incoming call</h2>
-            <p className="mb-4 text-gray-700">
+          <div className="rounded-xl bg-card p-6 shadow-sm ring-1 ring-primary/30">
+            <h2 className="mb-2 text-xl font-bold text-foreground">Incoming call</h2>
+            <p className="mb-4 text-foreground">
               Patient: <strong>{incoming.patient.name}</strong>
             </p>
             <div className="flex gap-4">
-              <button type="button" onClick={accept} className="flex-1 rounded-xl bg-green-500 py-4 font-semibold text-white hover:bg-green-600">
+              <Button onClick={accept} className="flex-1 rounded-full text-lg">
                 Accept
-              </button>
-              <button type="button" onClick={reject} className="flex-1 rounded-xl bg-red-500 py-4 font-semibold text-white hover:bg-red-600">
+              </Button>
+              <Button variant="destructive" onClick={reject} className="flex-1 rounded-full text-lg">
                 Reject
-              </button>
+              </Button>
             </div>
           </div>
         )}
 
-        <div className="mt-8 border-t pt-6 text-center">
-          {confirmingDelete ? (
-            <div className="flex flex-col items-center gap-3">
-              <p className="text-sm text-gray-600">
-                This permanently deletes your account. Any wallet balance must be withdrawn first. This cannot be undone.
-              </p>
-              <div className="flex gap-3">
-                <button type="button" onClick={() => void deleteAccount()} className="rounded-xl bg-red-600 px-4 py-2 font-semibold text-white">
+        <div className="mt-8 border-t border-input pt-6 text-center">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button type="button" className="text-sm text-destructive underline">
+                Delete my account
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently deletes your account. Any wallet balance must be withdrawn first. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => void deleteAccount()} className="bg-destructive hover:bg-destructive/90">
                   Yes, delete my account
-                </button>
-                <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-xl bg-gray-100 px-4 py-2 font-semibold text-gray-700">
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button type="button" onClick={() => setConfirmingDelete(true)} className="text-sm text-red-600 underline">
-              Delete my account
-            </button>
-          )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     </div>
