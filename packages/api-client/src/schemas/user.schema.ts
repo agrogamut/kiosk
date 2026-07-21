@@ -35,59 +35,64 @@ export const DateOfBirthSchema = z.string().refine(isValidDateOfBirth, {
   message: "Date of birth must be a valid date in DD/MM/YYYY format",
 });
 
+const phoneField = z.string().min(10, "Enter a valid phone number").max(15, "Enter a valid phone number");
+const nameField = z.string().min(1, "Enter your name").max(100, "Name is too long");
+const otpField = z.string().length(6, "Enter the 6-digit code").regex(/^\d{6}$/, "Enter the 6-digit code");
+const pinField = z.string().length(4, "PIN must be 4 digits").regex(/^\d{4}$/, "PIN must be 4 digits");
+
 export const PatientRegisterSchema = z.object({
-  phone: z.string().min(10).max(15),
-  name: z.string().min(1).max(100),
+  phone: phoneField,
+  name: nameField,
   dob: DateOfBirthSchema,
   gender: GenderSchema.optional(),
-  email: z.string().email().optional(),
-  pin: z.string().length(4).regex(/^\d{4}$/).optional(),
+  email: z.string().email("Enter a valid email address").optional(),
+  pin: pinField.optional(),
   consent: z.literal(true),
 });
 export type PatientRegister = z.infer<typeof PatientRegisterSchema>;
 
 export const PatientLoginSchema = z.object({
-  phone: z.string().min(10).max(15),
-  pin: z.string().length(4).regex(/^\d{4}$/),
+  phone: phoneField,
+  pin: pinField,
 });
 export type PatientLogin = z.infer<typeof PatientLoginSchema>;
 
 export const PatientLoginOtpInitiateSchema = z.object({
-  phone: z.string().min(10).max(15),
+  phone: phoneField,
 });
 export type PatientLoginOtpInitiate = z.infer<typeof PatientLoginOtpInitiateSchema>;
 
 export const PatientLoginOtpVerifySchema = z.object({
-  phone: z.string().min(10).max(15),
-  otp: z.string().length(6).regex(/^\d{6}$/),
+  phone: phoneField,
+  otp: otpField,
 });
 export type PatientLoginOtpVerify = z.infer<typeof PatientLoginOtpVerifySchema>;
 
 export const DoctorRegisterSchema = z.object({
-  phone: z.string().min(10).max(15),
-  name: z.string().min(1).max(100),
-  password: z.string().min(8),
-  degree: z.string().min(1),
-  regNumber: z.string().min(1),
+  phone: phoneField,
+  name: nameField,
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  degree: z.string().min(1, "Enter your medical degree"),
+  regNumber: z.string().min(1, "Enter your registration number"),
   specialization: z.string().optional(),
 });
 export type DoctorRegister = z.infer<typeof DoctorRegisterSchema>;
 
 export const DoctorLoginInitiateSchema = z.object({
-  phone: z.string().min(10).max(15),
-  password: z.string().min(1),
+  phone: phoneField,
+  password: z.string().min(1, "Enter your password"),
 });
 export type DoctorLoginInitiate = z.infer<typeof DoctorLoginInitiateSchema>;
 
 export const DoctorLoginVerifySchema = z.object({
-  phone: z.string().min(10).max(15),
-  otp: z.string().length(6).regex(/^\d{6}$/),
+  phone: phoneField,
+  otp: otpField,
 });
 export type DoctorLoginVerify = z.infer<typeof DoctorLoginVerifySchema>;
 
 export const AdminLoginSchema = z.object({
-  phone: z.string().min(10).max(15),
-  password: z.string().min(1),
+  phone: phoneField,
+  password: z.string().min(1, "Enter your password"),
 });
 export type AdminLogin = z.infer<typeof AdminLoginSchema>;
 
@@ -104,32 +109,32 @@ export type User = z.infer<typeof UserSchema>;
 export const StaffCreateSchema = z.discriminatedUnion("role", [
   z.object({
     role: z.literal("ADMIN"),
-    phone: z.string().min(10).max(15),
-    name: z.string().min(1).max(100),
+    phone: phoneField,
+    name: nameField,
   }),
   z.object({
     role: z.literal("DOCTOR"),
-    phone: z.string().min(10).max(15),
-    name: z.string().min(1).max(100),
-    degree: z.string().min(1),
-    regNumber: z.string().min(1),
+    phone: phoneField,
+    name: nameField,
+    degree: z.string().min(1, "Enter your medical degree"),
+    regNumber: z.string().min(1, "Enter your registration number"),
     specialization: z.string().optional(),
   }),
 ]);
 export type StaffCreate = z.infer<typeof StaffCreateSchema>;
 
 export const UpdateProfileSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  heightCm: z.number().positive().max(300).optional(),
-  weightKg: z.number().positive().max(500).optional(),
-  bloodType: z.string().max(10).optional(),
+  name: nameField.optional(),
+  heightCm: z.number().positive("Enter a valid height").max(300, "Enter a valid height").optional(),
+  weightKg: z.number().positive("Enter a valid weight").max(500, "Enter a valid weight").optional(),
+  bloodType: z.string().max(10, "Enter a valid blood type").optional(),
   dob: DateOfBirthSchema.optional(),
 });
 export type UpdateProfile = z.infer<typeof UpdateProfileSchema>;
 
 export const KioskRegisterSchema = z.object({
-  deviceId: z.string().min(1),
-  label: z.string().max(100).optional(),
+  deviceId: z.string().min(1, "Enter a device ID"),
+  label: z.string().max(100, "Label is too long").optional(),
 });
 export type KioskRegister = z.infer<typeof KioskRegisterSchema>;
 

@@ -34,7 +34,7 @@ export const VitalsSchema = z.object({
   weightKg: z.number().positive().optional(),
   heightCm: z.number().positive().optional(),
   bp: z.string().optional(),
-  spo2: z.number().min(0).max(100).optional(),
+  spo2: z.number().min(0, "SpO2 must be between 0 and 100").max(100, "SpO2 must be between 0 and 100").optional(),
   temp: z.number().optional(),
 });
 export type Vitals = z.infer<typeof VitalsSchema>;

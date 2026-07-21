@@ -16,18 +16,18 @@ export const WalletTransactionSchema = z.object({
 export type WalletTransaction = z.infer<typeof WalletTransactionSchema>;
 
 export const WithdrawRequestSchema = z.object({
-  amount: z.number().positive(),
-  bankName: z.string().min(1),
-  accountNumber: z.string().min(1),
-  ifsc: z.string().min(1),
-  holderName: z.string().min(1),
+  amount: z.number().positive("Enter an amount greater than 0"),
+  bankName: z.string().min(1, "Enter your bank name"),
+  accountNumber: z.string().min(1, "Enter your account number"),
+  ifsc: z.string().min(1, "Enter your IFSC code"),
+  holderName: z.string().min(1, "Enter the account holder name"),
 });
 export type WithdrawRequest = z.infer<typeof WithdrawRequestSchema>;
 
 export const RevenueConfigUpdateSchema = z.object({
-  consultationFee: z.number().positive(),
-  doctorPct: z.number().min(0).max(100),
-  adminPct: z.number().min(0).max(100),
-  superAdminPct: z.number().min(0).max(100),
+  consultationFee: z.number().positive("Enter a consultation fee greater than 0"),
+  doctorPct: z.number().min(0, "Must be between 0 and 100").max(100, "Must be between 0 and 100"),
+  adminPct: z.number().min(0, "Must be between 0 and 100").max(100, "Must be between 0 and 100"),
+  superAdminPct: z.number().min(0, "Must be between 0 and 100").max(100, "Must be between 0 and 100"),
 });
 export type RevenueConfigUpdate = z.infer<typeof RevenueConfigUpdateSchema>;

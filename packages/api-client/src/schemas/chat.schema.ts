@@ -20,7 +20,7 @@ export const SendChatSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("TEXT"),
     callSessionId: z.string(),
-    content: z.string().min(1).max(2000),
+    content: z.string().min(1, "Message can't be empty").max(2000, "Message is too long"),
   }),
   z.object({
     type: z.literal("IMAGE"),
