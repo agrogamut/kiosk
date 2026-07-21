@@ -1,8 +1,11 @@
 # Play App Signing Runbook — MadamGy
 
 ## Upload keystore
-Generated 2026-07-21 via `keytool -genkeypair ... -keystore madamgy-upload-key.jks -alias madamgy-upload -keyalg RSA -keysize 2048 -validity 9125`.
+**Not yet generated as of 2026-07-21.** Not created by this repo, and not created by an automated agent — this must be run once, for real, by whoever will own the Play Console account, since it's the app's permanent signing identity.
 
+To generate: `keytool -genkeypair -v -keystore madamgy-upload-key.jks -alias madamgy-upload -keyalg RSA -keysize 2048 -validity 9125`, run from outside this repository (e.g. `~/madamgy-signing/`), with the resulting keystore + store password + key password saved to a real password manager immediately after generation — never to a file in this repo.
+
+Once generated, record here:
 Location: <password-manager entry name — e.g. "1Password: MadamGy > Play Upload Keystore" — never a filesystem path or a value>
 Alias: madamgy-upload
 Key password and store password: stored in the same password manager entry, not here.
