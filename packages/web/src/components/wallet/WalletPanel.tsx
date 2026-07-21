@@ -8,6 +8,8 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { ErrorState } from "../common/ErrorState";
+import { SkeletonRows } from "../common/SkeletonRows";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
 
@@ -38,7 +40,13 @@ export default function WalletPanel({ apiBasePath }: WalletPanelProps) {
     queryKey: ["wallet", apiBasePath],
     queryFn: () => api.get<WalletResponse>(`${apiBasePath}/wallet`).then((response) => response.data),
   });
-  const { data: transactions } = useQuery({
+  const {
+    data: transactions,
+    isLoading: transactionsLoading,
+    isError: transactionsError,
+    error: transactionsErrorDetail,
+    refetch: refetchTransactions,
+  } = useQuery({
     queryKey: ["wallet-transactions", apiBasePath],
     queryFn: () => api.get<TransactionResponse>(`${apiBasePath}/wallet/transactions`).then((response) => response.data),
   });
@@ -60,7 +68,7 @@ export default function WalletPanel({ apiBasePath }: WalletPanelProps) {
 
   return (
     <div className="min-h-screen bg-background px-6 py-10">
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-2xl lg:max-w-3xl">
         <h1 className="font-display text-2xl font-bold text-foreground">Wallet</h1>
         <div className="mb-8 mt-6 rounded-xl bg-card p-6 shadow-sm">
           <p className="mb-1 text-muted-foreground">Available balance</p>
@@ -90,27 +98,36 @@ export default function WalletPanel({ apiBasePath }: WalletPanelProps) {
         </form>
 
         <h2 className="font-display mb-4 text-xl font-bold text-foreground">Transactions</h2>
-        <div className="flex flex-col gap-2">
-          {transactions?.transactions.length === 0 && (
-            <p className="py-8 text-center text-muted-foreground">No transactions yet.</p>
-          )}
-          {transactions?.transactions.map((transaction) => (
-            <div key={transaction.id} className="flex items-center justify-between gap-4 rounded-lg bg-card p-4 shadow-sm">
-              <div>
-                <p className="font-medium text-foreground">{transaction.description || transaction.type}</p>
-                <p className="text-sm text-muted-foreground">{format(new Date(transaction.createdAt), "dd MMM yyyy HH:mm")}</p>
+        {transactionsLoading && <SkeletonRows />}
+        {transactionsError && (
+          <ErrorState
+            message={getApiErrorMessage(transactionsErrorDetail, "We couldn't load your transactions.")}
+            onRetry={() => void refetchTransactions()}
+          />
+        )}
+        {!transactionsLoading && !transactionsError && (
+          <div className="flex flex-col gap-2">
+            {transactions?.transactions.length === 0 && (
+              <p className="py-8 text-center text-muted-foreground">No transactions yet.</p>
+            )}
+            {transactions?.transactions.map((transaction) => (
+              <div key={transaction.id} className="flex items-center justify-between gap-4 rounded-lg bg-card p-4 shadow-sm">
+                <div>
+                  <p className="font-medium text-foreground">{transaction.description || transaction.type}</p>
+                  <p className="text-sm text-muted-foreground">{format(new Date(transaction.createdAt), "dd MMM yyyy HH:mm")}</p>
+                </div>
+                <div className="text-right">
+                  <p className={`text-lg font-bold ${transaction.type === "CREDIT" ? "text-primary" : "text-destructive"}`}>
+                    {transaction.type === "CREDIT" ? "+" : "-"}Rs. {transaction.amount}
+                  </p>
+                  <Badge variant="outline" className="mt-1">
+                    {transaction.status}
+                  </Badge>
+                </div>
               </div>
-              <div className="text-right">
-                <p className={`text-lg font-bold ${transaction.type === "CREDIT" ? "text-primary" : "text-destructive"}`}>
-                  {transaction.type === "CREDIT" ? "+" : "-"}Rs. {transaction.amount}
-                </p>
-                <Badge variant="outline" className="mt-1">
-                  {transaction.status}
-                </Badge>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

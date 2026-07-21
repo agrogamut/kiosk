@@ -42,7 +42,7 @@ export default function DoctorRegister() {
     <div className="min-h-screen bg-background px-6 py-10">
       <form
         onSubmit={handleSubmit((data) => void submit(data))}
-        className="mx-auto max-w-2xl rounded-xl bg-card p-8 shadow-sm"
+        className="mx-auto max-w-2xl rounded-xl bg-card p-8 shadow-sm lg:max-w-3xl"
       >
         <h1 className="font-display text-2xl font-bold text-foreground">Doctor registration</h1>
         <p className="mb-6 mt-1 text-muted-foreground">Admin approval is required before you can sign in.</p>
