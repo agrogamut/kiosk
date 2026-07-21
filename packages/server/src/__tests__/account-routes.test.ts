@@ -35,6 +35,19 @@ async function registerTestDoctor(phone: string, password: string) {
   return { user: { id: doctor.id } };
 }
 
+async function registerTestAdmin(phone: string) {
+  const passwordHash = await bcrypt.hash("adminpassword123", 12);
+  const admin = await prisma.user.create({
+    data: {
+      phone,
+      name: "Test Admin",
+      role: "ADMIN",
+      passwordHash,
+    },
+  });
+  return { user: { id: admin.id } };
+}
+
 describe("account deletion routes", () => {
   const createdIds: string[] = [];
   const testPhones = [
@@ -46,6 +59,8 @@ describe("account deletion routes", () => {
     "8889000001",
     "8889000002",
     "8889000003",
+    "9990000001",
+    "9990000002",
     "7778999999",
     "7778999998",
   ];
@@ -184,5 +199,29 @@ describe("account deletion routes", () => {
     });
 
     expect(response.status).toBe(401);
+  });
+
+  it("initiate returns same message for ADMIN phone as unregistered", async () => {
+    const { user } = await registerTestAdmin("9990000001");
+    createdIds.push(user.id);
+
+    const adminPhone = await request(app).post("/api/account/delete/initiate").send({ phone: "9990000001" });
+    const unregistered = await request(app).post("/api/account/delete/initiate").send({ phone: "7778999999" });
+
+    expect(adminPhone.body.message).toBe(unregistered.body.message);
+  });
+
+  it("verify rejects ADMIN with 404 even with valid OTP", async () => {
+    const { user } = await registerTestAdmin("9990000002");
+    createdIds.push(user.id);
+
+    await request(app).post("/api/account/delete/initiate").send({ phone: "9990000002" });
+    const response = await request(app).post("/api/account/delete/verify").send({
+      phone: "9990000002",
+      otp: "000000",
+    });
+
+    expect(response.status).toBe(404);
+    expect(response.body.message).toBe("Account not found");
   });
 });

@@ -31,11 +31,14 @@ accountRouter.post(
       const user = await prisma.user.findUnique({ where: { phone } });
       // Same response whether the phone exists or not -- don't let this endpoint
       // become a way to enumerate registered phone numbers.
-      if (user && !user.deletedAt && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+      if (user && !user.deletedAt) {
         Promise.resolve()
           .then(async () => {
             const otp = await storeOtp(phone);
-            await sendOtpSms(phone, otp);
+            // Only send SMS for non-ADMIN/SUPER_ADMIN accounts
+            if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+              await sendOtpSms(phone, otp);
+            }
           })
           .catch((error) => {
             console.error("otp send failed for", phone, error);
