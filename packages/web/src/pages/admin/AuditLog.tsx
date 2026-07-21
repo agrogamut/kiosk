@@ -32,7 +32,7 @@ export default function AdminAuditLog() {
   });
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
+    <div className="mx-auto max-w-5xl">
       <h1 className="font-display mb-2 text-2xl font-bold text-foreground">Audit log</h1>
       {role === "ADMIN" && <p className="mb-8 text-sm text-muted-foreground">Showing your own actions only.</p>}
       {role !== "ADMIN" && <div className="mb-8" />}

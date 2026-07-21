@@ -44,7 +44,7 @@ export default function AdminUserDetail() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex min-h-[60vh] items-center justify-center">
         <PulseRing size="lg" />
       </div>
     );
@@ -52,7 +52,7 @@ export default function AdminUserDetail() {
 
   if (isError || !data) {
     return (
-      <div className="mx-auto max-w-5xl px-6 py-10">
+      <div className="mx-auto max-w-5xl">
         <ErrorState message={getApiErrorMessage(error, "We couldn't load this user.")} onRetry={() => void refetch()} />
       </div>
     );
@@ -62,7 +62,7 @@ export default function AdminUserDetail() {
   const calls = user.role === "DOCTOR" ? callsAsDoctor : callsAsPatient;
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
+    <div className="mx-auto max-w-5xl">
       <Link to={user.role === "DOCTOR" ? "/admin/doctors" : "/admin/users"} className="mb-4 inline-block text-primary hover:underline">
         &larr; Back
       </Link>
