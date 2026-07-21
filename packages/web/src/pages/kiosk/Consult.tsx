@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import type { CallSession } from "@madamgy/api-client";
 import { CallChatPanel } from "../../components/call/CallChatPanel";
 import { KioskCallView } from "../../components/video/KioskCallView";
+import { PulseRing } from "../../components/brand/PulseRing";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
 import { getSocket } from "../../lib/socket";
@@ -132,10 +133,10 @@ export default function KioskConsult() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-        <p className="text-center text-2xl text-gray-700">{waitingText}</p>
-        <button type="button" onClick={cancel} className="mt-4 text-lg text-gray-500 underline">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background p-8">
+        <PulseRing size="lg" />
+        <p className="text-center text-xl text-foreground">{waitingText}</p>
+        <button type="button" onClick={cancel} className="mt-4 text-muted-foreground underline">
           Cancel
         </button>
       </div>
@@ -144,7 +145,7 @@ export default function KioskConsult() {
 
   if (livekitToken && callSession) {
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50 lg:flex-row">
+      <div className="flex min-h-screen flex-col bg-background lg:flex-row">
         <div className="h-[60vh] min-h-0 lg:h-screen lg:flex-1">
           <KioskCallView
             token={livekitToken}
@@ -160,10 +161,10 @@ export default function KioskConsult() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
-      <div className="h-16 w-16 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-      <p className="text-center text-2xl text-gray-700">{callSession?.status === "RINGING" ? "Waiting for doctor to accept..." : "Finding available doctor..."}</p>
-      <button type="button" onClick={cancel} className="mt-4 text-lg text-gray-500 underline">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background p-8">
+      <PulseRing size="lg" />
+      <p className="text-center text-xl text-foreground">{callSession?.status === "RINGING" ? "Waiting for doctor to accept..." : "Finding available doctor..."}</p>
+      <button type="button" onClick={cancel} className="mt-4 text-muted-foreground underline">
         Cancel
       </button>
     </div>
