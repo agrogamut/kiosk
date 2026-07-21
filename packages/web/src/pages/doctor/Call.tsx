@@ -6,6 +6,8 @@ import toast from "react-hot-toast";
 import { CallChatPanel } from "../../components/call/CallChatPanel";
 import { PatientHistoryPanel } from "../../components/call/PatientHistoryPanel";
 import { DoctorCallView } from "../../components/video/DoctorCallView";
+import { Button } from "../../components/ui/button";
+import { PulseRing } from "../../components/brand/PulseRing";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
 import { connectSocket } from "../../lib/socket";
@@ -72,11 +74,16 @@ export default function DoctorCall() {
   }
 
   if (!storedLivekitToken) {
-    return <div className="flex min-h-screen items-center justify-center"><p className="text-2xl">Waiting for connection...</p></div>;
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background p-8">
+        <PulseRing size="lg" />
+        <p className="text-center text-xl text-foreground">Waiting for connection...</p>
+      </div>
+    );
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       <div className="h-[55vh]">
         <DoctorCallView
           token={storedLivekitToken}
@@ -85,36 +92,40 @@ export default function DoctorCall() {
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-4 border-t-2 border-gray-200 bg-white p-4 lg:grid-cols-[1fr_24rem]">
+      <div className="grid min-h-0 flex-1 gap-4 border-t border-input bg-background p-4 lg:grid-cols-[1fr_24rem]">
         <div className="flex min-h-0 flex-col">
-          <h3 className="mb-2 text-lg font-bold">Prescription</h3>
-          <div className="min-h-[120px] flex-1 rounded-xl border-2 p-3">
+          <h3 className="mb-2 text-lg font-semibold text-foreground">Prescription</h3>
+          <div className="min-h-[120px] flex-1 rounded-lg border border-input bg-card p-3 text-foreground">
             <EditorContent editor={editor} />
           </div>
-          <button
+          <Button
             type="button"
             onClick={() => void submitPrescription()}
             disabled={submitting}
-            className="mt-3 w-full rounded-xl bg-blue-600 py-4 text-lg font-semibold text-white disabled:opacity-50"
+            className="mt-3 w-full text-lg"
           >
-            {submitting ? "Submitting..." : "Submit Prescription"}
-          </button>
+            {submitting ? "Submitting..." : "Submit prescription"}
+          </Button>
         </div>
-        <div className="flex min-h-0 flex-col rounded-2xl border border-gray-100 shadow-sm">
-          <div className="flex border-b">
+        <div className="flex min-h-0 flex-col rounded-xl bg-card shadow-sm">
+          <div className="flex border-b border-input">
             <button
               type="button"
               onClick={() => setRightTab("chat")}
-              className={`flex-1 rounded-tl-2xl py-3 text-sm font-semibold ${rightTab === "chat" ? "bg-blue-600 text-white" : "bg-white text-gray-600"}`}
+              className={`flex-1 rounded-tl-xl py-3 text-sm font-semibold ${
+                rightTab === "chat" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"
+              }`}
             >
               Chat
             </button>
             <button
               type="button"
               onClick={() => setRightTab("history")}
-              className={`flex-1 rounded-tr-2xl py-3 text-sm font-semibold ${rightTab === "history" ? "bg-blue-600 text-white" : "bg-white text-gray-600"}`}
+              className={`flex-1 rounded-tr-xl py-3 text-sm font-semibold ${
+                rightTab === "history" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"
+              }`}
             >
-              Patient History
+              Patient history
             </button>
           </div>
           <div className="min-h-0 flex-1">
@@ -123,7 +134,7 @@ export default function DoctorCall() {
               (patientId ? (
                 <PatientHistoryPanel patientId={patientId} />
               ) : (
-                <p className="p-4 text-sm text-gray-500">Patient not identified yet.</p>
+                <p className="p-4 text-sm text-muted-foreground">Patient not identified yet.</p>
               ))}
           </div>
         </div>
