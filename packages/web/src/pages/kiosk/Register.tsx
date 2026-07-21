@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { PatientRegisterSchema, type Gender, type PatientRegister } from "@madamgy/api-client";
 import { Button } from "../../components/ui/button";
+import { Logo } from "../../components/brand/Logo";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -69,6 +70,7 @@ export default function KioskRegister() {
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-background px-6 py-10">
+      <Logo className="mb-8 h-10 w-auto" />
       <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg">
         <h1 className="mb-6 text-center font-display text-3xl font-bold text-foreground">Create account</h1>
         <Card className="rounded-lg border-none ring-0 shadow-[0_8px_24px_-8px_rgba(219,101,145,0.15)]">

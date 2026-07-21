@@ -13,6 +13,7 @@ import {
   type UserRole,
 } from "@madamgy/api-client";
 import { NumPad } from "../components/kiosk/NumPad";
+import { Logo } from "../components/brand/Logo";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -145,7 +146,7 @@ export default function Entry() {
     <div className="flex min-h-screen flex-col justify-center bg-background px-6 py-10">
       <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-8">
         <div className="text-center">
-          <h1 className="font-display text-4xl font-bold text-foreground">MadamGy</h1>
+          <Logo className="mx-auto h-12 w-auto" />
           <p className="mt-2 text-muted-foreground">Your health, in one tap.</p>
         </div>
 
