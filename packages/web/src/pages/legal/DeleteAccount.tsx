@@ -6,6 +6,7 @@ import { getApiErrorMessage } from "../../lib/errors";
 export default function DeleteAccount() {
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [password, setPassword] = useState("");
   const [step, setStep] = useState<"phone" | "otp" | "done">("phone");
   const [submitting, setSubmitting] = useState(false);
 
@@ -24,7 +25,11 @@ export default function DeleteAccount() {
   async function verify(): Promise<void> {
     setSubmitting(true);
     try {
-      await api.post("/account/delete/verify", { phone, otp });
+      const payload: { phone: string; otp: string; password?: string } = { phone, otp };
+      if (password) {
+        payload.password = password;
+      }
+      await api.post("/account/delete/verify", payload);
       setStep("done");
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Invalid or expired OTP"));
@@ -82,6 +87,13 @@ export default function DeleteAccount() {
             placeholder="6-digit code"
             inputMode="numeric"
             className="w-full rounded-2xl border-2 p-4 text-center text-2xl tracking-widest"
+          />
+          <input
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Password (only required for doctor accounts)"
+            type="password"
+            className="w-full rounded-2xl border-2 p-4 text-lg"
           />
           <button
             type="button"
