@@ -49,6 +49,9 @@ export default {
         display: ["Baloo 2", "system-ui", "sans-serif"],
         sans: ["Manrope", "system-ui", "sans-serif"],
       },
+      aria: {
+        invalid: 'invalid="true"',
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],
