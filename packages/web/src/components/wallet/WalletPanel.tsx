@@ -67,9 +67,8 @@ export default function WalletPanel({ apiBasePath }: WalletPanelProps) {
   });
 
   return (
-    <div className="min-h-screen bg-background px-6 py-10">
-      <div className="mx-auto max-w-2xl lg:max-w-3xl">
-        <h1 className="font-display text-2xl font-bold text-foreground">Wallet</h1>
+    <div className="mx-auto max-w-2xl lg:max-w-3xl">
+      <h1 className="font-display text-2xl font-bold text-foreground">Wallet</h1>
         <div className="mb-8 mt-6 rounded-xl bg-card p-6 shadow-sm">
           <p className="mb-1 text-muted-foreground">Available balance</p>
           <p className="text-4xl font-bold text-primary">Rs. {wallet?.balance ?? "-"}</p>
@@ -128,7 +127,6 @@ export default function WalletPanel({ apiBasePath }: WalletPanelProps) {
             ))}
           </div>
         )}
-      </div>
     </div>
   );
 }

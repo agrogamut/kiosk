@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   AlertDialog,
@@ -91,11 +91,6 @@ export default function DoctorDashboard() {
     setIncoming(null);
   }
 
-  async function signOut(): Promise<void> {
-    await logout();
-    navigate("/doctor/login");
-  }
-
   async function deleteAccount(): Promise<void> {
     try {
       await api.delete("/account/me");
@@ -107,73 +102,58 @@ export default function DoctorDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-6 py-10">
-      <div className="mx-auto max-w-2xl lg:max-w-4xl">
-        <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-start lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
-          <div>
-            <h1 className="font-display text-2xl font-bold text-foreground">Welcome, Dr. {user?.name}</h1>
-            <Button
-              type="button"
-              onClick={toggleAvailable}
-              variant={isAvailable ? "default" : "secondary"}
-              className="mt-3 rounded-full"
-            >
-              {isAvailable ? "Available" : "Unavailable"}
+    <div className="mx-auto max-w-2xl lg:max-w-4xl">
+      <div className="mb-8">
+        <h1 className="font-display text-2xl font-bold text-foreground">Welcome, Dr. {user?.name}</h1>
+        <Button
+          type="button"
+          onClick={toggleAvailable}
+          variant={isAvailable ? "default" : "secondary"}
+          className="mt-3 rounded-full"
+        >
+          {isAvailable ? "Available" : "Unavailable"}
+        </Button>
+      </div>
+
+      {incoming && (
+        <div className="rounded-xl bg-card p-6 shadow-sm ring-1 ring-primary/30">
+          <h2 className="font-display mb-2 text-xl font-bold text-foreground">Incoming call</h2>
+          <p className="mb-4 text-foreground">
+            Patient: <strong>{incoming.patient.name}</strong>
+          </p>
+          <div className="flex gap-4">
+            <Button onClick={accept} className="flex-1 rounded-full text-lg">
+              Accept
             </Button>
-          </div>
-          <div className="flex gap-3 lg:justify-end">
-            <Button variant="outline" onClick={() => void signOut()}>
-              Logout
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/doctor/history">History</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/doctor/wallet">Wallet</Link>
+            <Button variant="destructive" onClick={reject} className="flex-1 rounded-full text-lg">
+              Reject
             </Button>
           </div>
         </div>
+      )}
 
-        {incoming && (
-          <div className="rounded-xl bg-card p-6 shadow-sm ring-1 ring-primary/30">
-            <h2 className="font-display mb-2 text-xl font-bold text-foreground">Incoming call</h2>
-            <p className="mb-4 text-foreground">
-              Patient: <strong>{incoming.patient.name}</strong>
-            </p>
-            <div className="flex gap-4">
-              <Button onClick={accept} className="flex-1 rounded-full text-lg">
-                Accept
-              </Button>
-              <Button variant="destructive" onClick={reject} className="flex-1 rounded-full text-lg">
-                Reject
-              </Button>
-            </div>
-          </div>
-        )}
-
-        <div className="mt-8 border-t border-input pt-6 text-center">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <button type="button" className="text-sm text-destructive underline">
-                Delete my account
-              </button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete your account?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This permanently deletes your account. Any wallet balance must be withdrawn first. This cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => void deleteAccount()} className="bg-destructive hover:bg-destructive/90">
-                  Yes, delete my account
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
+      <div className="mt-8 border-t border-input pt-6 text-center">
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button type="button" className="text-sm text-destructive underline">
+              Delete my account
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This permanently deletes your account. Any wallet balance must be withdrawn first. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => void deleteAccount()} className="bg-destructive hover:bg-destructive/90">
+                Yes, delete my account
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
