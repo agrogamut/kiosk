@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "../lib/prisma.js";
 import { anonymizeUser } from "../services/account-deletion.service.js";
 
