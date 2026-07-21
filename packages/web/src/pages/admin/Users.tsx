@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
+import { Button } from "../../components/ui/button";
 import { api } from "../../lib/api";
 
 interface AdminUser {
@@ -29,24 +30,23 @@ export default function AdminUsers() {
   });
 
   return (
-    <div className="mx-auto max-w-4xl p-8">
-      <h1 className="mb-8 text-3xl font-bold">Users</h1>
+    <div className="mx-auto max-w-4xl px-6 py-10">
+      <h1 className="font-display mb-8 text-2xl font-bold text-foreground">Users</h1>
       <div className="flex flex-col gap-3">
         {users?.map((user) => (
-          <div key={user.id} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div key={user.id} className="flex items-center justify-between gap-4 rounded-lg bg-card p-5 shadow-sm">
             <Link to={`/admin/users/${user.id}`} className="flex-1">
-              <p className="font-bold text-blue-700 hover:underline">{user.name}</p>
-              <p className="text-sm text-gray-500">
+              <p className="font-bold text-primary hover:underline">{user.name}</p>
+              <p className="text-sm text-muted-foreground">
                 {user.phone} - {user.role} - {format(new Date(user.createdAt), "dd MMM yyyy")}
               </p>
             </Link>
-            <button
-              type="button"
+            <Button
+              variant={user.disabled ? "default" : "destructive"}
               onClick={() => toggle.mutate({ id: user.id, disabled: !user.disabled })}
-              className={`rounded-xl px-4 py-2 font-semibold text-white ${user.disabled ? "bg-green-600" : "bg-red-600"}`}
             >
               {user.disabled ? "Enable" : "Disable"}
-            </button>
+            </Button>
           </div>
         ))}
       </div>
