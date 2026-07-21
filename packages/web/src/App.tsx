@@ -16,6 +16,7 @@ import AdminUserDetail from "./pages/admin/UserDetail";
 import AdminUsers from "./pages/admin/Users";
 import AdminWallet from "./pages/admin/Wallet";
 import AdminWithdrawals from "./pages/admin/Withdrawals";
+import DeleteAccount from "./pages/legal/DeleteAccount";
 import DoctorCall from "./pages/doctor/Call";
 import DoctorDashboard from "./pages/doctor/Dashboard";
 import DoctorHistory from "./pages/doctor/History";
@@ -58,6 +59,7 @@ export default function App() {
       <Route path="/" element={<KioskHome />} />
       <Route path="/register" element={<KioskRegister />} />
       <Route path="/login" element={<KioskLogin />} />
+      <Route path="/delete-account" element={<DeleteAccount />} />
       <Route path="/dashboard" element={<RequireRole role="PATIENT"><KioskDashboard /></RequireRole>} />
       <Route path="/consult" element={<RequireRole role="PATIENT"><KioskConsult /></RequireRole>} />
       <Route path="/prescription/:id" element={<RequireRole role="PATIENT"><KioskPrescription /></RequireRole>} />
