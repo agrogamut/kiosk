@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
+import bcrypt from "bcryptjs";
 import { AccountDeleteInitiateSchema, AccountDeleteVerifySchema } from "@madamgy/api-client";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
@@ -31,10 +32,17 @@ accountRouter.post(
       // Same response whether the phone exists or not -- don't let this endpoint
       // become a way to enumerate registered phone numbers.
       if (user && !user.deletedAt && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
-        const otp = await storeOtp(phone);
-        await sendOtpSms(phone, otp);
+        Promise.resolve()
+          .then(async () => {
+            const otp = await storeOtp(phone);
+            await sendOtpSms(phone, otp);
+          })
+          .catch((error) => {
+            console.error("otp send failed for", phone, error);
+          });
       }
 
+      await recordFailedAttempt(attemptKey);
       res.json({ message: "If this phone number has an account, an OTP has been sent." });
     } catch (error) {
       next(error);
@@ -46,7 +54,7 @@ accountRouter.post(
   "/delete/verify",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { phone, otp } = AccountDeleteVerifySchema.parse(req.body);
+      const { phone, otp, password } = AccountDeleteVerifySchema.parse(req.body);
       const attemptKey = `account_delete_verify:${phone}`;
       await checkAttemptLimit(attemptKey);
 
@@ -60,6 +68,17 @@ accountRouter.post(
       const user = await prisma.user.findUnique({ where: { phone } });
       if (!user || user.role === "ADMIN" || user.role === "SUPER_ADMIN") {
         throw new AppError(404, "Account not found");
+      }
+
+      // Doctors require password verification (same as their login flow)
+      if (user.role === "DOCTOR") {
+        if (!password || !user.passwordHash) {
+          throw new AppError(401, "Invalid credentials");
+        }
+        const validPassword = await bcrypt.compare(password, user.passwordHash);
+        if (!validPassword) {
+          throw new AppError(401, "Invalid credentials");
+        }
       }
 
       await anonymizeUser(user.id);
