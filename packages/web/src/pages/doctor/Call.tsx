@@ -84,7 +84,7 @@ export default function DoctorCall() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <div className="h-[55vh]">
+      <div className="h-[55vh] lg:h-[70vh]">
         <DoctorCallView
           token={storedLivekitToken}
           serverUrl={import.meta.env.VITE_LIVEKIT_URL ?? "ws://localhost:7880"}
