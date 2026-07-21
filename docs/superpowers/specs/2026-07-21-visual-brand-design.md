@@ -71,6 +71,21 @@ Project is Vite + Tailwind v3 (`tailwindcss ^3.4.0`), not Next.js/Tailwind v4 �
 - **Components to add:** `input`, `label` (the clean field style that prompted this — floating/inline label, clear focus ring in rose), `button`, `card`, `alert` (error states — patient-facing copy per the writing guidance below), `badge` (call status, doctor online/offline), `table` + `dropdown-menu` (admin), `sheet` (mobile filter panels, admin), `dialog` + `alert-dialog` (destructive confirms — `alert-dialog` specifically for anything irreversible: delete account, end call), `skeleton` (loading placeholders), `avatar` (doctor/patient photos — gray-circle placeholder already confirmed as intentional, not final).
 - Existing hand-rolled components (`NumPad.tsx`, `VitalsForm.tsx`) are restyled with the new tokens, not replaced — they're kiosk-specific interaction patterns shadcn doesn't have equivalents for.
 
+## Entry & auth consolidation
+
+**Problem:** the current app has four disconnected entry points — `Home.tsx` (a button grid: New Patient / Returning Patient / Doctor Login / Admin Login), `kiosk/Login.tsx` (phone→OTP, no password), `doctor/Login.tsx` (phone+password→OTP), `admin/Login.tsx` (phone+password, no OTP, react-hook-form) — each independently styled with no shared shell. First contact with the app is a decision (which button?) followed by a visually unrelated page. This is the single most important screen to fix since it's the one every user sees first, every time.
+
+**Decision:** collapse all three login flows into one `Entry` screen at `/`, replacing `Home.tsx` entirely.
+
+- A role selector (`<Select>`, shadcn) labeled "I am a", options Patient / Doctor / Admin, defaulting to **Patient** — the default costs a patient zero extra taps (no button-grid decision, no reading four labels to find the right one), while doctor/admin (low-volume, higher-trust users who know to look for the switcher) get one dropdown tap.
+- Below the selector, one shared shell (`Card`, consistent step transition, consistent button placement) whose fields change by role, not its container or interaction rhythm:
+  - **Patient:** phone → "Send OTP" → 6-digit OTP (reusing `NumPad.tsx`) → "Log in" → `/dashboard`. Below the form: "New here? Create an account" → `/register`.
+  - **Doctor:** phone + password → "Send OTP" → 6-digit OTP → "Verify and log in" → `/doctor`. Below the form: "Need approval? Register" → `/doctor/register`.
+  - **Admin:** phone + password → "Sign in" (no OTP step — matches the existing backend contract, admin accounts are individually provisioned, not self-registered) → `/admin`.
+- `/doctor/login` and `/admin/login` become redirects to `/?role=doctor` and `/?role=admin` (not deleted outright) in case anything external links to them.
+- `/register` (patient signup) and `/doctor/register` (doctor approval request) are unchanged, separate routes — they're signup flows, not login, and don't belong inside the role switcher.
+- Backend contract is unchanged (`/auth/patient/login/otp/*`, `/auth/doctor/login/*`, `/auth/admin/login` — same three endpoints, same request/response shapes); this is purely a frontend consolidation of three page components into one parameterized component (`pages/Entry.tsx`, sharing role-specific step logic extracted into small hooks or inline switches).
+
 ## Content/copy pass
 
 Per the frontend-design writing guidance: rewrite the placeholder-y bits found in the current wiring-only pages —
@@ -80,11 +95,13 @@ Per the frontend-design writing guidance: rewrite the placeholder-y bits found i
 
 ## Page/component inventory in scope
 
-**Kiosk (patient), single-column phone screens:** `Home.tsx`, `Register.tsx`, `Login.tsx`, `Dashboard.tsx`, `Consult.tsx`, `Prescription.tsx`, `components/kiosk/NumPad.tsx`, `components/kiosk/VitalsForm.tsx`, `components/kiosk/IdleGuard.tsx`, `components/video/KioskCallView.tsx`, `components/prescription/*`.
+**Entry (new, replaces `kiosk/Home.tsx`, `kiosk/Login.tsx`, `doctor/Login.tsx`, `admin/Login.tsx`):** `pages/Entry.tsx` at `/` — see "Entry & auth consolidation" above.
 
-**Doctor, single-column phone screens:** `Login.tsx`, `Register.tsx`, `Dashboard.tsx`, `Call.tsx`, `Wallet.tsx`, `History.tsx`, `components/video/DoctorCallView.tsx`, `components/call/*`, `components/wallet/WalletPanel.tsx`.
+**Kiosk (patient), single-column phone screens:** `Register.tsx`, `Dashboard.tsx`, `Consult.tsx`, `Prescription.tsx`, `components/kiosk/NumPad.tsx`, `components/kiosk/VitalsForm.tsx`, `components/kiosk/IdleGuard.tsx`, `components/video/KioskCallView.tsx`, `components/prescription/*`.
 
-**Admin, desktop dashboard layout:** `Login.tsx`, `Dashboard.tsx`, `Doctors.tsx`, `Users.tsx`, `UserDetail.tsx`, `Stats.tsx`, `Calls.tsx`, `Withdrawals.tsx`, `Devices.tsx`, `Wallet.tsx`, `Patients.tsx`, `AuditLog.tsx`.
+**Doctor, single-column phone screens:** `Register.tsx`, `Dashboard.tsx`, `Call.tsx`, `Wallet.tsx`, `History.tsx`, `components/video/DoctorCallView.tsx`, `components/call/*`, `components/wallet/WalletPanel.tsx`.
+
+**Admin, desktop dashboard layout:** `Dashboard.tsx`, `Doctors.tsx`, `Users.tsx`, `UserDetail.tsx`, `Stats.tsx`, `Calls.tsx`, `Withdrawals.tsx`, `Devices.tsx`, `Wallet.tsx`, `Patients.tsx`, `AuditLog.tsx`.
 
 **Legal (public, unauthenticated):** `DeleteAccount.tsx`, `PrivacyPolicy.tsx` — same token system, simple single-column readable layout, no app-shell chrome (these render outside a logged-in session and need to look trustworthy/legitimate to Play Store reviewers and end users deleting their data).
 
