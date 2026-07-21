@@ -17,6 +17,7 @@ import {
 } from "../../components/ui/alert-dialog";
 import { Button } from "../../components/ui/button";
 import { IdleGuard } from "../../components/kiosk/IdleGuard";
+import { KioskHeader } from "../../components/layout/KioskHeader";
 import { ErrorState } from "../../components/common/ErrorState";
 import { SkeletonRows } from "../../components/common/SkeletonRows";
 import { api } from "../../lib/api";
@@ -91,6 +92,7 @@ export default function KioskDashboard() {
   return (
     <div className="min-h-screen bg-background">
       <IdleGuard />
+      <KioskHeader />
       <div className="mx-auto max-w-md px-6 py-10 sm:max-w-lg lg:max-w-2xl">
         <div className="mb-8 flex flex-col gap-4">
           <div>
