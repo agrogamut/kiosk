@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { api } from "../../lib/api";
 import { logout } from "../../lib/logout";
+import { getApiErrorMessage } from "../../lib/errors";
 import { connectSocket, getSocket } from "../../lib/socket";
 import { useAuthStore } from "../../store/auth.store";
 import { useCallStore } from "../../store/call.store";
@@ -22,6 +23,7 @@ export default function DoctorDashboard() {
   const navigate = useNavigate();
   const [isAvailable, setIsAvailable] = useState(false);
   const [incoming, setIncoming] = useState<IncomingCall | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     api
@@ -83,6 +85,16 @@ export default function DoctorDashboard() {
     navigate("/doctor/login");
   }
 
+  async function deleteAccount(): Promise<void> {
+    try {
+      await api.delete("/account/me");
+      await logout();
+      navigate("/doctor/login");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Could not delete account"));
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="mx-auto max-w-2xl">
@@ -131,6 +143,28 @@ export default function DoctorDashboard() {
             </div>
           </div>
         )}
+
+        <div className="mt-8 border-t pt-6 text-center">
+          {confirmingDelete ? (
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-sm text-gray-600">
+                This permanently deletes your account. Any wallet balance must be withdrawn first. This cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => void deleteAccount()} className="rounded-xl bg-red-600 px-4 py-2 font-semibold text-white">
+                  Yes, delete my account
+                </button>
+                <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-xl bg-gray-100 px-4 py-2 font-semibold text-gray-700">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setConfirmingDelete(true)} className="text-sm text-red-600 underline">
+              Delete my account
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

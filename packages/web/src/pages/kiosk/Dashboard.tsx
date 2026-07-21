@@ -7,6 +7,7 @@ import type { HealthFile } from "@madamgy/api-client";
 import { IdleGuard } from "../../components/kiosk/IdleGuard";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
+import { logout } from "../../lib/logout";
 import { connectSocket } from "../../lib/socket";
 import { useAuthStore } from "../../store/auth.store";
 
@@ -14,6 +15,7 @@ export default function KioskDashboard() {
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
   const [uploading, setUploading] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const { data: files, refetch } = useQuery({
     queryKey: ["health-files"],
     queryFn: () => api.get<HealthFile[]>("/health-files").then((response) => response.data),
@@ -54,6 +56,16 @@ export default function KioskDashboard() {
       await refetch();
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Delete failed"));
+    }
+  }
+
+  async function deleteAccount(): Promise<void> {
+    try {
+      await api.delete("/account/me");
+      await logout();
+      navigate("/");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Could not delete account"));
     }
   }
 
@@ -112,6 +124,26 @@ export default function KioskDashboard() {
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="mt-8 border-t pt-6 text-center">
+          {confirmingDelete ? (
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-sm text-gray-600">This permanently deletes your account. This cannot be undone.</p>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => void deleteAccount()} className="rounded-xl bg-red-600 px-4 py-2 font-semibold text-white">
+                  Yes, delete my account
+                </button>
+                <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-xl bg-gray-100 px-4 py-2 font-semibold text-gray-700">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setConfirmingDelete(true)} className="text-sm text-red-600 underline">
+              Delete my account
+            </button>
+          )}
         </div>
       </div>
     </div>
