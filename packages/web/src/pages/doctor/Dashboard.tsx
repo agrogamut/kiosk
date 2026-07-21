@@ -136,7 +136,7 @@ export default function DoctorDashboard() {
 
         {incoming && (
           <div className="rounded-xl bg-card p-6 shadow-sm ring-1 ring-primary/30">
-            <h2 className="mb-2 text-xl font-bold text-foreground">Incoming call</h2>
+            <h2 className="font-display mb-2 text-xl font-bold text-foreground">Incoming call</h2>
             <p className="mb-4 text-foreground">
               Patient: <strong>{incoming.patient.name}</strong>
             </p>

@@ -80,7 +80,7 @@ export function CallChatPanel({ callSessionId }: CallChatPanelProps) {
   return (
     <div className="flex h-full min-h-0 flex-col rounded-xl bg-card shadow-sm">
       <div className="border-b border-input px-4 py-3">
-        <h3 className="font-semibold text-foreground">Call chat</h3>
+        <h3 className="font-display font-semibold text-foreground">Call chat</h3>
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
         {messages.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No messages yet</p>}

@@ -51,7 +51,7 @@ export function PatientHistoryPanel({ patientId }: PatientHistoryPanelProps) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-4">
       <div>
-        <h4 className="mb-2 font-semibold text-foreground">Health files</h4>
+        <h4 className="font-display mb-2 font-semibold text-foreground">Health files</h4>
         {data.healthFiles.length === 0 && <p className="text-sm text-muted-foreground">No health files.</p>}
         <div className="flex flex-col gap-2">
           {data.healthFiles.map((file) => (
@@ -72,7 +72,7 @@ export function PatientHistoryPanel({ patientId }: PatientHistoryPanelProps) {
         </div>
       </div>
       <div>
-        <h4 className="mb-2 font-semibold text-foreground">Past prescriptions</h4>
+        <h4 className="font-display mb-2 font-semibold text-foreground">Past prescriptions</h4>
         {data.prescriptions.length === 0 && <p className="text-sm text-muted-foreground">No past prescriptions.</p>}
         <div className="flex flex-col gap-2">
           {data.prescriptions.map((prescription) => (

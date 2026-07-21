@@ -94,7 +94,7 @@ export default function DoctorCall() {
 
       <div className="grid min-h-0 flex-1 gap-4 border-t border-input bg-background p-4 lg:grid-cols-[1fr_24rem]">
         <div className="flex min-h-0 flex-col">
-          <h3 className="mb-2 text-lg font-semibold text-foreground">Prescription</h3>
+          <h3 className="font-display mb-2 text-lg font-semibold text-foreground">Prescription</h3>
           <div className="min-h-[120px] flex-1 rounded-lg border border-input bg-card p-3 text-foreground">
             <EditorContent editor={editor} />
           </div>

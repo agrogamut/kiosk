@@ -68,7 +68,7 @@ export default function WalletPanel({ apiBasePath }: WalletPanelProps) {
         </div>
 
         <form onSubmit={handleSubmit((data) => withdraw.mutate(data))} className="mb-8 rounded-xl bg-card p-6 shadow-sm">
-          <h2 className="mb-4 text-xl font-bold text-foreground">Request withdrawal</h2>
+          <h2 className="font-display mb-4 text-xl font-bold text-foreground">Request withdrawal</h2>
           <div className="flex flex-col gap-4">
             {FIELDS.map((field) => (
               <div key={field.name}>
@@ -89,7 +89,7 @@ export default function WalletPanel({ apiBasePath }: WalletPanelProps) {
           </Button>
         </form>
 
-        <h2 className="mb-4 text-xl font-bold text-foreground">Transactions</h2>
+        <h2 className="font-display mb-4 text-xl font-bold text-foreground">Transactions</h2>
         <div className="flex flex-col gap-2">
           {transactions?.transactions.length === 0 && (
             <p className="py-8 text-center text-muted-foreground">No transactions yet.</p>
