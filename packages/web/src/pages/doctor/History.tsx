@@ -1,12 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import type { CallSession } from "@madamgy/api-client";
+import { Badge } from "../../components/ui/badge";
 import { api } from "../../lib/api";
 
 interface HistoryResponse {
   calls: (CallSession & { patient: { name: string } })[];
   total: number;
 }
+
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  ENDED: "default",
+  NO_DOCTOR: "destructive",
+};
 
 export default function DoctorHistory() {
   const { data } = useQuery({
@@ -15,30 +21,21 @@ export default function DoctorHistory() {
   });
 
   return (
-    <div className="mx-auto max-w-2xl p-8">
-      <h1 className="mb-8 text-3xl font-bold">Call History</h1>
-      <div className="flex flex-col gap-3">
-        {data?.calls.map((call) => (
-          <div key={call.id} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-background px-6 py-10">
+      <div className="mx-auto max-w-2xl">
+        <h1 className="font-display mb-8 text-2xl font-bold text-foreground">Call history</h1>
+        <div className="flex flex-col gap-3">
+          {data?.calls.length === 0 && <p className="py-12 text-center text-muted-foreground">No calls yet.</p>}
+          {data?.calls.map((call) => (
+            <div key={call.id} className="flex items-center justify-between gap-4 rounded-lg bg-card p-5 shadow-sm">
               <div>
-                <p className="font-semibold">{call.patient?.name}</p>
-                <p className="text-sm text-gray-500">{format(new Date(call.createdAt), "dd MMM yyyy HH:mm")}</p>
+                <p className="font-semibold text-foreground">{call.patient?.name}</p>
+                <p className="text-sm text-muted-foreground">{format(new Date(call.createdAt), "dd MMM yyyy HH:mm")}</p>
               </div>
-              <span
-                className={`rounded-full px-3 py-1 text-sm font-medium ${
-                  call.status === "ENDED"
-                    ? "bg-green-100 text-green-700"
-                    : call.status === "NO_DOCTOR"
-                      ? "bg-red-100 text-red-700"
-                      : "bg-gray-100 text-gray-700"
-                }`}
-              >
-                {call.status}
-              </span>
+              <Badge variant={STATUS_VARIANT[call.status] ?? "secondary"}>{call.status}</Badge>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
