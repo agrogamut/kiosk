@@ -40,78 +40,78 @@ export default function AdminUserDetail() {
   });
 
   if (!data) {
-    return <div className="p-8">Loading...</div>;
+    return <div className="p-8 text-foreground">Loading...</div>;
   }
 
   const { user, healthFiles, prescriptions, callsAsPatient, callsAsDoctor } = data;
   const calls = user.role === "DOCTOR" ? callsAsDoctor : callsAsPatient;
 
   return (
-    <div className="mx-auto max-w-4xl p-8">
-      <Link to={user.role === "DOCTOR" ? "/admin/doctors" : "/admin/users"} className="mb-4 inline-block text-blue-700 hover:underline">
+    <div className="mx-auto max-w-4xl px-6 py-10">
+      <Link to={user.role === "DOCTOR" ? "/admin/doctors" : "/admin/users"} className="mb-4 inline-block text-primary hover:underline">
         &larr; Back
       </Link>
-      <h1 className="mb-2 text-3xl font-bold">{user.name}</h1>
-      <p className="mb-8 text-gray-500">
+      <h1 className="font-display mb-2 text-2xl font-bold text-foreground">{user.name}</h1>
+      <p className="mb-8 text-muted-foreground">
         {user.phone} - {user.role} - Joined {format(new Date(user.createdAt), "dd MMM yyyy")} - {user.disabled ? "Disabled" : "Active"}
       </p>
 
       {user.patientProfile && (
-        <section className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h2 className="mb-3 text-xl font-semibold">Patient Profile</h2>
-          <p className="text-gray-700">
-            Height: {user.patientProfile.heightCm ?? "-"} cm, Weight: {user.patientProfile.weightKg ?? "-"} kg, Blood Type:{" "}
+        <section className="mb-8 rounded-xl bg-card p-6 shadow-sm">
+          <h2 className="mb-3 text-lg font-semibold text-foreground">Patient profile</h2>
+          <p className="text-foreground">
+            Height: {user.patientProfile.heightCm ?? "-"} cm, Weight: {user.patientProfile.weightKg ?? "-"} kg, Blood type:{" "}
             {user.patientProfile.bloodType ?? "-"}
           </p>
         </section>
       )}
 
       {user.doctorProfile && (
-        <section className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h2 className="mb-3 text-xl font-semibold">Doctor Profile</h2>
-          <p className="text-gray-700">
+        <section className="mb-8 rounded-xl bg-card p-6 shadow-sm">
+          <h2 className="mb-3 text-lg font-semibold text-foreground">Doctor profile</h2>
+          <p className="text-foreground">
             {user.doctorProfile.degree} - Reg: {user.doctorProfile.regNumber} - {user.doctorProfile.specialization ?? "General"}
           </p>
-          <p className="mt-2 text-gray-700">
-            Approved: {user.doctorProfile.isApproved ? "Yes" : "No"} - Wallet Balance: Rs. {user.walletBalance}
+          <p className="mt-2 text-foreground">
+            Approved: {user.doctorProfile.isApproved ? "Yes" : "No"} - Wallet balance: Rs. {user.walletBalance}
           </p>
         </section>
       )}
 
       <section className="mb-8">
-        <h2 className="mb-3 text-xl font-semibold">Health Folder ({healthFiles.length})</h2>
+        <h2 className="mb-3 text-lg font-semibold text-foreground">Health folder ({healthFiles.length})</h2>
         <div className="flex flex-col gap-2">
           {healthFiles.map((file) => (
-            <div key={file.id} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div key={file.id} className="rounded-lg bg-card p-4 text-foreground shadow-sm">
               {file.name} - {file.type} - {format(new Date(file.createdAt), "dd MMM yyyy")}
             </div>
           ))}
-          {healthFiles.length === 0 && <p className="text-gray-500">No files.</p>}
+          {healthFiles.length === 0 && <p className="text-muted-foreground">No files.</p>}
         </div>
       </section>
 
       <section className="mb-8">
-        <h2 className="mb-3 text-xl font-semibold">Prescriptions ({prescriptions.length})</h2>
+        <h2 className="mb-3 text-lg font-semibold text-foreground">Prescriptions ({prescriptions.length})</h2>
         <div className="flex flex-col gap-2">
           {prescriptions.map((rx) => (
-            <div key={rx.id} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div key={rx.id} className="rounded-lg bg-card p-4 text-foreground shadow-sm">
               {rx.patient.name} with Dr. {rx.doctor.name} - {format(new Date(rx.createdAt), "dd MMM yyyy")} -{" "}
               {rx.pdfReady ? "PDF ready" : "Pending"}
             </div>
           ))}
-          {prescriptions.length === 0 && <p className="text-gray-500">No prescriptions.</p>}
+          {prescriptions.length === 0 && <p className="text-muted-foreground">No prescriptions.</p>}
         </div>
       </section>
 
       <section>
-        <h2 className="mb-3 text-xl font-semibold">Call History ({calls.length})</h2>
+        <h2 className="mb-3 text-lg font-semibold text-foreground">Call history ({calls.length})</h2>
         <div className="flex flex-col gap-2">
           {calls.map((call) => (
-            <div key={call.id} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div key={call.id} className="rounded-lg bg-card p-4 text-foreground shadow-sm">
               {call.status} - {format(new Date(call.createdAt), "dd MMM yyyy HH:mm")}
             </div>
           ))}
-          {calls.length === 0 && <p className="text-gray-500">No calls.</p>}
+          {calls.length === 0 && <p className="text-muted-foreground">No calls.</p>}
         </div>
       </section>
     </div>
