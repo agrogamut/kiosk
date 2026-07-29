@@ -75,24 +75,35 @@ export default function Entry() {
 
   const displayRole: EntryRole = locked ? (showUnlock ? "ADMIN" : "PATIENT") : role;
 
-  const staleSessionClearedRef = useRef(false);
+  const staleSessionCheckedRef = useRef(false);
 
-  // A locked, patient-only screen (no unlock attempt underway) must never sit on top of a
-  // leftover ADMIN/SUPER_ADMIN session -- that session is persisted across app restarts, and
-  // RequireRole gates purely on it, so anyone at this terminal could otherwise navigate straight
-  // into the admin dashboard without ever seeing this screen. Patients are unaffected.
+  // A freshly-mounted, locked, patient-only screen must never sit on top of a leftover
+  // ADMIN/SUPER_ADMIN session -- that session is persisted across app restarts, and RequireRole
+  // gates purely on it, so anyone at this terminal could otherwise navigate straight into the
+  // admin dashboard without ever seeing this screen. Patients are unaffected.
+  //
+  // This check runs exactly once, at mount, reading a one-time snapshot of the store instead of
+  // reacting to `locked`/`showUnlock`. It must NOT re-run when `locked` flips true later in this
+  // same mount's lifetime: `signInAdmin` calls `lockDevice()` (synchronous zustand update) before
+  // `navigate()` (async) unmounts this component, so a reactive version of this effect would
+  // catch that one intermediate commit -- where `locked` is already true but `showUnlock` is
+  // still false -- and force-log-out the admin session that JUST succeeded. A mount-only check
+  // still catches every real stale-session case (fresh device, app reopened, back-button return)
+  // because those all genuinely start from a fresh mount of this component, with `showUnlock`
+  // (local useState, always false on a fresh mount) already false at that point.
   useEffect(() => {
-    if (locked && !showUnlock) {
-      const staleUser = useAuthStore.getState().user;
-      const isPrivileged = staleUser?.role === "ADMIN" || staleUser?.role === "SUPER_ADMIN";
-      if (isPrivileged && !staleSessionClearedRef.current) {
-        staleSessionClearedRef.current = true;
-        void logout();
-      }
-    } else {
-      staleSessionClearedRef.current = false;
+    // Guards against React StrictMode's dev-only double-invoke of effects, which would otherwise
+    // run this mount check (and potentially `logout()`) twice for the same real mount.
+    if (staleSessionCheckedRef.current) return;
+    staleSessionCheckedRef.current = true;
+
+    const wasLockedAtMount = useKioskStore.getState().locked;
+    const staleUser = useAuthStore.getState().user;
+    const isPrivileged = staleUser?.role === "ADMIN" || staleUser?.role === "SUPER_ADMIN";
+    if (wasLockedAtMount && isPrivileged) {
+      void logout();
     }
-  }, [locked, showUnlock]);
+  }, []);
 
   function changeRole(value: EntryRole): void {
     setRole(value);
@@ -186,10 +197,23 @@ export default function Entry() {
       setAuth(response.data.accessToken, response.data.user);
 
       if (response.data.user.role === "ADMIN") {
+        // `locked` here is the reactive value as of this render, i.e. the device's lock state
+        // immediately before this login -- so this is true only on the device's very first lock.
+        // Registration re-runs on every login for self-healing, but the label should only be set
+        // once: sending it on every login would silently overwrite any custom label an admin set
+        // later via /admin/devices. Omitting the field (rather than sending it as `undefined`) is
+        // equally safe here -- the schema treats `label` as optional, and the upsert's `update`
+        // clause only touches fields it's given -- but omitting is the more explicit choice.
+        const isFirstLock = !locked;
         try {
-          await api.post("/admin/kiosk-devices", { deviceId, label: response.data.user.name });
+          await api.post(
+            "/admin/kiosk-devices",
+            isFirstLock ? { deviceId, label: response.data.user.name } : { deviceId },
+          );
           lockDevice();
-          toast.success("This device is now locked as your kiosk. Long-press the logo to sign in again.");
+          if (isFirstLock) {
+            toast.success("This device is now locked as your kiosk. Long-press the logo to sign in again.");
+          }
         } catch (error) {
           // Registration can fail (e.g. this device is already claimed, active, by a
           // different admin) -- the admin still reaches their dashboard normally,
