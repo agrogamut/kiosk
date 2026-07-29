@@ -44,6 +44,8 @@ interface KioskState {
 - `deviceId` is generated once via `crypto.randomUUID()` on first read if not already present, then persisted — same lazy-init-on-first-access shape as any other persisted zustand store here.
 - `locked` defaults to `false` (today's full role-picker behavior) until an admin completes the kiosk-login flow described below.
 
+**Implementation note:** in the actual `kiosk.store.ts`, `deviceId` and `locked` end up under two separate `localStorage` keys rather than both living inside zustand's persisted blob. `deviceId` is read/written directly against its own `madamgy-kiosk-device-id` key the first time the store initializes (outside of zustand's `persist` middleware entirely), while only `locked` is persisted through zustand's `persist` (`partialize` explicitly keeps just `locked`, under the `madamgy-kiosk` key). Functionally this is equivalent to what's described above — a stable per-install ID plus a persisted lock flag — just split across two storage entries instead of one.
+
 ---
 
 ## Kiosk login and auto-registration
@@ -52,11 +54,13 @@ Reuses the existing admin login (`POST /auth/admin/login`, phone+password — al
 
 Flow, added to `Entry.tsx`'s existing `signInAdmin` success path:
 1. Admin selects "Admin" from the (still-visible, since device isn't locked yet) role dropdown and logs in as today.
-2. On successful admin login, call `POST /admin/kiosk-devices` with this device's `deviceId` (label optional — can default to something like the admin's name, editable later from the existing `/admin/devices` page which is unaffected by this spec).
-3. On success, call `kiosk.store`'s `lock()` and navigate to `/admin` as today — the admin still lands on their own dashboard immediately after logging in; the lock only affects what the screen shows *the next time* the app is opened on this device.
-4. If registration fails (e.g. 409, another admin already owns this device), surface the existing error and do **not** lock the device — admin still reaches their dashboard normally, device stays fully open. Locking only ever happens on a successful registration.
+2. On every successful `ADMIN`-role login — not just the first one on a given device — call `POST /admin/kiosk-devices` with this device's `deviceId` and the admin's own name as `label` (editable later from the existing `/admin/devices` page, which is unaffected by this spec). The endpoint is an idempotent upsert, so re-registering an already-registered device is a safe no-op; this also makes attribution self-healing (see "Unlock flow" below).
+3. On success, call `kiosk.store`'s `lock()`, show a brief confirmation toast, and navigate to `/admin` as today — the admin still lands on their own dashboard immediately after logging in; the lock only affects what the screen shows *the next time* the app is opened on this device.
+4. If registration fails (e.g. 409, another admin already owns this device), surface an error toast (a specific message for the 409 case, a generic one otherwise) and do **not** lock the device — admin still reaches their dashboard normally, device stays fully open. Locking only ever happens on a successful registration.
 
 This means a device only ever locks after a deliberate, successful admin action — never automatically or silently.
+
+`SUPER_ADMIN` logins are excluded from this entirely: only `ADMIN`-role logins trigger registration and locking. A super-admin's own dashboard access is never gated behind a kiosk lock.
 
 ---
 
@@ -69,11 +73,13 @@ When `kiosk.store().locked` is `true`, `Entry.tsx` renders differently:
 
 ## Unlock flow
 
-Tapping/triggering the hidden affordance shows the existing admin phone+password form (same fields, same `signInAdmin` submit handler, no new backend call — this is just the existing admin-login form rendered in place). On success:
-- Do **not** re-run kiosk-device registration (already registered) — just navigate to `/admin` as today.
-- Session-scoped unlock only: this doesn't call `kiosk.store().unlock()` persistently. The device goes straight back to locked (patient-only) the next time `Entry.tsx` mounts fresh (app reopen / logout), matching the earlier decision that this is a peek-in, not a permanent unlock. `RequireRole`'s existing behavior (redirect to `/` on missing/invalid auth) already handles returning to `Entry.tsx` correctly when the admin's session ends — no changes needed there.
+Tapping/triggering the hidden affordance shows the existing admin phone+password form (same fields, same `signInAdmin` submit handler). On success:
+- Kiosk registration is re-run on this login too (see "Kiosk login and auto-registration" above) — this is what makes attribution self-healing: if the `Kiosk` row backing this device was deactivated behind the scenes (e.g. from `/admin/devices`, or a super-admin force-deactivation) without the client's local `locked` flag ever changing, a device could otherwise get stuck silently un-attributed forever with no recovery path. Re-running the upsert on every admin login reactivates it automatically.
+- Session-scoped unlock only: this still doesn't call `kiosk.store().unlock()` persistently. The device goes straight back to locked (patient-only) the next time `Entry.tsx` mounts fresh (app reopen / logout), matching the earlier decision that this is a peek-in, not a permanent unlock. `RequireRole`'s existing behavior (redirect to `/` on missing/invalid auth) already handles returning to `Entry.tsx` correctly when the admin's session ends — no changes needed there.
 
 On failure (wrong password), show the existing error toast and stay on the hidden-form view — never falls back to showing the full role picker.
+
+**Forced logout on re-lock:** because `user` (unlike `accessToken`) is persisted across app restarts, and `RequireRole` gates purely on it, simply reopening the app after a peek-in would otherwise leave a live, resumable `ADMIN`/`SUPER_ADMIN` session sitting behind the patient-only screen — anyone at the terminal could navigate straight into `/admin/*` and see live data, without the lock screen protecting anything real underneath it. To close this, `Entry.tsx` now force-logs-out any leftover privileged session (via the full `logout()` flow in `lib/logout.ts` — server-side `/auth/logout`, socket disconnect, call-store clear, auth-store clear) the moment the screen is genuinely back in its plain locked/patient-only state (locked, no unlock attempt in progress). This never affects a patient who is mid-session on that device. Separately, `AdminShell` now also renders the existing `IdleGuard` component, so an admin who peeks in and then walks away mid-session (without the app ever restarting) is auto-logged-out after 5 minutes of inactivity, same as other guarded pages in the app.
 
 ---
 
@@ -99,9 +105,11 @@ Left as-is. It remains useful for:
 - Fresh device (no persisted `kiosk.store` state): `Entry.tsx` shows the full role picker, unchanged from today.
 - Admin logs in successfully on a fresh device → device becomes registered (`Kiosk` row created/updated) and `locked` becomes `true` in persisted state.
 - Reopening the app after a successful kiosk login: `Entry.tsx` shows patient-only form, no role picker.
-- Hidden affordance → admin re-login → lands on `/admin` dashboard; reopening the app again afterward returns to the locked patient-only view (unlock does not persist).
+- Hidden affordance → admin re-login → lands on `/admin` dashboard; reopening the app again afterward returns to the locked patient-only view (unlock does not persist), and any leftover `ADMIN`/`SUPER_ADMIN` session is force-logged-out as soon as `Entry.tsx` settles back into that plain locked state.
+- Admin peeks in, then walks away without touching the app again: after 5 minutes of inactivity on any `/admin/*` route, `IdleGuard` logs them out and returns to `/` automatically.
 - Wrong password on the hidden re-login form: stays on that form with an error, never reveals the role picker.
-- Registration conflict (device already claimed by a different admin, active): login still succeeds and takes the admin to their dashboard, but the device does **not** lock and does **not** re-attribute to the new admin — existing 409 behavior surfaces as an error toast.
+- Registration conflict (device already claimed by a different admin, active): login still succeeds and takes the admin to their dashboard, but the device does **not** lock and does **not** re-attribute to the new admin — the 409 case surfaces a specific "already registered to another admin" toast; any other registration failure surfaces a generic one. Sign-in is never blocked by either.
+- Previously-registered device whose `Kiosk` row was deactivated behind the scenes (via `/admin/devices` or a super-admin force-deactivation) without the client's local `locked` flag changing: the device stays stuck showing the locked patient-only screen and silently loses attribution until an admin uses the hidden gate to log in again on it, which re-runs registration and self-heals the `Kiosk` row back to active — no manual `localStorage` clearing required.
 - Patient booking from a registered+locked device: `POST /calls` request body now includes the real `deviceId`; server resolves `assistingAdminId` correctly and the three-way split applies on call completion — end-to-end confirmation that the 2026-07-15 spec's attribution logic, previously dead code in production, now actually fires.
 - Patient booking from a never-registered device: `deviceId` sent but unresolved server-side (existing behavior) → falls to the un-attributed 65/35 split, unchanged.
 
@@ -112,4 +120,4 @@ Left as-is. It remains useful for:
 - Any change to who books, who pays, or the actor model — booking stays patient-initiated, unchanged from the 2026-07-15 spec.
 - Visual styling of the locked screen and the hidden unlock affordance — deferred to the patient-app-shell visual-design pass (subsystem 2 in the 2026-07-29 feature-batch planfile), which owns the "stylish but minimal" direction for all patient-facing screens.
 - Multi-device kiosk fleets, remote lock/unlock by a super-admin, or any change to the existing `/admin/devices` management page.
-- Idle-timeout auto-relock while the admin is mid-session on their own dashboard (current design only relocks on next app open, not via a timer) — can be added later as a small additive change if wanted.
+- Idle-timeout auto-relock while the admin is mid-session on their own dashboard was originally deferred here, but has since been added as a small additive change (see "Unlock flow" above — `AdminShell` now renders `IdleGuard`, a 5-minute inactivity auto-logout already used elsewhere in the app).
