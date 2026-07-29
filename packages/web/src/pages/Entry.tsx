@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import axios from "axios";
 import toast from "react-hot-toast";
 import {
   AdminLoginSchema,
@@ -21,6 +22,7 @@ import { Label } from "../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { api } from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
+import { logout } from "../lib/logout";
 import { useAuthStore } from "../store/auth.store";
 import { useKioskStore } from "../store/kiosk.store";
 
@@ -73,6 +75,25 @@ export default function Entry() {
 
   const displayRole: EntryRole = locked ? (showUnlock ? "ADMIN" : "PATIENT") : role;
 
+  const staleSessionClearedRef = useRef(false);
+
+  // A locked, patient-only screen (no unlock attempt underway) must never sit on top of a
+  // leftover ADMIN/SUPER_ADMIN session -- that session is persisted across app restarts, and
+  // RequireRole gates purely on it, so anyone at this terminal could otherwise navigate straight
+  // into the admin dashboard without ever seeing this screen. Patients are unaffected.
+  useEffect(() => {
+    if (locked && !showUnlock) {
+      const staleUser = useAuthStore.getState().user;
+      const isPrivileged = staleUser?.role === "ADMIN" || staleUser?.role === "SUPER_ADMIN";
+      if (isPrivileged && !staleSessionClearedRef.current) {
+        staleSessionClearedRef.current = true;
+        void logout();
+      }
+    } else {
+      staleSessionClearedRef.current = false;
+    }
+  }, [locked, showUnlock]);
+
   function changeRole(value: EntryRole): void {
     setRole(value);
     setStep("credentials");
@@ -83,15 +104,23 @@ export default function Entry() {
     navigate(ROLE_HOME[user.role]);
   }
 
-  function startUnlockHold(): void {
-    holdTimer.current = setTimeout(() => setShowUnlock(true), UNLOCK_HOLD_MS);
-  }
-
   function cancelUnlockHold(): void {
     if (holdTimer.current) {
       clearTimeout(holdTimer.current);
       holdTimer.current = null;
     }
+  }
+
+  function startUnlockHold(): void {
+    cancelUnlockHold();
+    holdTimer.current = setTimeout(() => {
+      setShowUnlock(true);
+      // The admin's long-press should always land on the credentials step, even if a patient
+      // left the screen mid-OTP-entry -- otherwise the abandoned numpad view wins below since
+      // it's checked ahead of displayRole.
+      setStep("credentials");
+      setOtp("");
+    }, UNLOCK_HOLD_MS);
   }
 
   async function sendPatientOtp(values: PatientLoginOtpInitiate): Promise<void> {
@@ -156,14 +185,22 @@ export default function Entry() {
       const response = await api.post<LoginResponse>("/auth/admin/login", values);
       setAuth(response.data.accessToken, response.data.user);
 
-      if (response.data.user.role === "ADMIN" && !locked) {
+      if (response.data.user.role === "ADMIN") {
         try {
-          await api.post("/admin/kiosk-devices", { deviceId });
+          await api.post("/admin/kiosk-devices", { deviceId, label: response.data.user.name });
           lockDevice();
-        } catch {
+          toast.success("This device is now locked as your kiosk. Long-press the logo to sign in again.");
+        } catch (error) {
           // Registration can fail (e.g. this device is already claimed, active, by a
           // different admin) -- the admin still reaches their dashboard normally,
-          // the device just doesn't lock. Never block sign-in on this.
+          // the device just doesn't lock. Never block sign-in on this, but surface it
+          // so it isn't silently invisible.
+          console.error("Kiosk device registration failed", error);
+          if (axios.isAxiosError(error) && error.response?.status === 409) {
+            toast.error("This device is already registered to another admin.");
+          } else {
+            toast.error("Could not register this device as a kiosk. Sign-in still succeeded.");
+          }
         }
       }
 
@@ -186,6 +223,7 @@ export default function Entry() {
             onMouseLeave={locked && !showUnlock ? cancelUnlockHold : undefined}
             onTouchStart={locked && !showUnlock ? startUnlockHold : undefined}
             onTouchEnd={locked && !showUnlock ? cancelUnlockHold : undefined}
+            onTouchCancel={locked && !showUnlock ? cancelUnlockHold : undefined}
           >
             <Logo className="mx-auto h-12 w-auto" />
           </div>

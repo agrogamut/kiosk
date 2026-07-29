@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { UserRole } from "@madamgy/api-client";
 import { cn } from "@/lib/utils";
+import { IdleGuard } from "../kiosk/IdleGuard";
 import { Logo } from "../brand/Logo";
 import { Button } from "../ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "../ui/sheet";
@@ -78,6 +79,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background lg:flex">
+      <IdleGuard />
       <aside className="hidden lg:flex lg:w-64 lg:shrink-0 lg:flex-col lg:gap-6 lg:border-r lg:border-border lg:bg-card lg:p-6">
         <Link to="/admin" className="inline-flex">
           <Logo />
