@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { api } from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
 import { useAuthStore } from "../store/auth.store";
+import { useKioskStore } from "../store/kiosk.store";
 
 type EntryRole = "PATIENT" | "DOCTOR" | "ADMIN";
 
@@ -38,6 +39,8 @@ const ROLE_HOME: Record<UserRole, string> = {
   SUPER_ADMIN: "/admin",
 };
 
+const UNLOCK_HOLD_MS = 800;
+
 interface LoginResponse {
   accessToken: string;
   user: { id: string; name: string; role: UserRole };
@@ -53,15 +56,22 @@ export default function Entry() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const locked = useKioskStore((state) => state.locked);
+  const lockDevice = useKioskStore((state) => state.lock);
+  const deviceId = useKioskStore((state) => state.deviceId);
   const [role, setRole] = useState<EntryRole>(() => roleFromParam(searchParams.get("role")));
   const [step, setStep] = useState<"credentials" | "otp">("credentials");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showUnlock, setShowUnlock] = useState(false);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const patientForm = useForm<PatientLoginOtpInitiate>({ resolver: zodResolver(PatientLoginOtpInitiateSchema) });
   const doctorForm = useForm<DoctorLoginInitiate>({ resolver: zodResolver(DoctorLoginInitiateSchema) });
   const adminForm = useForm<AdminLogin>({ resolver: zodResolver(AdminLoginSchema) });
+
+  const displayRole: EntryRole = locked ? (showUnlock ? "ADMIN" : "PATIENT") : role;
 
   function changeRole(value: EntryRole): void {
     setRole(value);
@@ -71,6 +81,17 @@ export default function Entry() {
 
   function enterApp(user: { role: UserRole }): void {
     navigate(ROLE_HOME[user.role]);
+  }
+
+  function startUnlockHold(): void {
+    holdTimer.current = setTimeout(() => setShowUnlock(true), UNLOCK_HOLD_MS);
+  }
+
+  function cancelUnlockHold(): void {
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+    }
   }
 
   async function sendPatientOtp(values: PatientLoginOtpInitiate): Promise<void> {
@@ -134,6 +155,18 @@ export default function Entry() {
     try {
       const response = await api.post<LoginResponse>("/auth/admin/login", values);
       setAuth(response.data.accessToken, response.data.user);
+
+      if (response.data.user.role === "ADMIN" && !locked) {
+        try {
+          await api.post("/admin/kiosk-devices", { deviceId });
+          lockDevice();
+        } catch {
+          // Registration can fail (e.g. this device is already claimed, active, by a
+          // different admin) -- the admin still reaches their dashboard normally,
+          // the device just doesn't lock. Never block sign-in on this.
+        }
+      }
+
       enterApp(response.data.user);
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not sign in. Check your phone and password."));
@@ -146,27 +179,38 @@ export default function Entry() {
     <div className="flex min-h-screen flex-col justify-center bg-background px-6 py-10">
       <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-8">
         <div className="text-center">
-          <Logo className="mx-auto h-12 w-auto" />
+          <div
+            className="select-none"
+            onMouseDown={locked && !showUnlock ? startUnlockHold : undefined}
+            onMouseUp={locked && !showUnlock ? cancelUnlockHold : undefined}
+            onMouseLeave={locked && !showUnlock ? cancelUnlockHold : undefined}
+            onTouchStart={locked && !showUnlock ? startUnlockHold : undefined}
+            onTouchEnd={locked && !showUnlock ? cancelUnlockHold : undefined}
+          >
+            <Logo className="mx-auto h-12 w-auto" />
+          </div>
           <p className="mt-2 text-muted-foreground">Your health, in one tap.</p>
         </div>
 
         <Card className="w-full rounded-lg border-none ring-0 shadow-[0_8px_24px_-8px_rgba(219,101,145,0.15)]">
           <CardContent className="flex flex-col gap-6 p-6">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="entry-role">I am a</Label>
-              <Select value={role} onValueChange={(value) => changeRole(value as EntryRole)}>
-                <SelectTrigger id="entry-role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(ROLE_LABELS) as EntryRole[]).map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {ROLE_LABELS[value]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!locked && (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="entry-role">I am a</Label>
+                <Select value={role} onValueChange={(value) => changeRole(value as EntryRole)}>
+                  <SelectTrigger id="entry-role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(ROLE_LABELS) as EntryRole[]).map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {ROLE_LABELS[value]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {step === "otp" ? (
               <div className="flex flex-col items-center gap-6">
@@ -184,7 +228,7 @@ export default function Entry() {
                   Change phone number
                 </button>
               </div>
-            ) : role === "PATIENT" ? (
+            ) : displayRole === "PATIENT" ? (
               <form onSubmit={patientForm.handleSubmit(sendPatientOtp)} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="patient-phone">Phone number</Label>
@@ -203,7 +247,7 @@ export default function Entry() {
                   </Link>
                 </p>
               </form>
-            ) : role === "DOCTOR" ? (
+            ) : displayRole === "DOCTOR" ? (
               <form onSubmit={doctorForm.handleSubmit(sendDoctorOtp)} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="doctor-phone">Phone number</Label>
@@ -248,6 +292,11 @@ export default function Entry() {
                 <Button type="submit" disabled={submitting} className="w-full rounded-full">
                   {submitting ? "Signing in..." : "Sign in"}
                 </Button>
+                {locked && showUnlock && (
+                  <button type="button" onClick={() => setShowUnlock(false)} className="text-sm font-semibold text-muted-foreground">
+                    Cancel
+                  </button>
+                )}
               </form>
             )}
           </CardContent>
