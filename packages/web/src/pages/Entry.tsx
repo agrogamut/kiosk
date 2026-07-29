@@ -219,7 +219,7 @@ export default function Entry() {
                 <Button
                   type="button"
                   disabled={submitting || otp.length !== 6}
-                  onClick={() => void (role === "DOCTOR" ? verifyDoctorOtp() : verifyPatientOtp())}
+                  onClick={() => void (displayRole === "DOCTOR" ? verifyDoctorOtp() : verifyPatientOtp())}
                   className="w-full rounded-full"
                 >
                   {submitting ? "Verifying..." : "Log in"}
