@@ -144,8 +144,8 @@ These two original asks are the same subsystem (patient-facing app shell) and ar
 ## Build order (updated 2026-07-29 — frontend-first pass)
 
 **Now — frontend-only, backend already done for all three:**
-1. **Kiosk login layer** (item 1) — lock/gate on `Entry.tsx`, hidden unlock affordance. All product questions resolved, ready for a formal spec first.
-2. **Patient app shell** (items 2 + 5) — bottom nav (glass, 3 icons, reddish tint on selected), Health Locker upload/browse UI, Profile tab, landing page fill (available-doctors row + general liveliness pass with doctor photos). All product questions resolved above; visual specifics (glass treatment, tint values, layout) go through the visual companion when this subsystem's own brainstorm starts.
+1. ~~**Kiosk login layer** (item 1)~~ — **DONE, shipped and pushed to `origin/main` 2026-07-29.** Spec: `2026-07-29-kiosk-lock-layer-design.md`. Plan: `2026-07-29-kiosk-lock-layer.md`. Built via subagent-driven-development, 8 commits, one critical React-scheduling regression found and fixed in final review. Also closed a real production bug found while grounding the spec: kiosk revenue attribution had been dead code since 2026-07-15 because `deviceId` was never actually sent on bookings.
+2. **Patient app shell** (items 2 + 5) — **in progress, 2026-07-29.** Bottom nav (glass, 3 icons, reddish tint on selected), Health Locker upload/browse UI, Profile tab, landing page fill (available-doctors row + general liveliness pass with doctor photos). Spec: `2026-07-29-patient-app-shell-design.md`.
 3. **Razorpay pre-payment screen** (item 4) — new branded summary screen in front of the existing checkout popup. Backend untouched.
 
 **Later — needs real backend work first, held per this reprioritization:**
