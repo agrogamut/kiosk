@@ -11,6 +11,7 @@ import { authRouter } from "./routes/auth.routes.js";
 import { callsRouter } from "./routes/calls.routes.js";
 import { chatRouter } from "./routes/chat.routes.js";
 import { doctorRouter } from "./routes/doctor.routes.js";
+import { doctorsRouter } from "./routes/doctors.routes.js";
 import { healthFilesRouter } from "./routes/health-files.routes.js";
 import { paymentsRouter } from "./routes/payments.routes.js";
 import { prescriptionsRouter } from "./routes/prescriptions.routes.js";
@@ -98,6 +99,7 @@ app.use("/api/health-files", healthFilesRouter);
 app.use("/api/payments", paymentsRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/doctor", doctorRouter);
+app.use("/api/doctors", doctorsRouter);
 app.use("/api/account", accountRouter);
 
 app.use(errorMiddleware);
