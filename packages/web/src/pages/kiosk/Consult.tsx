@@ -12,6 +12,7 @@ import { getSocket } from "../../lib/socket";
 import { useCallListener } from "../../hooks/useCall";
 import { useImmersiveStatusBar } from "../../hooks/useImmersiveStatusBar";
 import { useCallStore } from "../../store/call.store";
+import { useKioskStore } from "../../store/kiosk.store";
 
 interface PaymentOrder {
   paymentId: string;
@@ -53,7 +54,7 @@ export default function KioskConsult() {
 
     async function createCallWithPayment(paymentId: string, retried = false): Promise<void> {
       try {
-        const response = await api.post("/calls", { paymentId });
+        const response = await api.post("/calls", { paymentId, deviceId: useKioskStore.getState().deviceId });
         setCall(response.data);
       } catch (error: unknown) {
         if (axios.isAxiosError(error) && error.response?.status === 402 && !retried) {
@@ -100,7 +101,7 @@ export default function KioskConsult() {
 
     async function startConsult(): Promise<void> {
       try {
-        const response = await api.post("/calls");
+        const response = await api.post("/calls", { deviceId: useKioskStore.getState().deviceId });
         setCall(response.data);
       } catch (error: unknown) {
         if (axios.isAxiosError<{ callSession?: CallSession }>(error) && error.response?.status === 409 && error.response.data.callSession) {
