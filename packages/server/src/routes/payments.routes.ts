@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
-import { createPaymentOrder, markPaymentPaid, verifyWebhookSignature } from "../services/payment.service.js";
+import { createPaymentOrder, markPaymentFailed, markPaymentPaid, verifyWebhookSignature } from "../services/payment.service.js";
 
 export const paymentsRouter = Router();
 
@@ -28,6 +28,11 @@ paymentsRouter.post("/webhook", async (req: Request, res: Response, next: NextFu
     if (event.event === "payment.captured") {
       const { order_id: orderId, id: paymentId } = event.payload.payment.entity;
       await markPaymentPaid(orderId, paymentId);
+    } else if (event.event === "payment.failed") {
+      // Without this, a declined card leaves the Payment row stuck at CREATED forever --
+      // never claimable (calls.routes only claims status: "PAID"), just dead clutter that
+      // looks like a lost payment when someone goes looking.
+      await markPaymentFailed(event.payload.payment.entity.order_id);
     }
     res.json({ ok: true });
   } catch (error) {

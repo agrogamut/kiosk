@@ -3,7 +3,7 @@ import request from "supertest";
 import { app } from "../index.js";
 import { prisma } from "../lib/prisma.js";
 import { signAccessToken } from "../services/auth.service.js";
-import { markPaymentPaid, refundPayment, verifyWebhookSignature } from "../services/payment.service.js";
+import { markPaymentFailed, markPaymentPaid, refundPayment, verifyWebhookSignature } from "../services/payment.service.js";
 import crypto from "crypto";
 
 describe("Payments", () => {
@@ -64,6 +64,22 @@ describe("Payments", () => {
 
     const paid = await prisma.payment.findUniqueOrThrow({ where: { razorpayOrderId: "order_fake_test_seed" } });
     expect(paid.status).toBe("PAID");
+  });
+
+  it("marks a payment failed and leaves it unclaimable", async () => {
+    await prisma.payment.create({
+      data: {
+        patientId,
+        amount: 200,
+        razorpayOrderId: "order_fake_test_declined",
+        status: "CREATED",
+      },
+    });
+
+    await markPaymentFailed("order_fake_test_declined");
+
+    const failed = await prisma.payment.findUniqueOrThrow({ where: { razorpayOrderId: "order_fake_test_declined" } });
+    expect(failed.status).toBe("FAILED");
   });
 
   it("surfaces a clean error when refunding a payment the real Razorpay API doesn't recognize", async () => {

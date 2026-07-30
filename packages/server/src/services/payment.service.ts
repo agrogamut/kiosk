@@ -69,6 +69,13 @@ export async function markPaymentPaid(razorpayOrderId: string, razorpayPaymentId
   });
 }
 
+export async function markPaymentFailed(razorpayOrderId: string): Promise<void> {
+  await prisma.payment.updateMany({
+    where: { razorpayOrderId, status: "CREATED" },
+    data: { status: "FAILED" },
+  });
+}
+
 export async function refundPayment(paymentId: string) {
   const claimed = await prisma.payment.updateMany({
     where: { id: paymentId, status: "PAID" },

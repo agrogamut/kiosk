@@ -72,6 +72,15 @@ export default function KioskConsult() {
 
     async function payAndCreateCall(): Promise<void> {
       try {
+        if (typeof window.Razorpay !== "function") {
+          // checkout.js (loaded via a <script> tag in index.html) can fail to load --
+          // ad blockers, offline, or a flaky CDN. window.Razorpay would otherwise throw
+          // "is not a constructor" deep inside this promise with no user-facing message.
+          toast.error("Payment could not be started. Check your connection and try again.");
+          navigate("/dashboard");
+          return;
+        }
+
         const order = await api.post<PaymentOrder>("/payments/order");
         await new Promise<void>((resolve) => {
           const razorpay = new window.Razorpay({
