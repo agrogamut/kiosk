@@ -26,11 +26,12 @@ import { logout } from "../lib/logout";
 import { useAuthStore } from "../store/auth.store";
 import { useKioskStore } from "../store/kiosk.store";
 
-type EntryRole = "PATIENT" | "DOCTOR" | "ADMIN";
+type EntryRole = "PATIENT" | "DOCTOR" | "KIOSK_OWNER" | "ADMIN";
 
 const ROLE_LABELS: Record<EntryRole, string> = {
   PATIENT: "Patient",
   DOCTOR: "Doctor",
+  KIOSK_OWNER: "Kiosk Owner",
   ADMIN: "Admin",
 };
 
@@ -50,6 +51,7 @@ interface LoginResponse {
 
 function roleFromParam(value: string | null): EntryRole {
   if (value === "doctor") return "DOCTOR";
+  if (value === "kiosk-owner") return "KIOSK_OWNER";
   if (value === "admin") return "ADMIN";
   return "PATIENT";
 }
@@ -73,7 +75,7 @@ export default function Entry() {
   const doctorForm = useForm<DoctorLoginInitiate>({ resolver: zodResolver(DoctorLoginInitiateSchema) });
   const adminForm = useForm<AdminLogin>({ resolver: zodResolver(AdminLoginSchema) });
 
-  const displayRole: EntryRole = locked ? (showUnlock ? "ADMIN" : "PATIENT") : role;
+  const displayRole: EntryRole = locked ? (showUnlock ? "KIOSK_OWNER" : "PATIENT") : role;
 
   const staleSessionCheckedRef = useRef(false);
 
@@ -194,6 +196,20 @@ export default function Entry() {
     setSubmitting(true);
     try {
       const response = await api.post<LoginResponse>("/auth/admin/login", values);
+
+      // "Kiosk Owner" and "Admin" are the same login form/endpoint under the hood -- only the
+      // expected role differs. A mismatch (e.g. a kiosk owner's phone typed into the Admin
+      // entry) must never persist the token or trigger kiosk lock/registration below.
+      const expectedRole = displayRole === "KIOSK_OWNER" ? "ADMIN" : "SUPER_ADMIN";
+      if (response.data.user.role !== expectedRole) {
+        toast.error(
+          displayRole === "KIOSK_OWNER"
+            ? "That's a platform admin account -- use the Admin login instead."
+            : "That's a kiosk owner account -- use the Kiosk Owner login instead.",
+        );
+        return;
+      }
+
       setAuth(response.data.accessToken, response.data.user);
 
       if (response.data.user.role === "ADMIN") {
