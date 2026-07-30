@@ -46,6 +46,7 @@ interface AdminUserDetailData {
       regNumber: string;
       specialization: string | null;
       isApproved: boolean;
+      licenseDocKey: string | null;
     } | null;
   };
   healthFiles: { id: string; name: string; type: string; sizeBytes: number; createdAt: string }[];
@@ -234,6 +235,28 @@ function EditDoctorProfileDialog({
   );
 }
 
+function ViewLicenseButton({ userId }: { userId: string }) {
+  const [loading, setLoading] = useState(false);
+
+  async function viewLicense(): Promise<void> {
+    setLoading(true);
+    try {
+      const response = await api.get<{ url: string }>(`/admin/doctors/${userId}/license`);
+      window.open(response.data.url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Could not load the license document"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Button variant="outline" disabled={loading} onClick={() => void viewLicense()}>
+      {loading ? "Loading..." : "View license"}
+    </Button>
+  );
+}
+
 function DeleteUserButton({ id, role }: { id: string; role: string }) {
   const navigate = useNavigate();
 
@@ -331,12 +354,15 @@ export default function AdminUserDetail() {
           <section className="mb-8 rounded-xl bg-card p-6 shadow-sm">
             <div className="mb-3 flex items-center justify-between gap-4">
               <h2 className="font-display text-lg font-semibold text-foreground">Doctor profile</h2>
-              <EditDoctorProfileDialog
-                userId={user.id}
-                degree={user.doctorProfile.degree}
-                regNumber={user.doctorProfile.regNumber}
-                specialization={user.doctorProfile.specialization}
-              />
+              <div className="flex items-center gap-3">
+                {user.doctorProfile.licenseDocKey && <ViewLicenseButton userId={user.id} />}
+                <EditDoctorProfileDialog
+                  userId={user.id}
+                  degree={user.doctorProfile.degree}
+                  regNumber={user.doctorProfile.regNumber}
+                  specialization={user.doctorProfile.specialization}
+                />
+              </div>
             </div>
             <p className="text-foreground">
               {user.doctorProfile.degree} - Reg: {user.doctorProfile.regNumber} - {user.doctorProfile.specialization ?? "General"}
