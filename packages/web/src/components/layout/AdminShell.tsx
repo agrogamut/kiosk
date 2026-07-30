@@ -57,8 +57,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const items = navForRole(user?.role);
 
   async function signOut(): Promise<void> {
+    // A plain logout hands this session's admin straight back to their own login form --
+    // not the patient-lock screen a locked device otherwise defaults to. "Lock this device"
+    // below is the only action that's supposed to end at the patient screen.
+    const forceEntryRole = user?.role === "ADMIN" ? "KIOSK_OWNER" : "ADMIN";
     await logout();
-    navigate("/admin/login");
+    navigate("/", { state: { forceEntryRole } });
   }
 
   async function lockThisDevice(): Promise<void> {
@@ -67,7 +71,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
       await api.post("/admin/kiosk-devices", { deviceId, label: user?.name });
       lockAsKiosk();
       toast.success("Device locked as your kiosk. Long-press the logo to sign in again.");
-      await signOut();
+      await logout();
+      navigate("/");
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not lock this device. Try again."));
     } finally {

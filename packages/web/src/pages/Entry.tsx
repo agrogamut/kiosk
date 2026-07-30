@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
@@ -58,6 +58,7 @@ function roleFromParam(value: string | null): EntryRole {
 
 export default function Entry() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const setAuth = useAuthStore((state) => state.setAuth);
   const locked = useKioskStore((state) => state.locked);
@@ -75,7 +76,13 @@ export default function Entry() {
   const doctorForm = useForm<DoctorLoginInitiate>({ resolver: zodResolver(DoctorLoginInitiateSchema) });
   const adminForm = useForm<AdminLogin>({ resolver: zodResolver(AdminLoginSchema) });
 
-  const displayRole: EntryRole = locked ? (showUnlock ? "KIOSK_OWNER" : "PATIENT") : role;
+  // A plain "Logout" from the admin dashboard (as opposed to the explicit "Lock this device"
+  // button) should hand the just-signed-out kiosk owner/super admin straight back to their own
+  // login form -- not the patient-lock default a locked device otherwise always shows. This is
+  // only reachable by someone who was THIS SESSION'S authenticated admin one moment ago (set by
+  // AdminShell right before navigating here), so it doesn't weaken the lock against anyone else.
+  const forcedRole = (location.state as { forceEntryRole?: "KIOSK_OWNER" | "ADMIN" } | null)?.forceEntryRole;
+  const displayRole: EntryRole = forcedRole ?? (locked ? (showUnlock ? "KIOSK_OWNER" : "PATIENT") : role);
 
   const staleSessionCheckedRef = useRef(false);
 
