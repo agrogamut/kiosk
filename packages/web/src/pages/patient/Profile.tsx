@@ -30,6 +30,12 @@ interface FormState {
 
 const EMPTY_FORM: FormState = { name: "", heightCm: "", weightKg: "", bloodType: "", dob: "" };
 
+function isoToDdMmYyyy(iso: string | null): string {
+  if (!iso) return "";
+  const [yyyy, mm, dd] = iso.slice(0, 10).split("-");
+  return `${dd}/${mm}/${yyyy}`;
+}
+
 export default function Profile() {
   const navigate = useNavigate();
   const [phone, setPhone] = useState("");
@@ -48,7 +54,7 @@ export default function Profile() {
           heightCm: data.patientProfile?.heightCm?.toString() ?? "",
           weightKg: data.patientProfile?.weightKg?.toString() ?? "",
           bloodType: data.patientProfile?.bloodType ?? "",
-          dob: data.patientProfile?.dob ?? "",
+          dob: isoToDdMmYyyy(data.patientProfile?.dob ?? null),
         });
       })
       .catch((error) => toast.error(getApiErrorMessage(error, "We couldn't load your profile.")))
