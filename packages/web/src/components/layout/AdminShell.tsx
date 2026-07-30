@@ -23,6 +23,7 @@ const SUPER_ADMIN_NAV: NavItem[] = [
   { label: "Stats", href: "/admin/stats" },
   { label: "Doctors", href: "/admin/doctors" },
   { label: "Users", href: "/admin/users" },
+  { label: "Kiosks", href: "/admin/kiosks" },
   { label: "Call history", href: "/admin/calls" },
   { label: "Withdrawals", href: "/admin/withdrawals" },
   { label: "Pricing", href: "/admin/pricing" },

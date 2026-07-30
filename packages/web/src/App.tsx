@@ -4,6 +4,7 @@ import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
 import type { UserRole } from "@madamgy/api-client";
+import AdminAllDevices from "./pages/admin/AllDevices";
 import AdminAuditLog from "./pages/admin/AuditLog";
 import AdminCalls from "./pages/admin/Calls";
 import AdminDevices from "./pages/admin/Devices";
@@ -115,6 +116,7 @@ export default function App() {
         <Route path="/admin/withdrawals" element={<RequireRole role="SUPER_ADMIN" loginPath="/?role=admin"><AdminWithdrawals /></RequireRole>} />
         <Route path="/admin/pricing" element={<RequireRole role="SUPER_ADMIN" loginPath="/?role=admin"><AdminPricing /></RequireRole>} />
         <Route path="/admin/devices" element={<RequireRole role="ADMIN" loginPath="/?role=admin"><AdminDevices /></RequireRole>} />
+        <Route path="/admin/kiosks" element={<RequireRole role="SUPER_ADMIN" loginPath="/?role=admin"><AdminAllDevices /></RequireRole>} />
         <Route path="/admin/wallet" element={<RequireRole role="ADMIN" loginPath="/?role=admin"><AdminWallet /></RequireRole>} />
         <Route path="/admin/patients" element={<RequireRole role="ADMIN" loginPath="/?role=admin"><AdminPatients /></RequireRole>} />
         <Route path="/admin/audit-log" element={<AdminAuditLog />} />

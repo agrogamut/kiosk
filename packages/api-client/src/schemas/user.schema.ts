@@ -108,6 +108,11 @@ export type User = z.infer<typeof UserSchema>;
 
 export const StaffCreateSchema = z.discriminatedUnion("role", [
   z.object({
+    role: z.literal("PATIENT"),
+    phone: phoneField,
+    name: nameField,
+  }),
+  z.object({
     role: z.literal("ADMIN"),
     phone: phoneField,
     name: nameField,
@@ -122,6 +127,19 @@ export const StaffCreateSchema = z.discriminatedUnion("role", [
   }),
 ]);
 export type StaffCreate = z.infer<typeof StaffCreateSchema>;
+
+export const UserUpdateSchema = z.object({
+  name: nameField,
+  phone: phoneField,
+});
+export type UserUpdate = z.infer<typeof UserUpdateSchema>;
+
+export const DoctorProfileUpdateSchema = z.object({
+  degree: z.string().min(1, "Enter a medical degree"),
+  regNumber: z.string().min(1, "Enter a registration number"),
+  specialization: z.string().optional(),
+});
+export type DoctorProfileUpdate = z.infer<typeof DoctorProfileUpdateSchema>;
 
 export const UpdateProfileSchema = z.object({
   name: nameField.optional(),

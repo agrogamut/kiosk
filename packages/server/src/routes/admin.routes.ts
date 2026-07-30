@@ -3,7 +3,14 @@ import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { KioskRegisterSchema, RevenueConfigUpdateSchema, StaffCreateSchema, WithdrawRequestSchema } from "@madamgy/api-client";
+import {
+  DoctorProfileUpdateSchema,
+  KioskRegisterSchema,
+  RevenueConfigUpdateSchema,
+  StaffCreateSchema,
+  UserUpdateSchema,
+  WithdrawRequestSchema,
+} from "@madamgy/api-client";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { AppError } from "../middleware/error.middleware.js";
@@ -18,9 +25,11 @@ import {
 import { recordAuditLog } from "../services/audit-log.service.js";
 import { getPresignedUrl } from "../services/storage.service.js";
 import { getRevenueConfig, updateRevenueConfig } from "../services/revenue-config.service.js";
+import { anonymizeUser } from "../services/account-deletion.service.js";
 import {
   deactivateKioskDevice,
   forceDeactivateKioskDevice,
+  listAllKioskDevices,
   listKioskDevicesForAdmin,
   registerKioskDevice,
 } from "../services/kiosk.service.js";
@@ -45,8 +54,11 @@ adminRouter.post("/staff", requireAuth("SUPER_ADMIN"), async (req: Request, res:
       }
     }
 
-    const tempPin = randomBytes(16).toString("base64url");
-    const passwordHash = await bcrypt.hash(tempPin, 12);
+    // PATIENT accounts authenticate by OTP only (see auth.routes.ts /patient/login/otp/*),
+    // so there's nothing for a password to gate -- skip issuing one. ADMIN/DOCTOR log in with
+    // phone+password, so they need a real (if temporary) credential to get started.
+    const tempPin = data.role === "PATIENT" ? null : randomBytes(16).toString("base64url");
+    const passwordHash = tempPin ? await bcrypt.hash(tempPin, 12) : null;
 
     const user = await prisma.user.create({
       data: {
@@ -124,6 +136,31 @@ adminRouter.put("/doctors/:id/approve", requireAuth("SUPER_ADMIN"), async (req: 
   }
 });
 
+adminRouter.put("/doctors/:id", requireAuth("SUPER_ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = DoctorProfileUpdateSchema.parse(req.body);
+
+    const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!user || user.role !== "DOCTOR") {
+      throw new AppError(404, "Doctor not found");
+    }
+
+    const regNumberOwner = await prisma.doctorProfile.findUnique({ where: { regNumber: data.regNumber } });
+    if (regNumberOwner && regNumberOwner.userId !== user.id) {
+      throw new AppError(409, "Registration number already in use");
+    }
+
+    const profile = await prisma.doctorProfile.update({
+      where: { userId: user.id },
+      data: { degree: data.degree, regNumber: data.regNumber, specialization: data.specialization },
+    });
+    await recordAuditLog(req.user!.sub, "doctor.update", user.id, { regNumber: data.regNumber });
+    res.json(profile);
+  } catch (error) {
+    next(error);
+  }
+});
+
 adminRouter.get("/users", requireAuth("SUPER_ADMIN", "ADMIN"), async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const users = await prisma.user.findMany({
@@ -158,6 +195,53 @@ adminRouter.put(
     }
   },
 );
+
+adminRouter.put("/users/:id", requireAuth("SUPER_ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = UserUpdateSchema.parse(req.body);
+
+    const target = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!target || target.deletedAt) {
+      throw new AppError(404, "User not found");
+    }
+
+    const phoneOwner = await prisma.user.findUnique({ where: { phone: data.phone } });
+    if (phoneOwner && phoneOwner.id !== target.id) {
+      throw new AppError(409, "Phone already registered to another user");
+    }
+
+    const user = await prisma.user.update({ where: { id: target.id }, data: { name: data.name, phone: data.phone } });
+    await recordAuditLog(req.user!.sub, "user.update", user.id, { name: data.name, phone: data.phone });
+    res.json({ id: user.id, name: user.name, phone: user.phone, role: user.role });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.delete("/users/:id", requireAuth("SUPER_ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (req.params.id === req.user!.sub) {
+      throw new AppError(400, "Use your own account settings to delete your own account");
+    }
+
+    const target = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!target || target.deletedAt) {
+      throw new AppError(404, "User not found");
+    }
+    // Never allow one super admin to delete another via this route -- a mistaken or malicious
+    // click here could lock every operator out of the platform at once. Self-service deletion
+    // for other roles already goes through the same anonymizeUser() this route calls.
+    if (target.role === "SUPER_ADMIN") {
+      throw new AppError(403, "Super admin accounts cannot be deleted here");
+    }
+
+    await anonymizeUser(target.id);
+    await recordAuditLog(req.user!.sub, "user.delete", target.id, { role: target.role });
+    res.json({ message: "User deleted" });
+  } catch (error) {
+    next(error);
+  }
+});
 
 adminRouter.get("/users/:id", requireAuth("SUPER_ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -328,6 +412,15 @@ adminRouter.put("/revenue-config", requireAuth("SUPER_ADMIN"), async (req: Reque
       after: { fee: updated.consultationFee.toString(), doctorPct: updated.doctorPct.toString(), adminPct: updated.adminPct.toString(), superAdminPct: updated.superAdminPct.toString() },
     });
     res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/kiosk-devices/all", requireAuth("SUPER_ADMIN"), async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const kiosks = await listAllKioskDevices();
+    res.json(kiosks);
   } catch (error) {
     next(error);
   }

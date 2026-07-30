@@ -140,6 +140,18 @@ export declare const UserSchema: z.ZodObject<{
 }>;
 export type User = z.infer<typeof UserSchema>;
 export declare const StaffCreateSchema: z.ZodDiscriminatedUnion<"role", [z.ZodObject<{
+    role: z.ZodLiteral<"PATIENT">;
+    phone: z.ZodString;
+    name: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    phone: string;
+    name: string;
+    role: "PATIENT";
+}, {
+    phone: string;
+    name: string;
+    role: "PATIENT";
+}>, z.ZodObject<{
     role: z.ZodLiteral<"ADMIN">;
     phone: z.ZodString;
     name: z.ZodString;
@@ -174,6 +186,31 @@ export declare const StaffCreateSchema: z.ZodDiscriminatedUnion<"role", [z.ZodOb
     specialization?: string | undefined;
 }>]>;
 export type StaffCreate = z.infer<typeof StaffCreateSchema>;
+export declare const UserUpdateSchema: z.ZodObject<{
+    name: z.ZodString;
+    phone: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    phone: string;
+    name: string;
+}, {
+    phone: string;
+    name: string;
+}>;
+export type UserUpdate = z.infer<typeof UserUpdateSchema>;
+export declare const DoctorProfileUpdateSchema: z.ZodObject<{
+    degree: z.ZodString;
+    regNumber: z.ZodString;
+    specialization: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    degree: string;
+    regNumber: string;
+    specialization?: string | undefined;
+}, {
+    degree: string;
+    regNumber: string;
+    specialization?: string | undefined;
+}>;
+export type DoctorProfileUpdate = z.infer<typeof DoctorProfileUpdateSchema>;
 export declare const UpdateProfileSchema: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
     heightCm: z.ZodOptional<z.ZodNumber>;

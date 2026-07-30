@@ -32,6 +32,13 @@ export async function listKioskDevicesForAdmin(adminId: string) {
   return prisma.kiosk.findMany({ where: { adminId }, orderBy: { createdAt: "desc" } });
 }
 
+export async function listAllKioskDevices() {
+  return prisma.kiosk.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { admin: { select: { id: true, name: true, phone: true } } },
+  });
+}
+
 export async function deactivateKioskDevice(adminId: string, deviceId: string) {
   const existing = await prisma.kiosk.findUnique({ where: { deviceId } });
   if (!existing || existing.adminId !== adminId) {

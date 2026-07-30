@@ -368,6 +368,156 @@ describe("Admin API", () => {
     expect(response.status).toBe(403);
   });
 
+  it("lets SUPER_ADMIN create a PATIENT account without an OTP or password", async () => {
+    const response = await request(app)
+      .post("/api/admin/staff")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ phone: "8888700012", name: "Walk-in Patient", role: "PATIENT" });
+
+    expect(response.status).toBe(201);
+    expect(response.body.role).toBe("PATIENT");
+    expect(response.body.tempPin).toBeNull();
+
+    const created = await prisma.user.findUniqueOrThrow({ where: { id: response.body.id } });
+    expect(created.passwordHash).toBeNull();
+
+    await prisma.user.delete({ where: { id: response.body.id } });
+  });
+
+  it("lets SUPER_ADMIN edit a user's name and phone, but rejects a phone already taken", async () => {
+    const target = await prisma.user.create({
+      data: { phone: "8888700013", name: "Editable User", role: "PATIENT" },
+    });
+
+    const response = await request(app)
+      .put(`/api/admin/users/${target.id}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ name: "Renamed User", phone: "8888700014" });
+    expect(response.status).toBe(200);
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: target.id } });
+    expect(updated.name).toBe("Renamed User");
+    expect(updated.phone).toBe("8888700014");
+
+    const conflict = await request(app)
+      .put(`/api/admin/users/${target.id}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ name: "Renamed User", phone: "8888000002" });
+    expect(conflict.status).toBe(409);
+
+    await prisma.user.delete({ where: { id: target.id } });
+  });
+
+  it("rejects a non-SUPER_ADMIN editing a user", async () => {
+    const response = await request(app)
+      .put(`/api/admin/users/${patientId}`)
+      .set("Authorization", `Bearer ${patientToken}`)
+      .send({ name: "Nope", phone: "8888700015" });
+    expect(response.status).toBe(403);
+  });
+
+  it("lets SUPER_ADMIN anonymize-delete a user, but blocks targeting SUPER_ADMIN or self", async () => {
+    const target = await prisma.user.create({
+      data: { phone: "8888700016", name: "Deletable User", role: "PATIENT" },
+    });
+    const otherSuperAdmin = await prisma.user.create({
+      data: { phone: "8888700017", name: "Other Super Admin", role: "SUPER_ADMIN", passwordHash: "x" },
+    });
+
+    const blockedTarget = await request(app)
+      .delete(`/api/admin/users/${otherSuperAdmin.id}`)
+      .set("Authorization", `Bearer ${adminToken}`);
+    expect(blockedTarget.status).toBe(403);
+
+    const blockedSelf = await request(app)
+      .delete(`/api/admin/users/${adminId}`)
+      .set("Authorization", `Bearer ${adminToken}`);
+    expect(blockedSelf.status).toBe(400);
+
+    const response = await request(app)
+      .delete(`/api/admin/users/${target.id}`)
+      .set("Authorization", `Bearer ${adminToken}`);
+    expect(response.status).toBe(200);
+
+    const deleted = await prisma.user.findUniqueOrThrow({ where: { id: target.id } });
+    expect(deleted.deletedAt).not.toBeNull();
+
+    await prisma.user.delete({ where: { id: otherSuperAdmin.id } });
+  });
+
+  it("lets SUPER_ADMIN edit a doctor's profile, but rejects a regNumber already in use", async () => {
+    const editableDoctor = await prisma.user.create({
+      data: {
+        phone: "8888700018",
+        name: "Editable Doctor",
+        role: "DOCTOR",
+        passwordHash: "x",
+        doctorProfile: { create: { degree: "BAMS", regNumber: "STAFF-DOC-EDIT-ORIGINAL" } },
+      },
+    });
+    const takenRegDoctor = await prisma.user.create({
+      data: {
+        phone: "8888700019",
+        name: "Reg Taken Doctor",
+        role: "DOCTOR",
+        passwordHash: "x",
+        doctorProfile: { create: { degree: "MBBS", regNumber: "STAFF-DOC-EDIT-TAKEN" } },
+      },
+    });
+
+    const response = await request(app)
+      .put(`/api/admin/doctors/${editableDoctor.id}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ degree: "MD", regNumber: "STAFF-DOC-EDIT-NEW", specialization: "Cardiology" });
+    expect(response.status).toBe(200);
+
+    const updated = await prisma.doctorProfile.findUniqueOrThrow({ where: { userId: editableDoctor.id } });
+    expect(updated.degree).toBe("MD");
+    expect(updated.regNumber).toBe("STAFF-DOC-EDIT-NEW");
+    expect(updated.specialization).toBe("Cardiology");
+
+    const conflict = await request(app)
+      .put(`/api/admin/doctors/${editableDoctor.id}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ degree: "MD", regNumber: "STAFF-DOC-EDIT-TAKEN" });
+    expect(conflict.status).toBe(409);
+
+    await prisma.doctorProfile.deleteMany({ where: { userId: { in: [editableDoctor.id, takenRegDoctor.id] } } });
+    await prisma.user.deleteMany({ where: { id: { in: [editableDoctor.id, takenRegDoctor.id] } } });
+  });
+
+  it("returns 404 editing a non-doctor via the doctor profile route", async () => {
+    const response = await request(app)
+      .put(`/api/admin/doctors/${patientId}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ degree: "MD", regNumber: "STAFF-DOC-EDIT-NONE" });
+    expect(response.status).toBe(404);
+  });
+
+  it("lets SUPER_ADMIN see kiosk devices platform-wide, but rejects ADMIN from that route", async () => {
+    const passwordHash = await bcrypt.hash("pw12345", 10);
+    const ownAdmin = await prisma.user.create({
+      data: { phone: "8888700020", name: "Platform Devices Admin", role: "ADMIN", passwordHash },
+    });
+    const ownToken = signAccessToken({ sub: ownAdmin.id, role: "ADMIN" });
+
+    await prisma.kiosk.create({ data: { deviceId: "device-platform-test", adminId: ownAdmin.id, active: true } });
+
+    const asAdmin = await request(app).get("/api/admin/kiosk-devices/all").set("Authorization", `Bearer ${ownToken}`);
+    expect(asAdmin.status).toBe(403);
+
+    const asSuperAdmin = await request(app)
+      .get("/api/admin/kiosk-devices/all")
+      .set("Authorization", `Bearer ${adminToken}`);
+    expect(asSuperAdmin.status).toBe(200);
+    const platformKiosk = asSuperAdmin.body.find((kiosk: { deviceId: string }) => kiosk.deviceId === "device-platform-test");
+    expect(platformKiosk).toBeDefined();
+    expect(platformKiosk.admin.id).toBe(ownAdmin.id);
+
+    await prisma.kiosk.deleteMany({ where: { deviceId: "device-platform-test" } });
+    await prisma.user.delete({ where: { id: ownAdmin.id } });
+  });
+
   it("lets an ADMIN list only their own kiosk devices", async () => {
     const passwordHash = await bcrypt.hash("pw12345", 10);
     const ownAdmin = await prisma.user.create({

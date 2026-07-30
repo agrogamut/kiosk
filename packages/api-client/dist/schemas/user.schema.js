@@ -77,6 +77,11 @@ export const UserSchema = z.object({
 });
 export const StaffCreateSchema = z.discriminatedUnion("role", [
     z.object({
+        role: z.literal("PATIENT"),
+        phone: phoneField,
+        name: nameField,
+    }),
+    z.object({
         role: z.literal("ADMIN"),
         phone: phoneField,
         name: nameField,
@@ -90,6 +95,15 @@ export const StaffCreateSchema = z.discriminatedUnion("role", [
         specialization: z.string().optional(),
     }),
 ]);
+export const UserUpdateSchema = z.object({
+    name: nameField,
+    phone: phoneField,
+});
+export const DoctorProfileUpdateSchema = z.object({
+    degree: z.string().min(1, "Enter a medical degree"),
+    regNumber: z.string().min(1, "Enter a registration number"),
+    specialization: z.string().optional(),
+});
 export const UpdateProfileSchema = z.object({
     name: nameField.optional(),
     heightCm: z.number().positive("Enter a valid height").max(300, "Enter a valid height").optional(),
