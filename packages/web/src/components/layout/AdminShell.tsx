@@ -1,14 +1,18 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import type { UserRole } from "@madamgy/api-client";
 import { cn } from "@/lib/utils";
 import { IdleGuard } from "../kiosk/IdleGuard";
 import { Logo } from "../brand/Logo";
 import { Button } from "../ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "../ui/sheet";
+import { api } from "../../lib/api";
+import { getApiErrorMessage } from "../../lib/errors";
 import { logout } from "../../lib/logout";
 import { useAuthStore } from "../../store/auth.store";
+import { useKioskStore } from "../../store/kiosk.store";
 
 interface NavItem {
   label: string;
@@ -45,13 +49,30 @@ function isActiveHref(pathname: string, href: string): boolean {
 export function AdminShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const role = useAuthStore((state) => state.user?.role);
+  const user = useAuthStore((state) => state.user);
+  const deviceId = useKioskStore((state) => state.deviceId);
+  const lockAsKiosk = useKioskStore((state) => state.lock);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const items = navForRole(role);
+  const [locking, setLocking] = useState(false);
+  const items = navForRole(user?.role);
 
   async function signOut(): Promise<void> {
     await logout();
     navigate("/admin/login");
+  }
+
+  async function lockThisDevice(): Promise<void> {
+    setLocking(true);
+    try {
+      await api.post("/admin/kiosk-devices", { deviceId, label: user?.name });
+      lockAsKiosk();
+      toast.success("Device locked as your kiosk. Long-press the logo to sign in again.");
+      await signOut();
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Could not lock this device. Try again."));
+    } finally {
+      setLocking(false);
+    }
   }
 
   function renderNav(onNavigate?: () => void) {
@@ -85,6 +106,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <Logo />
         </Link>
         <div className="flex-1">{renderNav()}</div>
+        {user?.role === "ADMIN" && (
+          <Button variant="outline" disabled={locking} onClick={() => void lockThisDevice()}>
+            {locking ? "Locking..." : "Lock this device"}
+          </Button>
+        )}
         <Button variant="outline" onClick={() => void signOut()}>
           Logout
         </Button>
@@ -105,6 +131,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 <Logo />
               </Link>
               {renderNav(() => setMobileOpen(false))}
+              {user?.role === "ADMIN" && (
+                <Button variant="outline" className="mt-6 w-full" disabled={locking} onClick={() => void lockThisDevice()}>
+                  {locking ? "Locking..." : "Lock this device"}
+                </Button>
+              )}
               <Button variant="outline" className="mt-6 w-full" onClick={() => void signOut()}>
                 Logout
               </Button>
