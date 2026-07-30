@@ -25,11 +25,14 @@ import DoctorRegister from "./pages/doctor/Register";
 import DoctorWallet from "./pages/doctor/Wallet";
 import Entry from "./pages/Entry";
 import KioskConsult from "./pages/kiosk/Consult";
-import KioskDashboard from "./pages/kiosk/Dashboard";
 import KioskPrescription from "./pages/kiosk/Prescription";
 import KioskRegister from "./pages/kiosk/Register";
+import Appointments from "./pages/patient/Appointments";
+import HealthLocker from "./pages/patient/HealthLocker";
+import Profile from "./pages/patient/Profile";
 import { AdminShell } from "./components/layout/AdminShell";
 import { DoctorShell } from "./components/layout/DoctorShell";
+import { PatientShell } from "./components/layout/PatientShell";
 import { useAndroidBackButton } from "./hooks/useAndroidBackButton";
 import { useAuthStore } from "./store/auth.store";
 
@@ -61,7 +64,19 @@ export default function App() {
       <Route path="/register" element={<KioskRegister />} />
       <Route path="/delete-account" element={<DeleteAccount />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-      <Route path="/dashboard" element={<RequireRole role="PATIENT"><KioskDashboard /></RequireRole>} />
+      <Route
+        element={
+          <RequireRole role="PATIENT">
+            <PatientShell>
+              <Outlet />
+            </PatientShell>
+          </RequireRole>
+        }
+      >
+        <Route path="/dashboard" element={<Appointments />} />
+        <Route path="/dashboard/locker" element={<HealthLocker />} />
+        <Route path="/dashboard/profile" element={<Profile />} />
+      </Route>
       <Route path="/consult" element={<RequireRole role="PATIENT"><KioskConsult /></RequireRole>} />
       <Route path="/prescription/:id" element={<RequireRole role="PATIENT"><KioskPrescription /></RequireRole>} />
       <Route path="/doctor/login" element={<Navigate to="/?role=doctor" replace />} />
