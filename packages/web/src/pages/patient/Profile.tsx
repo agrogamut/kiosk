@@ -8,6 +8,17 @@ import { Label } from "../../components/ui/label";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
 import { logout } from "../../lib/logout";
+import { useAuthStore } from "../../store/auth.store";
+
+// Deliberately string-slice rather than parse into a Date: the server stores/reads dob
+// in UTC (parseDateOfBirth uses Date.UTC), so this stays timezone-safe without needing
+// a Date object at all. Don't "simplify" this into new Date(iso) — that reintroduces
+// local-timezone off-by-one drift.
+function isoToDdMmYyyy(iso: string | null): string {
+  if (!iso) return "";
+  const [yyyy, mm, dd] = iso.slice(0, 10).split("-");
+  return `${dd}/${mm}/${yyyy}`;
+}
 
 interface PatientProfileResponse {
   phone: string;
@@ -29,12 +40,6 @@ interface FormState {
 }
 
 const EMPTY_FORM: FormState = { name: "", heightCm: "", weightKg: "", bloodType: "", dob: "" };
-
-function isoToDdMmYyyy(iso: string | null): string {
-  if (!iso) return "";
-  const [yyyy, mm, dd] = iso.slice(0, 10).split("-");
-  return `${dd}/${mm}/${yyyy}`;
-}
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -71,6 +76,7 @@ export default function Profile() {
         bloodType: form.bloodType || undefined,
         dob: form.dob || undefined,
       });
+      useAuthStore.setState((s) => (s.user ? { user: { ...s.user, name: form.name } } : {}));
       toast.success("Profile updated");
     } catch (error) {
       toast.error(getApiErrorMessage(error, "We couldn't save your profile. Try again."));

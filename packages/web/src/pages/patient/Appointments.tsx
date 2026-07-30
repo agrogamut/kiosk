@@ -73,13 +73,18 @@ export default function Appointments() {
               {doctorsQuery.data && doctorsQuery.data.length > 0 && (
                 <div className="flex gap-4 overflow-x-auto pb-2">
                   {doctorsQuery.data.map((doctor) => (
-                    <div key={doctor.id} className="flex w-28 shrink-0 flex-col items-center gap-2 text-center">
+                    <button
+                      key={doctor.id}
+                      type="button"
+                      onClick={() => navigate("/consult")}
+                      className="flex w-28 shrink-0 flex-col items-center gap-2 text-center"
+                    >
                       <Avatar size="lg" className="bg-primary/10">
                         <AvatarFallback className="bg-primary/10 text-primary">{initials(doctor.name)}</AvatarFallback>
                       </Avatar>
                       <p className="text-sm font-medium text-foreground">{doctor.name}</p>
                       <p className="text-xs text-muted-foreground">{doctor.specialization ?? "General"}</p>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
