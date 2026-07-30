@@ -34,13 +34,14 @@ export function PatientBottomNav() {
             <Link
               key={item.href}
               to={item.href}
+              aria-label={item.label}
               className={cn(
-                "flex flex-col items-center gap-0.5 rounded-full px-5 py-2 text-xs font-medium text-muted-foreground transition-colors",
+                "flex flex-col items-center gap-0.5 rounded-full px-4 py-2.5 text-xs font-medium text-muted-foreground transition-colors sm:px-5 sm:py-2",
                 active && "bg-primary/10 text-primary",
               )}
             >
               <Icon className="h-5 w-5" />
-              {item.label}
+              <span className="hidden sm:inline">{item.label}</span>
             </Link>
           );
         })}
