@@ -26,6 +26,7 @@ import { recordAuditLog } from "../services/audit-log.service.js";
 import { getPresignedUrl } from "../services/storage.service.js";
 import { getRevenueConfig, updateRevenueConfig } from "../services/revenue-config.service.js";
 import { anonymizeUser } from "../services/account-deletion.service.js";
+import { listContactMessages } from "../services/support.service.js";
 import {
   deactivateKioskDevice,
   forceDeactivateKioskDevice,
@@ -467,6 +468,15 @@ adminRouter.delete(
     }
   },
 );
+
+adminRouter.get("/support-messages", requireAuth("SUPER_ADMIN"), async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const messages = await listContactMessages();
+    res.json(messages);
+  } catch (error) {
+    next(error);
+  }
+});
 
 adminRouter.get("/audit-log", requireAuth("SUPER_ADMIN", "ADMIN"), async (req: Request, res: Response, next: NextFunction) => {
   try {

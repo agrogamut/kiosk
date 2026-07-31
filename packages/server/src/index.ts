@@ -15,6 +15,7 @@ import { doctorsRouter } from "./routes/doctors.routes.js";
 import { healthFilesRouter } from "./routes/health-files.routes.js";
 import { paymentsRouter } from "./routes/payments.routes.js";
 import { prescriptionsRouter } from "./routes/prescriptions.routes.js";
+import { supportRouter } from "./routes/support.routes.js";
 import { usersRouter } from "./routes/users.routes.js";
 import { initSocketHandlers } from "./socket/index.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
@@ -101,6 +102,7 @@ app.use("/api/admin", adminRouter);
 app.use("/api/doctor", doctorRouter);
 app.use("/api/doctors", doctorsRouter);
 app.use("/api/account", accountRouter);
+app.use("/api/support", supportRouter);
 
 app.use(errorMiddleware);
 

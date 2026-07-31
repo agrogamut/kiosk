@@ -27,6 +27,7 @@ const SUPER_ADMIN_NAV: NavItem[] = [
   { label: "Call history", href: "/admin/calls" },
   { label: "Withdrawals", href: "/admin/withdrawals" },
   { label: "Pricing", href: "/admin/pricing" },
+  { label: "Support", href: "/admin/support" },
   { label: "Audit log", href: "/admin/audit-log" },
 ];
 

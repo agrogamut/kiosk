@@ -15,6 +15,7 @@ import {
 } from "@madamgy/api-client";
 import { NumPad } from "../components/kiosk/NumPad";
 import { Logo } from "../components/brand/Logo";
+import { ContactUsDialog } from "../components/support/ContactUsDialog";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -386,6 +387,14 @@ export default function Entry() {
             )}
           </CardContent>
         </Card>
+
+        <ContactUsDialog
+          trigger={
+            <button type="button" className="text-sm text-muted-foreground underline">
+              Having trouble? Contact us
+            </button>
+          }
+        />
       </div>
     </div>
   );

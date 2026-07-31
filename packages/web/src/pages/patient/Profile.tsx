@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { KioskHeader } from "../../components/layout/KioskHeader";
+import { ContactUsDialog } from "../../components/support/ContactUsDialog";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -157,6 +158,15 @@ export default function Profile() {
           <Button variant="outline" onClick={() => void signOut()} className="w-full">
             Log out
           </Button>
+          <ContactUsDialog
+            defaultName={form.name}
+            defaultPhone={phone}
+            trigger={
+              <button type="button" className="text-sm text-muted-foreground underline">
+                Having trouble? Contact us
+              </button>
+            }
+          />
           <button type="button" onClick={() => navigate("/delete-account")} className="text-sm text-destructive underline">
             Delete my account
           </button>

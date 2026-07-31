@@ -12,6 +12,7 @@ import AdminDoctors from "./pages/admin/Doctors";
 import AdminPatients from "./pages/admin/Patients";
 import AdminPricing from "./pages/admin/Pricing";
 import AdminStats from "./pages/admin/Stats";
+import AdminSupportMessages from "./pages/admin/SupportMessages";
 import AdminUserDetail from "./pages/admin/UserDetail";
 import AdminUsers from "./pages/admin/Users";
 import AdminWallet from "./pages/admin/Wallet";
@@ -120,6 +121,14 @@ export default function App() {
         <Route path="/admin/wallet" element={<RequireRole role="ADMIN" loginPath="/?role=admin"><AdminWallet /></RequireRole>} />
         <Route path="/admin/patients" element={<RequireRole role="ADMIN" loginPath="/?role=admin"><AdminPatients /></RequireRole>} />
         <Route path="/admin/audit-log" element={<AdminAuditLog />} />
+        <Route
+          path="/admin/support"
+          element={
+            <RequireRole role="SUPER_ADMIN" loginPath="/?role=admin">
+              <AdminSupportMessages />
+            </RequireRole>
+          }
+        />
       </Route>
     </Routes>
   );

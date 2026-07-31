@@ -567,6 +567,31 @@ describe("Admin API", () => {
     await prisma.auditLog.deleteMany({ where: { action: { in: ["test.own-action", "test.other-action"] } } });
     await prisma.user.deleteMany({ where: { id: scopedAdmin.id } });
   });
+
+  it("accepts a public contact-us submission and lists it for SUPER_ADMIN only", async () => {
+    const submitResponse = await request(app)
+      .post("/api/support/contact")
+      .send({ name: "Worried Patient", phone: "8888700030", message: "The video call keeps freezing." });
+
+    expect(submitResponse.status).toBe(201);
+
+    const asAdmin = await request(app).get("/api/admin/support-messages").set("Authorization", `Bearer ${doctorToken}`);
+    expect(asAdmin.status).toBe(403);
+
+    const asSuperAdmin = await request(app).get("/api/admin/support-messages").set("Authorization", `Bearer ${adminToken}`);
+    expect(asSuperAdmin.status).toBe(200);
+    const submitted = asSuperAdmin.body.find((entry: { phone: string }) => entry.phone === "8888700030");
+    expect(submitted).toBeDefined();
+    expect(submitted.message).toBe("The video call keeps freezing.");
+
+    await prisma.contactMessage.deleteMany({ where: { phone: "8888700030" } });
+  });
+
+  it("rejects a contact-us submission missing required fields", async () => {
+    const response = await request(app).post("/api/support/contact").send({ name: "No Phone" });
+
+    expect(response.status).toBe(400);
+  });
 });
 
 describe("Doctor wallet API", () => {
