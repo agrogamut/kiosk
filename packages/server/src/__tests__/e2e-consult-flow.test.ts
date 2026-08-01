@@ -64,7 +64,6 @@ describe("Full consult flow (real workers + sockets, no mocks)", () => {
         // ports (55432/56379) and CI's service-container ports (5432/6379, db "madamgy_test").
         JWT_ACCESS_SECRET: "e2e-test-access-secret-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         JWT_REFRESH_SECRET: "e2e-test-refresh-secret-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        LIVEKIT_HOST: "ws://localhost:7880",
         LIVEKIT_API_KEY: "devkey",
         LIVEKIT_API_SECRET: "devsecretdevsecretdevsecret",
         MINIO_ENDPOINT: "localhost",
