@@ -7,11 +7,23 @@ import { requireAuth } from "../middleware/auth.middleware.js";
 
 export const usersRouter = Router();
 
+const SAFE_USER_SELECT = {
+  id: true,
+  phone: true,
+  name: true,
+  role: true,
+  disabled: true,
+  walletBalance: true,
+  createdAt: true,
+  patientProfile: true,
+  doctorProfile: true,
+} as const;
+
 usersRouter.get("/me", requireAuth(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const user = await prisma.user.findUniqueOrThrow({
       where: { id: req.user!.sub },
-      include: { patientProfile: true, doctorProfile: true },
+      select: SAFE_USER_SELECT,
     });
     res.json(user);
   } catch (error) {
@@ -42,7 +54,7 @@ usersRouter.put("/me", requireAuth("PATIENT"), async (req: Request, res: Respons
 
     const user = await prisma.user.findUniqueOrThrow({
       where: { id: req.user!.sub },
-      include: { patientProfile: true },
+      select: SAFE_USER_SELECT,
     });
     res.json(user);
   } catch (error) {

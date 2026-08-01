@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { CallCreateSchema } from "@madamgy/api-client";
 import { assignDoctorQueue } from "../lib/queues.js";
@@ -36,9 +36,26 @@ callsRouter.post("/", requireAuth("PATIENT"), async (req: Request, res: Response
     // real call.id directly as the callSessionId being set, never a placeholder, so it can never
     // violate the FK constraint on Payment.callSessionId and never collides across unrelated
     // payments (each claim only ever touches its own payment row).
-    const call = await prisma.callSession.create({
-      data: { patientId, assistingAdminId, livekitRoom: `room-${randomUUID()}`, status: "QUEUED" },
-    });
+    let call;
+    try {
+      call = await prisma.callSession.create({
+        data: { patientId, assistingAdminId, livekitRoom: `room-${randomUUID()}`, status: "QUEUED" },
+      });
+    } catch (error) {
+      // The findFirst check above is a fast-path UX check, not the real guard -- two
+      // near-simultaneous requests can both pass it before either insert commits. The partial
+      // unique index on CallSession(patientId) WHERE status IN (...) (see schema.prisma) is what
+      // actually stops a patient ending up with two concurrent active calls; this is that guard
+      // firing.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        const raced = await prisma.callSession.findFirst({
+          where: { patientId, status: { in: ["QUEUED", "RINGING", "ACTIVE"] } },
+        });
+        res.status(409).json({ message: "Active call exists", callSession: raced, callSessionId: raced?.id });
+        return;
+      }
+      throw error;
+    }
 
     if (requirePayment && paymentId) {
       // Atomically claim the payment for this call. Two concurrent requests with the same
@@ -59,7 +76,13 @@ callsRouter.post("/", requireAuth("PATIENT"), async (req: Request, res: Response
     await assignDoctorQueue.add(
       "assign",
       { callSessionId: call.id },
-      { attempts: 6, backoff: { type: "fixed", delay: 20_000 } },
+      {
+        jobId: call.id,
+        attempts: 6,
+        backoff: { type: "fixed", delay: 20_000 },
+        removeOnComplete: true,
+        removeOnFail: true,
+      },
     );
 
     res.status(201).json(call);

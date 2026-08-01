@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { CallChatPanel } from "../../components/call/CallChatPanel";
 import { PatientHistoryPanel } from "../../components/call/PatientHistoryPanel";
@@ -34,11 +34,11 @@ const PRESCRIPTION_FIELDS: { name: keyof PrescriptionFields; label: string; plac
 export default function DoctorCall() {
   const { id: callSessionId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const storedLivekitToken = useCallStore((state) => state.livekitToken);
-  const setLivekitToken = useCallStore((state) => state.setLivekitToken);
   const clearCall = useCallStore((state) => state.clearCall);
   const [submitting, setSubmitting] = useState(false);
-  const [patientId, setPatientId] = useState<string | null>(null);
+  const [patientId] = useState<string | null>(() => (location.state as { patientId?: string } | null)?.patientId ?? null);
   const [rightTab, setRightTab] = useState<"chat" | "history">("chat");
   const [prescription, setPrescription] = useState<PrescriptionFields>(EMPTY_PRESCRIPTION);
 
@@ -53,27 +53,15 @@ export default function DoctorCall() {
 
   useEffect(() => {
     const socket = connectSocket();
-    socket.on(
-      "call:accepted",
-      ({ callSessionId: acceptedId, livekitToken, patientId: acceptedPatientId }: { callSessionId: string; livekitToken: string; patientId?: string }) => {
-        if (acceptedId === callSessionId) {
-          setLivekitToken(livekitToken);
-          if (acceptedPatientId) {
-            setPatientId(acceptedPatientId);
-          }
-        }
-      },
-    );
     socket.on("call:ended", () => {
       clearCall();
       navigate("/doctor");
     });
 
     return () => {
-      socket.off("call:accepted");
       socket.off("call:ended");
     };
-  }, [callSessionId, clearCall, navigate, setLivekitToken]);
+  }, [clearCall, navigate]);
 
   async function submitPrescription(): Promise<void> {
     if (!callSessionId || !canSubmitPrescription) {

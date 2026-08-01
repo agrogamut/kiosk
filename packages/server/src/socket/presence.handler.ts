@@ -26,7 +26,29 @@ async function nudgeWaitingCalls(): Promise<void> {
     take: 5,
   });
 
-  await Promise.all(
-    waiting.map((call) => assignDoctorQueue.add("assign", { callSessionId: call.id }, { attempts: 1 })),
+  await Promise.all(waiting.map((call) => nudgeCall(call.id)));
+}
+
+async function nudgeCall(callSessionId: string): Promise<void> {
+  // Every assign-doctor job for a call uses its callSessionId as the jobId (see
+  // calls.routes.ts/call-queue.service.ts), so the call's real job -- almost always sitting in
+  // its backoff delay between retries -- can be looked up directly and promoted to run right now.
+  // That's the fix: an earlier version of this function called queue.add() with the same jobId
+  // hoping BullMQ would dedup it, but a duplicate-jobId add() just returns the existing (still
+  // delayed) job inertly -- it does NOT wake it up, so the nudge silently did nothing.
+  const job = await assignDoctorQueue.getJob(callSessionId);
+  if (job) {
+    await job.promote().catch(() => {
+      // Not currently delayed (already waiting/active/gone) -- nothing to promote, that's fine.
+    });
+    return;
+  }
+
+  // No job on record at all (shouldn't normally happen -- every QUEUED call gets one at
+  // creation), so create one rather than let the call stall forever.
+  await assignDoctorQueue.add(
+    "assign",
+    { callSessionId },
+    { jobId: callSessionId, attempts: 1, removeOnComplete: true, removeOnFail: true },
   );
 }

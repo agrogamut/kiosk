@@ -54,16 +54,27 @@ export function startAssignDoctorWorker(): Worker<AssignDoctorJobData> {
         throw new Error("no_doctor");
       });
 
-      const [patient, updatedCall] = await Promise.all([
+      // Guard against a duplicate job (e.g. two concurrent assign-doctor runs racing on a stale
+      // "still QUEUED" read from above) claiming a doctor and then overwriting a call another job
+      // already moved on: only commit if the row is still QUEUED, and release the doctor we just
+      // claimed if it isn't.
+      const [patient, claimed] = await Promise.all([
         prisma.user.findUniqueOrThrow({
           where: { id: call.patientId },
           select: { id: true, name: true },
         }),
-        prisma.callSession.update({
-          where: { id: callSessionId },
+        prisma.callSession.updateMany({
+          where: { id: callSessionId, status: "QUEUED" },
           data: { doctorId: doctor.userId, status: "RINGING", ringingAt: new Date() },
         }),
       ]);
+
+      if (claimed.count === 0) {
+        await prisma.doctorProfile.update({ where: { userId: doctor.userId }, data: { isAvailable: true } });
+        return;
+      }
+
+      const updatedCall = { ...call, doctorId: doctor.userId, status: "RINGING" as const, ringingAt: new Date() };
 
       io.to(`user:${call.patientId}`).emit("call:ringing", { callSession: updatedCall });
       io.to(`user:${doctor.userId}`).emit("call:incoming", { callSession: updatedCall, patient });

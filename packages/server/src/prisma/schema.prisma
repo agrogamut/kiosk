@@ -119,6 +119,10 @@ model DoctorProfile {
   @@index([isAvailable])
 }
 
+// A hand-written migration (unique_active_call_per_patient) adds a partial unique index --
+// CallSession(patientId) WHERE status IN ('QUEUED','RINGING','ACTIVE') -- that Prisma's schema
+// syntax can't express directly. It's what actually stops a patient from having two concurrent
+// active calls; the check-then-create in calls.routes.ts is just a fast-path UX check on top.
 model CallSession {
   id                String     @id @default(cuid())
   patientId         String

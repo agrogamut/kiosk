@@ -23,9 +23,16 @@ import { prisma } from "./lib/prisma.js";
 import { redis } from "./lib/redis.js";
 import { ensureBucket, minioClient } from "./services/storage.service.js";
 import { handleAssignDoctorFailed, startAssignDoctorWorker } from "./workers/assign-doctor.worker.js";
-import { startRenderPdfWorker } from "./workers/render-pdf.worker.js";
+import { handleRenderPdfFailed, startRenderPdfWorker } from "./workers/render-pdf.worker.js";
 import { startStaleCallReaper } from "./workers/stale-call-reaper.worker.js";
 
+// A wildcard origin combined with credentials: true is invalid per the Fetch spec -- browsers
+// reject the credentialed request outright when the server echoes "*" -- so an unset WEB_URL in
+// production wouldn't just be permissive, it would silently break every authenticated request
+// from the real web app. Fail loudly at startup instead of letting that surface as a mystery bug.
+if (process.env.NODE_ENV === "production" && !process.env.WEB_URL) {
+  throw new Error("WEB_URL must be set in production (CORS origin + credentials requires an explicit value)");
+}
 const webUrl = process.env.WEB_URL ?? "*";
 
 export const app = express();
@@ -116,7 +123,8 @@ if (process.env.NODE_ENV !== "test") {
 
   const assignWorker = startAssignDoctorWorker();
   handleAssignDoctorFailed(assignWorker);
-  startRenderPdfWorker();
+  const renderPdfWorker = startRenderPdfWorker();
+  handleRenderPdfFailed(renderPdfWorker);
   console.log("Queue workers started");
 
   if (process.env.STALE_CALL_REAPER_ENABLED === "true") {

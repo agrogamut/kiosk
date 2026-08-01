@@ -78,10 +78,13 @@ export default function DoctorDashboard() {
       setIncoming(data);
       toast("Incoming call");
     });
-    socket.on("call:accepted", ({ callSessionId, livekitToken }: { callSessionId: string; livekitToken: string }) => {
-      setLivekitToken(livekitToken);
-      navigate(`/doctor/call/${callSessionId}`);
-    });
+    socket.on(
+      "call:accepted",
+      ({ callSessionId, livekitToken, patientId }: { callSessionId: string; livekitToken: string; patientId?: string }) => {
+        setLivekitToken(livekitToken);
+        navigate(`/doctor/call/${callSessionId}`, { state: { patientId } });
+      },
+    );
 
     return () => {
       socket.off("call:incoming");

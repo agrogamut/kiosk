@@ -196,10 +196,15 @@ authRouter.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { phone, otp } = DoctorLoginVerifySchema.parse(req.body);
+      const attemptKey = `otp_attempts:${phone}`;
+      await checkAttemptLimit(attemptKey);
+
       const valid = await verifyOtp(phone, otp);
       if (!valid) {
+        await recordFailedAttempt(attemptKey);
         throw new AppError(401, "Invalid or expired OTP");
       }
+      await clearAttempts(attemptKey);
 
       const user = await prisma.user.findUnique({ where: { phone }, include: { doctorProfile: true } });
       if (!user || user.role !== "DOCTOR" || user.disabled || !user.doctorProfile?.isApproved) {

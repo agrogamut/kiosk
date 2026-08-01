@@ -142,11 +142,15 @@ export async function registerDoctor(
 }
 
 export async function loginDoctorInitiate(phone: string, password: string) {
+  const attemptsKey = `password_attempts:${phone}`;
+  await checkAttemptLimit(attemptsKey);
+
   const user = await prisma.user.findUnique({
     where: { phone },
     include: { doctorProfile: true },
   });
   if (!user || user.role !== "DOCTOR" || !user.passwordHash) {
+    await recordFailedAttempt(attemptsKey);
     throw new AppError(401, "Invalid credentials");
   }
   if (user.disabled) {
@@ -158,15 +162,21 @@ export async function loginDoctorInitiate(phone: string, password: string) {
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
+    await recordFailedAttempt(attemptsKey);
     throw new AppError(401, "Invalid credentials");
   }
 
+  await clearAttempts(attemptsKey);
   return user;
 }
 
 export async function loginStaff(phone: string, password: string) {
+  const attemptsKey = `password_attempts:${phone}`;
+  await checkAttemptLimit(attemptsKey);
+
   const user = await prisma.user.findUnique({ where: { phone } });
   if (!user || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") || !user.passwordHash) {
+    await recordFailedAttempt(attemptsKey);
     throw new AppError(401, "Invalid credentials");
   }
   if (user.disabled) {
@@ -175,8 +185,10 @@ export async function loginStaff(phone: string, password: string) {
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
+    await recordFailedAttempt(attemptsKey);
     throw new AppError(401, "Invalid credentials");
   }
 
+  await clearAttempts(attemptsKey);
   return user;
 }

@@ -36,6 +36,7 @@ import { AdminShell } from "./components/layout/AdminShell";
 import { DoctorShell } from "./components/layout/DoctorShell";
 import { PatientShell } from "./components/layout/PatientShell";
 import { useAndroidBackButton } from "./hooks/useAndroidBackButton";
+import { useAuthHydrated } from "./hooks/useAuthHydrated";
 import { useAuthStore } from "./store/auth.store";
 
 function RequireRole({ role, loginPath, children }: { role: UserRole | UserRole[]; loginPath?: string; children: ReactNode }) {
@@ -53,12 +54,17 @@ function RequireRole({ role, loginPath, children }: { role: UserRole | UserRole[
 
 export default function App() {
   useAndroidBackButton();
+  const hydrated = useAuthHydrated();
 
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
       void SplashScreen.hide();
     }
   }, []);
+
+  if (!hydrated) {
+    return null;
+  }
 
   return (
     <Routes>
