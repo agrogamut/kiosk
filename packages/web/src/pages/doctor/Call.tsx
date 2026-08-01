@@ -11,6 +11,7 @@ import { PulseRing } from "../../components/brand/PulseRing";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
 import { connectSocket } from "../../lib/socket";
+import { useDoctorPresenceHeartbeat } from "../../hooks/useDoctorPresenceHeartbeat";
 import { useImmersiveStatusBar } from "../../hooks/useImmersiveStatusBar";
 import { useCallStore } from "../../store/call.store";
 
@@ -42,6 +43,7 @@ export default function DoctorCall() {
   const [prescription, setPrescription] = useState<PrescriptionFields>(EMPTY_PRESCRIPTION);
 
   useImmersiveStatusBar();
+  useDoctorPresenceHeartbeat();
 
   function updatePrescriptionField(name: keyof PrescriptionFields, value: string): void {
     setPrescription((current) => ({ ...current, [name]: value }));

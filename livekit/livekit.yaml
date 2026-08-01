@@ -3,8 +3,16 @@ rtc:
   tcp_port: 7881
   port_range_start: 40000
   port_range_end: 49999
-  use_external_ip: false
+  use_external_ip: true
+  stun_servers:
+    - stun.l.google.com:19302
+# The kiosk and the doctor are normally on different networks (different NATs), not a shared
+# LAN, so ICE needs a relay it can fall back to when a direct peer connection can't be
+# established. LiveKit's embedded TURN server covers that without standing up coturn separately.
+turn:
+  enabled: true
+  udp_port: 3478
 keys:
-  devkey: devsecret
+  devkey: c063bccf7164bfcaa205cd629a5725ac2667d8131eb5682e
 logging:
   level: warn

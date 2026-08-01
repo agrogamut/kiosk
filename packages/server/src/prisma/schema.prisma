@@ -127,6 +127,7 @@ model CallSession {
   status            CallStatus @default(QUEUED)
   livekitRoom       String     @unique
   queuedAt          DateTime   @default(now())
+  ringingAt         DateTime?
   startedAt         DateTime?
   endedAt           DateTime?
   createdAt         DateTime   @default(now())
@@ -222,6 +223,7 @@ model WalletTransaction {
 
   user User @relation(fields: [userId], references: [id])
 
+  @@unique([callSessionId, userId, type])
   @@index([userId, createdAt])
 }
 

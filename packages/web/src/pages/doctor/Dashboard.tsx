@@ -21,6 +21,7 @@ import { api } from "../../lib/api";
 import { logout } from "../../lib/logout";
 import { getApiErrorMessage } from "../../lib/errors";
 import { connectSocket, getSocket } from "../../lib/socket";
+import { useDoctorPresenceHeartbeat } from "../../hooks/useDoctorPresenceHeartbeat";
 import { useAuthStore } from "../../store/auth.store";
 import { useCallStore } from "../../store/call.store";
 
@@ -88,14 +89,7 @@ export default function DoctorDashboard() {
     };
   }, [navigate, setLivekitToken]);
 
-  useEffect(() => {
-    getSocket().emit("presence:ping");
-    const interval = setInterval(() => {
-      getSocket().emit("presence:ping");
-    }, 20_000);
-
-    return () => clearInterval(interval);
-  }, []);
+  useDoctorPresenceHeartbeat();
 
   function accept(): void {
     if (!incoming) {

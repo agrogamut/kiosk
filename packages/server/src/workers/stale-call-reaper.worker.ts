@@ -1,6 +1,9 @@
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 import { completeCall } from "../services/call-completion.service.js";
+import { requeueRingingCall } from "../services/call-queue.service.js";
+
+const RING_TIMEOUT_MS = 25_000;
 
 export async function reapStaleCalls(): Promise<number> {
   const activeCalls = await prisma.callSession.findMany({
@@ -18,8 +21,20 @@ export async function reapStaleCalls(): Promise<number> {
   return reaped;
 }
 
+export async function reapRingingTimeouts(): Promise<number> {
+  const stuckCalls = await prisma.callSession.findMany({
+    where: { status: "RINGING", doctorId: { not: null }, ringingAt: { lt: new Date(Date.now() - RING_TIMEOUT_MS) } },
+  });
+
+  for (const call of stuckCalls) {
+    await requeueRingingCall(call.id, call.doctorId!, call.patientId);
+  }
+  return stuckCalls.length;
+}
+
 export function startStaleCallReaper(intervalMs = 30_000): ReturnType<typeof setInterval> {
   return setInterval(() => {
     reapStaleCalls().catch((error: unknown) => console.error("stale-call-reaper error", error));
+    reapRingingTimeouts().catch((error: unknown) => console.error("ringing-timeout-reaper error", error));
   }, intervalMs);
 }

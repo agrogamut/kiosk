@@ -1,8 +1,8 @@
 import type { Server, Socket } from "socket.io";
-import { assignDoctorQueue } from "../lib/queues.js";
 import { prisma } from "../lib/prisma.js";
 import { livekitService } from "../services/livekit.service.js";
 import { completeCall } from "../services/call-completion.service.js";
+import { requeueRingingCall } from "../services/call-queue.service.js";
 
 export function registerCallHandlers(io: Server, socket: Socket, userId: string): void {
   socket.on("call:accept", async ({ callSessionId }: { callSessionId: string }) => {
@@ -39,20 +39,7 @@ export function registerCallHandlers(io: Server, socket: Socket, userId: string)
         return;
       }
 
-      await prisma.$transaction([
-        prisma.callSession.update({
-          where: { id: callSessionId },
-          data: { doctorId: null, status: "QUEUED" },
-        }),
-        prisma.doctorProfile.update({ where: { userId }, data: { isAvailable: true } }),
-      ]);
-
-      io.to(`user:${call.patientId}`).emit("call:rejected", { callSessionId });
-      await assignDoctorQueue.add(
-        "assign",
-        { callSessionId, excludedDoctorIds: [userId] },
-        { attempts: 1, backoff: { type: "fixed", delay: 5_000 } },
-      );
+      await requeueRingingCall(callSessionId, userId, call.patientId);
     } catch (error) {
       console.error("call:reject error", error);
     }

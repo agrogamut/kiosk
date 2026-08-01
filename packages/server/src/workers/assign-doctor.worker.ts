@@ -61,7 +61,7 @@ export function startAssignDoctorWorker(): Worker<AssignDoctorJobData> {
         }),
         prisma.callSession.update({
           where: { id: callSessionId },
-          data: { doctorId: doctor.userId, status: "RINGING" },
+          data: { doctorId: doctor.userId, status: "RINGING", ringingAt: new Date() },
         }),
       ]);
 
