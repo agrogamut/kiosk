@@ -7,11 +7,15 @@ interface DoctorAvatarProps {
   className?: string;
 }
 
+// `--secondary` is a light 74%-lightness coral, so it needs noticeably more alpha than
+// `--primary` (63% lightness, more saturated) to read as a visible tint rather than blend into
+// the page's own pale-pink `--background` (98% lightness) -- confirmed live, the previous /10
+// and /30 spread left half these swatches looking like plain gray icons with no color at all.
 const VARIANTS = [
-  "bg-primary/10 text-primary",
-  "bg-secondary/30 text-secondary-foreground",
-  "bg-primary/30 text-primary",
-  "bg-secondary/10 text-secondary-foreground",
+  "bg-primary/25 text-primary",
+  "bg-secondary/45 text-secondary-foreground",
+  "bg-primary/40 text-primary",
+  "bg-secondary/25 text-secondary-foreground",
 ];
 
 function variantForId(id: string): string {
