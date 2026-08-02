@@ -2,11 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import type { HealthFile } from "@madamgy/api-client";
-import { Avatar, AvatarFallback } from "../../components/ui/avatar";
+import { FileText } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { KioskHeader } from "../../components/layout/KioskHeader";
 import { ErrorState } from "../../components/common/ErrorState";
 import { SkeletonRows } from "../../components/common/SkeletonRows";
+import { HeroIllustration } from "../../components/patient/HeroIllustration";
+import { DoctorAvatar } from "../../components/patient/DoctorAvatar";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
 import { useAuthStore } from "../../store/auth.store";
@@ -17,13 +19,11 @@ interface AvailableDoctor {
   specialization: string | null;
 }
 
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
+function timeOfDayGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
 }
 
 export default function Appointments() {
@@ -47,8 +47,11 @@ export default function Appointments() {
       <KioskHeader />
       <div className="mx-auto max-w-md px-6 py-10 sm:max-w-lg lg:max-w-2xl">
         <div className="mb-10 flex flex-col gap-4">
+          <HeroIllustration availableCount={doctorsQuery.data?.length ?? 0} />
           <div>
-            <h1 className="font-display text-2xl font-bold text-foreground">Welcome back, {user?.name}</h1>
+            <h1 className="font-display text-2xl font-bold text-foreground">
+              {timeOfDayGreeting()}, {user?.name}
+            </h1>
             <p className="text-muted-foreground">How are you feeling today?</p>
           </div>
           <Button onClick={() => navigate("/consult")} className="w-full rounded-full text-lg">
@@ -79,9 +82,7 @@ export default function Appointments() {
                       onClick={() => navigate("/consult")}
                       className="flex w-28 shrink-0 flex-col items-center gap-2 text-center"
                     >
-                      <Avatar size="lg" className="bg-primary/10">
-                        <AvatarFallback className="bg-primary/10 text-primary">{initials(doctor.name)}</AvatarFallback>
-                      </Avatar>
+                      <DoctorAvatar id={doctor.id} name={doctor.name} className="size-14" />
                       <p className="text-sm font-medium text-foreground">{doctor.name}</p>
                       <p className="text-xs text-muted-foreground">{doctor.specialization ?? "General"}</p>
                     </button>
@@ -111,10 +112,15 @@ export default function Appointments() {
                   key={file.id}
                   type="button"
                   onClick={() => navigate(`/prescription/${file.id}`)}
-                  className="rounded-lg bg-card p-5 text-left shadow-sm"
+                  className="flex items-center gap-4 rounded-2xl bg-card p-5 text-left shadow-sm shadow-foreground/5"
                 >
-                  <p className="font-semibold text-foreground">{file.name}</p>
-                  <p className="text-sm text-muted-foreground">{format(new Date(file.createdAt), "dd MMM yyyy")}</p>
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                    <FileText className="size-5" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">{file.name}</p>
+                    <p className="text-sm text-muted-foreground">{format(new Date(file.createdAt), "dd MMM yyyy")}</p>
+                  </div>
                 </button>
               ))}
             </div>
