@@ -20,7 +20,7 @@
 ## Decisions made directly
 
 1. **Hero is a composed graphic built from existing primitives (icons + `PulseRing` + gradient), not a hand-drawn illustration asset.** Avoids introducing new binary image assets or an external illustration library/CDN dependency, stays themeable through CSS vars, and reuses a component that already exists and is already battle-tested (reduced-motion handling included).
-2. **Hero depicts a video-call scene**: a rounded "device frame" card containing a `Video` (lucide) icon, `PulseRing` animating behind/around it, 2-3 small floating accent icons (`Heart`, `Stethoscope`, `Plus`) at low opacity in the corners for texture. Chosen over a generic wellness scene because it makes the CTA self-explanatory — this is a video consult app.
+2. **Hero depicts a video-call scene**: a rounded "device frame" card containing a `Video` (lucide) icon, with a slow breathing glow behind it, and a live "N doctors available now" badge in the corner. Chosen over a generic wellness scene because it makes the CTA self-explanatory — this is a video consult app. *(Revised post-implementation — see "Design revision" below.)*
 3. **Greeting becomes time-of-day aware** ("Good morning/afternoon/evening, {name}") — pure client-side `Date` check, no API change, small extra warmth for near-zero cost.
 4. **Doctor list layout is unchanged** (horizontal scroll, per user's explicit choice) — only the avatar content changes, from initials-on-flat-tint to an illustrated icon avatar.
 5. **Doctor avatar = single friendly icon (`UserRound` from lucide) in a colored circle, tinted by one of 4 accent-color variants chosen by hashing `doctor.id`.** Gives visual variety across a doctor list with zero new data and no per-doctor styling to maintain. Variant palette pulls from existing tokens (`primary`, `secondary`, plus two accent shades already used elsewhere) — not new colors invented for this.
@@ -43,6 +43,23 @@
 - No other files change. `Consult.tsx`, routing, and all data-fetching (`useQuery` calls) stay exactly as they are.
 
 **Not touched:** `HealthLocker.tsx`, `Profile.tsx`, `PatientBottomNav.tsx`, backend routes, schema.
+
+---
+
+## Design revision (post-implementation design review)
+
+The first build of the hero (device chip + `PulseRing` behind it + `Heart`/`Stethoscope`/`Plus` floating at low opacity) shipped correctly to the original spec, but a design-lead review of that result caught two real problems, not just polish:
+
+1. **Semantic clash.** `PulseRing` already has an established meaning elsewhere in the app — it's the "ringing / waiting for a doctor to pick up" indicator on the call screens. Reusing the identical animation in a static, nothing-is-happening dashboard hero muddies that signal: a returning patient who's used the call-waiting screen would see the same animation doing something unrelated.
+2. **Decoration with no informational content.** The three floating medical icons (`Heart`, `Stethoscope`, `Plus`) were pure texture — they don't say anything true about the page. This is the generic "medical icon soup" every health-app hero reaches for by default.
+
+**Revised hero:**
+- Drop `PulseRing` from the hero entirely — it stays exclusive to the ringing/waiting screens. In its place, a bespoke, slower "breathing glow" (a blurred circle at `bg-primary/25` on Tailwind's built-in `animate-pulse`, gated behind `motion-safe:`) sits behind the video-chip icon. Visually still reads as "alive," but is a different-enough animation that it can't be mistaken for "a call is ringing."
+- Drop the three floating decorative icons entirely.
+- Add a small "● N doctors available now" badge in the hero's corner, driven by the real `doctorsQuery.data.length` already fetched on this page — only rendered when the count is greater than zero (never shows a discouraging "0 available"). This ties the hero's one bold element directly to the actual product mechanic — real doctors, reachable right now — instead of ornament, and doubles as the reason the CTA below is worth pressing.
+- `HeroIllustration`'s prop signature changes from `{ className?: string }` to `{ availableCount: number; className?: string }` — the caller in `Appointments.tsx` passes `doctorsQuery.data?.length ?? 0`.
+
+Everything else in the original spec (doctor avatars, past-consultations refresh, no backend changes, token-only colors, dark mode via CSS vars) is unchanged.
 
 ---
 

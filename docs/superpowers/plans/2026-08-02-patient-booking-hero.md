@@ -26,36 +26,42 @@
 - Create: `packages/web/src/components/patient/HeroIllustration.tsx`
 
 **Interfaces:**
-- Consumes: `PulseRing` from `packages/web/src/components/brand/PulseRing.tsx` (`PulseRing({ size?: "sm" | "lg" })`, named export). `cn` from `packages/web/src/lib/utils` (already used throughout the codebase for `clsx`/`tailwind-merge` class joining — check this import path resolves the same way other components under `components/` use it, e.g. `components/ui/avatar.tsx` imports it as `import { cn } from "@/lib/utils"`).
-- Produces: `HeroIllustration({ className?: string })`, a named export, default-exportable JSX with no required props. Task 3 imports it as `import { HeroIllustration } from "../../components/patient/HeroIllustration";` from `pages/patient/Appointments.tsx`.
+- Consumes: `cn` from `packages/web/src/lib/utils` (already used throughout the codebase for `clsx`/`tailwind-merge` class joining — check this import path resolves the same way other components under `components/` use it, e.g. `components/ui/avatar.tsx` imports it as `import { cn } from "@/lib/utils"`). `Video` from `lucide-react`. Does **not** consume `PulseRing` — see the note below.
+- Produces: `HeroIllustration({ availableCount: number; className?: string })`, a named export. Task 3 imports it as `import { HeroIllustration } from "../../components/patient/HeroIllustration";` from `pages/patient/Appointments.tsx`, called as `<HeroIllustration availableCount={doctorsQuery.data?.length ?? 0} />`.
+
+**Note — revised design (design-lead review, post-first-build):** the original version of this task reused `PulseRing` (the app's existing "ringing / waiting for a doctor" animation from the call-waiting screens) and scattered `Heart`/`Stethoscope`/`Plus` icons for decorative texture. Both are defects, not style preferences: reusing `PulseRing` here overloads its established meaning (a returning patient would see the exact same animation mean two different things), and the floating icons carry no information — pure "medical icon soup." The version below fixes both: a bespoke breathing glow (not `PulseRing`) behind the video chip, and a live "N doctors available now" badge wired to real data instead of decorative icons. See `docs/superpowers/specs/2026-08-02-patient-booking-hero-design.md`'s "Design revision" section for the full rationale. If you already built the first version, replace it entirely with the code below rather than layering changes on top.
 
 - [ ] **Step 1: Write the component**
 
 ```tsx
-import { Heart, Plus, Stethoscope, Video } from "lucide-react";
+import { Video } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PulseRing } from "../brand/PulseRing";
 
 interface HeroIllustrationProps {
+  availableCount: number;
   className?: string;
 }
 
-export function HeroIllustration({ className }: HeroIllustrationProps) {
+export function HeroIllustration({ availableCount, className }: HeroIllustrationProps) {
   return (
     <div
       className={cn(
-        "relative flex h-40 items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br from-primary/20 via-secondary/15 to-primary/10",
+        "relative flex h-40 items-center overflow-hidden rounded-3xl bg-gradient-to-br from-primary/20 via-secondary/15 to-primary/10 px-6",
         className,
       )}
     >
-      <Heart className="absolute left-6 top-6 size-5 text-primary/40" aria-hidden="true" />
-      <Stethoscope className="absolute right-8 top-7 size-6 text-secondary-foreground/30" aria-hidden="true" />
-      <Plus className="absolute bottom-7 right-7 size-5 text-primary/30" aria-hidden="true" />
+      {availableCount > 0 && (
+        <div className="absolute right-5 top-5 flex items-center gap-1.5 rounded-full bg-card/80 px-3 py-1 text-xs font-medium text-foreground shadow-sm supports-[backdrop-filter]:backdrop-blur-sm">
+          <span className="relative flex size-2">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75 motion-reduce:hidden" />
+            <span className="relative inline-flex size-2 rounded-full bg-primary" />
+          </span>
+          {availableCount} doctor{availableCount === 1 ? "" : "s"} available now
+        </div>
+      )}
 
       <div className="relative flex size-24 items-center justify-center">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <PulseRing size="lg" />
-        </div>
+        <div className="absolute inset-0 rounded-full bg-primary/25 blur-xl motion-safe:animate-pulse" />
         <div className="relative z-10 flex size-16 items-center justify-center rounded-2xl bg-card shadow-md">
           <Video className="size-7 text-primary" aria-hidden="true" />
         </div>
@@ -347,7 +353,7 @@ With:
 
 ```tsx
         <div className="mb-10 flex flex-col gap-4">
-          <HeroIllustration />
+          <HeroIllustration availableCount={doctorsQuery.data?.length ?? 0} />
           <div>
             <h1 className="font-display text-2xl font-bold text-foreground">
               {timeOfDayGreeting()}, {user?.name}
@@ -359,6 +365,8 @@ With:
           </Button>
         </div>
 ```
+
+Note: `availableCount` reads `doctorsQuery.data?.length ?? 0`, which is `0` while `doctorsQuery` is still loading — this is intentional (see Task 1's note): the badge only renders when the count is greater than zero, so it simply stays hidden during the loading state and appears once the count is known, rather than flashing a "0 available" message.
 
 - [ ] **Step 4: Replace the doctor-list avatar and remove the dead `initials` helper**
 
@@ -457,4 +465,5 @@ git commit -m "feat: warm hero and illustrated avatars on patient booking page"
 
 - **Spec coverage:** Hero (Task 1 + Task 3 Step 3) ✓, time-of-day greeting (Task 3 Step 1/3) ✓, doctor avatar illustration + color variants (Task 2 + Task 3 Step 4) ✓, doctor-list layout unchanged (Task 3 Step 4 only swaps the avatar, not the surrounding `button`/scroll container) ✓, past-consultations light refresh (Task 3 Step 5) ✓, no backend changes (none in any task) ✓.
 - **Placeholder scan:** no TBD/TODO; every step has literal code.
-- **Type consistency:** `DoctorAvatar` props (`id: string; name: string; className?: string`) match the call site in Task 3 Step 4 (`<DoctorAvatar id={doctor.id} name={doctor.name} className="size-14" />` — `doctor.id`/`doctor.name` are both `string` per the existing `AvailableDoctor` interface). `HeroIllustration` takes only `className?: string`, called with no props in Task 3 Step 3, consistent.
+- **Type consistency:** `DoctorAvatar` props (`id: string; name: string; className?: string`) match the call site in Task 3 Step 4 (`<DoctorAvatar id={doctor.id} name={doctor.name} className="size-14" />` — `doctor.id`/`doctor.name` are both `string` per the existing `AvailableDoctor` interface). `HeroIllustration` takes `{ availableCount: number; className?: string }` (revised — see Task 1's design-revision note), called at Task 3 Step 3 as `<HeroIllustration availableCount={doctorsQuery.data?.length ?? 0} />` — `doctorsQuery.data?.length ?? 0` is `number`, consistent.
+- **Design revision:** this plan was amended after Task 1's first build to fix a genuine defect (semantic clash reusing `PulseRing`, decoration with no informational content) surfaced by a design-lead review, not to chase style. See both files' "Design revision" / "revised design" notes. Task 1 and Task 3 Step 3 reflect the revised version; if Task 1 was already implemented against the original text, it must be redone against the revised code before Task 3 wires it in.
