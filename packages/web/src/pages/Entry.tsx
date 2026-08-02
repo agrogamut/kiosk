@@ -16,6 +16,16 @@ import {
 import { NumPad } from "../components/kiosk/NumPad";
 import { Logo } from "../components/brand/Logo";
 import { ContactUsDialog } from "../components/support/ContactUsDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -71,6 +81,19 @@ export default function Entry() {
   const [otp, setOtp] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showUnlock, setShowUnlock] = useState(false);
+  // Which role the long-press unlock is signing into -- null means "show the chooser,
+  // nothing picked yet". Doctor and Kiosk Owner are both reachable this way; Patient never
+  // needs it since it's already the locked device's default screen.
+  const [unlockRole, setUnlockRole] = useState<"DOCTOR" | "KIOSK_OWNER" | null>(null);
+  // A successful Kiosk Owner login on a device that isn't locked yet -- holds the auth
+  // response while we ask whether this device should actually become a permanent kiosk,
+  // instead of locking it immediately and silently.
+  const [pendingKioskLock, setPendingKioskLock] = useState<LoginResponse | null>(null);
+  // Clicking a dialog button fires both our onClick and Radix's own close (which re-fires
+  // onOpenChange(false) synchronously, before this render's `pendingKioskLock` closure would
+  // see the setPendingKioskLock(null) above take effect) -- this ref makes confirmKioskLock
+  // idempotent regardless of which of the two fires first, so one click can't double-navigate.
+  const kioskLockHandledRef = useRef(false);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const patientForm = useForm<PatientLoginOtpInitiate>({ resolver: zodResolver(PatientLoginOtpInitiateSchema) });
@@ -83,7 +106,7 @@ export default function Entry() {
   // only reachable by someone who was THIS SESSION'S authenticated admin one moment ago (set by
   // AdminShell right before navigating here), so it doesn't weaken the lock against anyone else.
   const forcedRole = (location.state as { forceEntryRole?: "KIOSK_OWNER" | "ADMIN" } | null)?.forceEntryRole;
-  const displayRole: EntryRole = forcedRole ?? (locked ? (showUnlock ? "KIOSK_OWNER" : "PATIENT") : role);
+  const displayRole: EntryRole = forcedRole ?? (locked ? (showUnlock ? (unlockRole ?? "KIOSK_OWNER") : "PATIENT") : role);
 
   const staleSessionCheckedRef = useRef(false);
 
@@ -136,12 +159,24 @@ export default function Entry() {
     cancelUnlockHold();
     holdTimer.current = setTimeout(() => {
       setShowUnlock(true);
-      // The admin's long-press should always land on the credentials step, even if a patient
+      setUnlockRole(null);
+      // The long-press should always land on the chooser/credentials step, even if a patient
       // left the screen mid-OTP-entry -- otherwise the abandoned numpad view wins below since
       // it's checked ahead of displayRole.
       setStep("credentials");
       setOtp("");
     }, UNLOCK_HOLD_MS);
+  }
+
+  function chooseUnlockRole(next: "DOCTOR" | "KIOSK_OWNER"): void {
+    setUnlockRole(next);
+    setStep("credentials");
+    setOtp("");
+  }
+
+  function cancelUnlock(): void {
+    setShowUnlock(false);
+    setUnlockRole(null);
   }
 
   async function sendPatientOtp(values: PatientLoginOtpInitiate): Promise<void> {
@@ -218,26 +253,25 @@ export default function Entry() {
         return;
       }
 
+      // `locked` here is the reactive value as of this render, i.e. the device's lock state
+      // immediately before this login. On a device that isn't a kiosk yet, ask before turning
+      // it into one -- otherwise testing the Kiosk Owner login even once silently and
+      // permanently pins the device to patient-only + long-press, with no way back short of
+      // clearing localStorage by hand.
+      if (response.data.user.role === "ADMIN" && !locked) {
+        kioskLockHandledRef.current = false;
+        setPendingKioskLock(response.data);
+        return;
+      }
+
       setAuth(response.data.accessToken, response.data.user);
 
       if (response.data.user.role === "ADMIN") {
-        // `locked` here is the reactive value as of this render, i.e. the device's lock state
-        // immediately before this login -- so this is true only on the device's very first lock.
-        // Registration re-runs on every login for self-healing, but the label should only be set
-        // once: sending it on every login would silently overwrite any custom label an admin set
-        // later via /admin/devices. Omitting the field (rather than sending it as `undefined`) is
-        // equally safe here -- the schema treats `label` as optional, and the upsert's `update`
-        // clause only touches fields it's given -- but omitting is the more explicit choice.
-        const isFirstLock = !locked;
+        // Already locked -- this is a routine re-login (e.g. via the long-press unlock).
+        // Registration re-runs every time for self-healing, without a label so it never
+        // overwrites a custom label set later via /admin/devices.
         try {
-          await api.post(
-            "/admin/kiosk-devices",
-            isFirstLock ? { deviceId, label: response.data.user.name } : { deviceId },
-          );
-          lockDevice();
-          if (isFirstLock) {
-            toast.success("This device is now locked as your kiosk. Long-press the logo to sign in again.");
-          }
+          await api.post("/admin/kiosk-devices", { deviceId });
         } catch (error) {
           // Registration can fail (e.g. this device is already claimed, active, by a
           // different admin) -- the admin still reaches their dashboard normally,
@@ -258,6 +292,37 @@ export default function Entry() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function confirmKioskLock(makeKiosk: boolean): Promise<void> {
+    if (kioskLockHandledRef.current) {
+      return;
+    }
+    kioskLockHandledRef.current = true;
+
+    const response = pendingKioskLock;
+    if (!response) {
+      return;
+    }
+    setPendingKioskLock(null);
+    setAuth(response.accessToken, response.user);
+
+    if (makeKiosk) {
+      try {
+        await api.post("/admin/kiosk-devices", { deviceId, label: response.user.name });
+        lockDevice();
+        toast.success("This device is now locked as your kiosk. Long-press the logo to sign in again.");
+      } catch (error) {
+        console.error("Kiosk device registration failed", error);
+        if (axios.isAxiosError(error) && error.response?.status === 409) {
+          toast.error("This device is already registered to another admin.");
+        } else {
+          toast.error("Could not register this device as a kiosk. Sign-in still succeeded.");
+        }
+      }
+    }
+
+    enterApp(response.user);
   }
 
   return (
@@ -298,7 +363,20 @@ export default function Entry() {
               </div>
             )}
 
-            {step === "otp" ? (
+            {locked && showUnlock && !unlockRole ? (
+              <div className="flex flex-col gap-3">
+                <p className="text-center text-sm text-muted-foreground">Sign in as</p>
+                <Button type="button" variant="outline" onClick={() => chooseUnlockRole("KIOSK_OWNER")} className="w-full rounded-full">
+                  Kiosk Owner
+                </Button>
+                <Button type="button" variant="outline" onClick={() => chooseUnlockRole("DOCTOR")} className="w-full rounded-full">
+                  Doctor
+                </Button>
+                <button type="button" onClick={cancelUnlock} className="text-sm font-semibold text-muted-foreground">
+                  Cancel
+                </button>
+              </div>
+            ) : step === "otp" ? (
               <div className="flex flex-col items-center gap-6">
                 <p className="text-center text-sm text-muted-foreground">Enter the 6-digit code sent to {phone}</p>
                 <NumPad value={otp} onChange={setOtp} maxLength={6} />
@@ -352,12 +430,18 @@ export default function Entry() {
                 <Button type="submit" disabled={submitting} className="w-full rounded-full">
                   {submitting ? "Sending..." : "Send OTP"}
                 </Button>
-                <p className="text-center text-sm text-muted-foreground">
-                  Need approval?{" "}
-                  <Link to="/doctor/register" className="font-semibold text-primary">
-                    Register
-                  </Link>
-                </p>
+                {locked && showUnlock ? (
+                  <button type="button" onClick={cancelUnlock} className="text-sm font-semibold text-muted-foreground">
+                    Cancel
+                  </button>
+                ) : (
+                  <p className="text-center text-sm text-muted-foreground">
+                    Need approval?{" "}
+                    <Link to="/doctor/register" className="font-semibold text-primary">
+                      Register
+                    </Link>
+                  </p>
+                )}
               </form>
             ) : (
               <form onSubmit={adminForm.handleSubmit(signInAdmin)} className="flex flex-col gap-4">
@@ -379,7 +463,7 @@ export default function Entry() {
                   {submitting ? "Signing in..." : "Sign in"}
                 </Button>
                 {locked && showUnlock && (
-                  <button type="button" onClick={() => setShowUnlock(false)} className="text-sm font-semibold text-muted-foreground">
+                  <button type="button" onClick={cancelUnlock} className="text-sm font-semibold text-muted-foreground">
                     Cancel
                   </button>
                 )}
@@ -396,6 +480,30 @@ export default function Entry() {
           }
         />
       </div>
+
+      <AlertDialog
+        open={pendingKioskLock !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            void confirmKioskLock(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Make this device a kiosk?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This device will only show the patient login screen from now on. To sign back in as
+              Kiosk Owner or Doctor, long-press the logo. If this is just your own phone or
+              laptop, skip this — you'll sign in normally instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => void confirmKioskLock(false)}>Just sign me in</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void confirmKioskLock(true)}>Lock as kiosk</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
