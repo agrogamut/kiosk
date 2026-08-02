@@ -3,7 +3,6 @@ import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import type { HealthFile } from "@madamgy/api-client";
 import { FileText } from "lucide-react";
-import { Button } from "../../components/ui/button";
 import { KioskHeader } from "../../components/layout/KioskHeader";
 import { ErrorState } from "../../components/common/ErrorState";
 import { SkeletonRows } from "../../components/common/SkeletonRows";
@@ -46,17 +45,13 @@ export default function Appointments() {
     <div>
       <KioskHeader />
       <div className="mx-auto max-w-md px-6 py-10 sm:max-w-lg lg:max-w-2xl">
-        <div className="mb-10 flex flex-col gap-4">
-          <HeroIllustration availableCount={doctorsQuery.data?.length ?? 0} />
-          <div>
-            <h1 className="font-display text-2xl font-bold text-foreground">
-              {timeOfDayGreeting()}, {user?.name}
-            </h1>
-            <p className="text-muted-foreground">How are you feeling today?</p>
-          </div>
-          <Button onClick={() => navigate("/consult")} className="w-full rounded-full text-lg">
-            Consult a doctor
-          </Button>
+        <div className="mb-10">
+          <HeroIllustration
+            greeting={timeOfDayGreeting()}
+            name={user?.name}
+            availableCount={doctorsQuery.data?.length ?? 0}
+            onConsult={() => navigate("/consult")}
+          />
         </div>
 
         <section className="mb-10">
@@ -74,17 +69,17 @@ export default function Appointments() {
                 <p className="text-sm text-muted-foreground">No doctors available right now — check back soon.</p>
               )}
               {doctorsQuery.data && doctorsQuery.data.length > 0 && (
-                <div className="flex gap-4 overflow-x-auto pb-2">
-                  {doctorsQuery.data.map((doctor) => (
+                <div className="grid grid-cols-3 gap-3">
+                  {doctorsQuery.data.slice(0, 3).map((doctor) => (
                     <button
                       key={doctor.id}
                       type="button"
                       onClick={() => navigate("/consult")}
-                      className="flex w-28 shrink-0 flex-col items-center gap-2 text-center"
+                      className="flex flex-col items-center gap-2 rounded-2xl bg-card p-4 text-center shadow-sm shadow-foreground/5"
                     >
-                      <DoctorAvatar id={doctor.id} name={doctor.name} className="size-14" />
-                      <p className="text-sm font-medium text-foreground">{doctor.name}</p>
-                      <p className="text-xs text-muted-foreground">{doctor.specialization ?? "General"}</p>
+                      <DoctorAvatar id={doctor.id} name={doctor.name} showStatus className="size-14" />
+                      <p className="line-clamp-1 text-sm font-medium text-foreground">{doctor.name}</p>
+                      <p className="line-clamp-1 text-xs text-muted-foreground">{doctor.specialization ?? "General"}</p>
                     </button>
                   ))}
                 </div>

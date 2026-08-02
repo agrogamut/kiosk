@@ -40,6 +40,8 @@ body {
   --muted-foreground: 0 1% 44%;
   --accent: 2 74% 74%;
   --accent-foreground: 0 0% 29%;
+  --tertiary: 155 30% 56%;
+  --tertiary-foreground: 0 0% 100%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
   --border: 3 39% 90%;
