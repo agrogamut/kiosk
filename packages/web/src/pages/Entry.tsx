@@ -75,7 +75,15 @@ export default function Entry() {
   const locked = useKioskStore((state) => state.locked);
   const lockDevice = useKioskStore((state) => state.lock);
   const deviceId = useKioskStore((state) => state.deviceId);
-  const [role, setRole] = useState<EntryRole>(() => roleFromParam(searchParams.get("role")));
+  const [role, setRole] = useState<EntryRole>(() => {
+    // Seed the picker itself with a forced role (see the comment on `forcedRole` below) so the
+    // dropdown's own label matches what's actually rendered on first paint, and stays a normal,
+    // freely-changeable picker from then on -- reading location.state only in this one-time
+    // initializer, never on later renders, is what keeps it from re-clamping after the user
+    // picks something else.
+    const forced = (location.state as { forceEntryRole?: "KIOSK_OWNER" | "ADMIN" } | null)?.forceEntryRole;
+    return forced ?? roleFromParam(searchParams.get("role"));
+  });
   const [step, setStep] = useState<"credentials" | "otp">("credentials");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -105,8 +113,12 @@ export default function Entry() {
   // login form -- not the patient-lock default a locked device otherwise always shows. This is
   // only reachable by someone who was THIS SESSION'S authenticated admin one moment ago (set by
   // AdminShell right before navigating here), so it doesn't weaken the lock against anyone else.
+  // On an unlocked device `role` already carries this (seeded above), and stays freely
+  // changeable from the picker. On a LOCKED device there's no picker at all -- this is the only
+  // way to skip straight past the long-press gate back to the admin's own form (see the comment
+  // above the `role` initializer).
   const forcedRole = (location.state as { forceEntryRole?: "KIOSK_OWNER" | "ADMIN" } | null)?.forceEntryRole;
-  const displayRole: EntryRole = forcedRole ?? (locked ? (showUnlock ? (unlockRole ?? "KIOSK_OWNER") : "PATIENT") : role);
+  const displayRole: EntryRole = locked ? (forcedRole ?? (showUnlock ? (unlockRole ?? "KIOSK_OWNER") : "PATIENT")) : role;
 
   const staleSessionCheckedRef = useRef(false);
 
