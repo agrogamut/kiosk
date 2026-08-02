@@ -43,12 +43,19 @@ export default function PrivacyPolicy() {
 
       <h2 className="font-display mb-2 mt-8 text-xl font-bold text-foreground">How long we keep it</h2>
       <p className="mb-4">
-        We retain consultation and prescription records for as long as required by applicable medical
-        record-keeping regulations, even after you delete your account, so your treating doctor's
-        records remain complete and auditable. Your personal identifying details (name, phone, email,
-        and profile information) are removed when you delete your account; consultation records
-        associated with your account are retained but no longer linked to your identifying information
-        beyond what's necessary for that retention requirement.
+        We retain consultation, prescription, and related medical records in line with applicable
+        Indian medical record-keeping requirements, including the Clinical Establishments
+        (Registration and Regulation) Act, 2010 and its associated Rules, and the Telemedicine
+        Practice Guidelines, 2020. Personal data more broadly is handled in line with the Digital
+        Personal Data Protection Act, 2023 and the Information Technology (Reasonable Security
+        Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011. Where
+        these frameworks specify a minimum retention period for medical records, we retain the
+        underlying consultation and prescription records for at least that period, even after you
+        delete your account, so your treating doctor's records remain complete and auditable. Your
+        personal identifying details (name, phone, email, and profile information) are removed when
+        you delete your account; consultation records associated with your account are retained but
+        no longer linked to your identifying information beyond what's necessary to meet these
+        requirements.
       </p>
 
       <h2 className="font-display mb-2 mt-8 text-xl font-bold text-foreground">Deleting your account</h2>
