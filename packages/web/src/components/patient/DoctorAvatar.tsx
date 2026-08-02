@@ -8,10 +8,10 @@ interface DoctorAvatarProps {
 }
 
 const VARIANTS = [
-  "bg-primary/15 text-primary",
-  "bg-secondary/25 text-secondary-foreground",
-  "bg-primary/25 text-primary",
-  "bg-secondary/15 text-secondary-foreground",
+  "bg-primary/10 text-primary",
+  "bg-secondary/30 text-secondary-foreground",
+  "bg-primary/30 text-primary",
+  "bg-secondary/10 text-secondary-foreground",
 ];
 
 function variantForId(id: string): string {
@@ -22,11 +22,10 @@ function variantForId(id: string): string {
   return VARIANTS[hash % VARIANTS.length];
 }
 
-export function DoctorAvatar({ id, name, className }: DoctorAvatarProps) {
+export function DoctorAvatar({ id, name: _name, className }: DoctorAvatarProps) {
   return (
     <div
-      role="img"
-      aria-label={name}
+      aria-hidden="true"
       className={cn(
         "flex size-10 shrink-0 items-center justify-center rounded-full",
         variantForId(id),

@@ -4,7 +4,7 @@
 
 **Goal:** Restyle the patient booking home page (`/dashboard`, `Appointments.tsx`) with a warm illustrated hero and upgraded doctor avatars, per `docs/superpowers/specs/2026-08-02-patient-booking-hero-design.md`.
 
-**Architecture:** Two new small, self-contained components (`HeroIllustration`, `DoctorAvatar`) built entirely from already-installed `lucide-react` icons, the existing `PulseRing` brand component, and existing Tailwind color tokens — then wired into `Appointments.tsx` in place of its current plain hero and initials-avatar doctor row. No new packages, no backend/schema changes.
+**Architecture:** Two new small, self-contained components (`HeroIllustration`, `DoctorAvatar`) built entirely from already-installed `lucide-react` icons and existing Tailwind CSS-var color tokens, with a bespoke breathing-glow animation (no `PulseRing`) — then wired into `Appointments.tsx` in place of its current plain hero and initials-avatar doctor row. No new packages, no backend/schema changes.
 
 **Tech Stack:** React + TypeScript, Tailwind CSS (CSS-variable-based theme tokens), `lucide-react` icons, `framer-motion` (via the existing `PulseRing`).
 
@@ -13,7 +13,7 @@
 - No new npm packages — use only `lucide-react` (already a dependency) and existing UI primitives.
 - No backend or Prisma schema changes anywhere in this feature.
 - No hardcoded hex colors — every color must come through a Tailwind class backed by an existing CSS var token (`primary`, `secondary`, `accent`, `muted`, `card`, `background`, `foreground` families). Do not invent new CSS vars.
-- Must respect `prefers-reduced-motion` — this is already handled inside `PulseRing` itself; do not wrap or duplicate that logic, just compose `PulseRing` as-is.
+- Must respect `prefers-reduced-motion` — handled directly in the hero and avatar components via Tailwind's `motion-safe:`/`motion-reduce:` variants (no `PulseRing` involved in this branch's final code).
 - Must render correctly in both light and dark mode (`darkMode: ["class"]` in `tailwind.config.ts`) — token-based colors handle this automatically as long as no hex/RGB literals are introduced.
 - Verify with `tsc --noEmit` from `packages/web` after every task (this workspace has no component test suite — `packages/web` has zero `*.test.tsx` files and no testing-library/vitest dependency, so typecheck is the mechanical gate here; do not add new test tooling, that is out of scope).
 - Doctor photos are explicitly out of scope — `DoctorProfile` has no photo field in the schema. Avatars are illustrated icons, not images.
@@ -444,7 +444,7 @@ Expected: no errors. In particular confirm no leftover reference to `Avatar`, `A
 - [ ] **Step 7: Manual visual check (documented, not automated)**
 
 Start the dev server (`npm run dev --workspace @madamgy/web` from the repo root, or the monorepo's usual `npm run dev`), log in as a patient, and open `/dashboard`. Confirm:
-- Hero renders with the pulse-ring/video-icon graphic and floating accent icons, no layout overflow at mobile width (`max-w-md`).
+- Hero renders with the video-icon chip and its breathing glow, and (when doctors are available) the live "N doctors available now" badge, no layout overflow at mobile width (`max-w-md`).
 - Greeting text matches the current time of day.
 - Each doctor in "Available now" shows a distinct-looking tinted avatar (not identical colors for every doctor, assuming more than one doctor is seeded).
 - "Past consultations" cards show the new file icon badge and rounded corners.
