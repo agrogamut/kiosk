@@ -42,6 +42,16 @@ export function initSocketHandlers(io: Server): void {
     registerChatHandlers(io, socket, userId);
     registerPresenceHandlers(socket, userId, userRole);
 
+    // Disconnect marks a doctor unavailable (below); nothing previously reversed that on the
+    // next reconnect, so any doctor who ever lost their connection -- a closed tab, a reload, a
+    // network blip -- stayed permanently unassignable with no recovery path anywhere in the
+    // product. Restore availability here, mirroring the disconnect handler.
+    if (userRole === "DOCTOR") {
+      prisma.doctorProfile
+        .updateMany({ where: { userId, isAvailable: false }, data: { isAvailable: true } })
+        .catch((error: unknown) => console.error(error));
+    }
+
     socket.on("disconnect", () => {
       if (userRole !== "DOCTOR") {
         return;
