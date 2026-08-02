@@ -113,6 +113,7 @@ model DoctorProfile {
   approvedAt     DateTime?
   approvedById   String?
   licenseDocKey  String?
+  photoKey       String?
 
   user User @relation(fields: [userId], references: [id])
 

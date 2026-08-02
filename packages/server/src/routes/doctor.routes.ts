@@ -44,6 +44,33 @@ doctorRouter.post(
   },
 );
 
+const PHOTO_EXTENSION_BY_MIMETYPE: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+doctorRouter.post("/photo", upload.single("photo"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.file) {
+      throw new AppError(400, "Photo required");
+    }
+    const extension = PHOTO_EXTENSION_BY_MIMETYPE[req.file.mimetype];
+    if (!extension) {
+      throw new AppError(400, "Photo must be a JPEG, PNG, or WebP image");
+    }
+
+    const doctorId = req.user!.sub;
+    const objectKey = `doctor-photos/${doctorId}.${extension}`;
+    await uploadBuffer(objectKey, req.file.buffer, req.file.mimetype);
+    await prisma.doctorProfile.update({ where: { userId: doctorId }, data: { photoKey: objectKey } });
+
+    res.json({ photoUrl: await getPresignedUrl(objectKey) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 doctorRouter.get("/patients/:patientId/records", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const doctorId = req.user!.sub;

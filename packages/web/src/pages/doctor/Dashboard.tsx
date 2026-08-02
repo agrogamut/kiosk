@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import type { CallSession } from "@madamgy/api-client";
+import { DoctorAvatar } from "../../components/patient/DoctorAvatar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +36,7 @@ interface DoctorProfile {
   degree: string;
   regNumber: string;
   specialization: string | null;
+  photoUrl: string | null;
 }
 
 interface MeResponse {
@@ -56,6 +58,8 @@ export default function DoctorDashboard() {
   const navigate = useNavigate();
   const [incoming, setIncoming] = useState<IncomingCall | null>(null);
   const [profile, setProfile] = useState<DoctorProfile | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const { data: wallet } = useQuery({
     queryKey: ["wallet", "/doctor"],
@@ -110,6 +114,23 @@ export default function DoctorDashboard() {
 
     getSocket().emit("call:reject", { callSessionId: incoming.callSession.id });
     setIncoming(null);
+  }
+
+  async function uploadPhoto(file: File): Promise<void> {
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append("photo", file);
+      const response = await api.post<{ photoUrl: string }>("/doctor/photo", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setProfile((current) => (current ? { ...current, photoUrl: response.data.photoUrl } : current));
+      toast.success("Photo updated");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "We couldn't upload your photo. Try again."));
+    } finally {
+      setUploadingPhoto(false);
+    }
   }
 
   async function deleteAccount(): Promise<void> {
@@ -168,6 +189,31 @@ export default function DoctorDashboard() {
       {profile && (
         <div className="mb-8 rounded-xl bg-card p-6 shadow-sm">
           <h2 className="font-display mb-4 text-lg font-semibold text-foreground">Your profile</h2>
+          <div className="mb-6 flex items-center gap-4">
+            <DoctorAvatar id={user?.id ?? ""} name={user?.name ?? ""} photoUrl={profile.photoUrl} className="size-16" />
+            <div>
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                disabled={uploadingPhoto}
+                className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
+              >
+                {uploadingPhoto ? "Uploading..." : "Change photo"}
+              </button>
+              <p className="text-xs text-muted-foreground">Shown to patients on the booking screen</p>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (file) void uploadPhoto(file);
+                }}
+              />
+            </div>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <p className="text-sm text-muted-foreground">Degree</p>

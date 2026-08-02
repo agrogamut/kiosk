@@ -16,6 +16,7 @@ interface AvailableDoctor {
   id: string;
   name: string;
   specialization: string | null;
+  photoUrl: string | null;
 }
 
 function timeOfDayGreeting(): string {
@@ -77,7 +78,13 @@ export default function Appointments() {
                       onClick={() => navigate("/consult")}
                       className="flex flex-col items-center gap-2 rounded-2xl bg-card p-4 text-center shadow-sm shadow-foreground/5"
                     >
-                      <DoctorAvatar id={doctor.id} name={doctor.name} showStatus className="size-14" />
+                      <DoctorAvatar
+                        id={doctor.id}
+                        name={doctor.name}
+                        photoUrl={doctor.photoUrl}
+                        showStatus
+                        className="size-14"
+                      />
                       <p className="line-clamp-1 text-sm font-medium text-foreground">{doctor.name}</p>
                       <p className="line-clamp-1 text-xs text-muted-foreground">{doctor.specialization ?? "General"}</p>
                     </button>

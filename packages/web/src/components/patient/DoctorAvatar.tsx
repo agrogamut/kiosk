@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 interface DoctorAvatarProps {
   id: string;
   name: string;
+  photoUrl?: string | null;
   className?: string;
   showStatus?: boolean;
 }
@@ -26,17 +27,21 @@ function variantForId(id: string) {
   return VARIANTS[hash % VARIANTS.length];
 }
 
-export function DoctorAvatar({ id, name, className, showStatus = false }: DoctorAvatarProps) {
+export function DoctorAvatar({ id, name, photoUrl, className, showStatus = false }: DoctorAvatarProps) {
   const variant = variantForId(id);
 
   return (
     <div className={cn("relative inline-flex size-14 shrink-0", className)}>
-      <svg viewBox="0 0 36 36" role="img" aria-label={name} className="size-full">
-        <circle cx="18" cy="18" r="18" className="fill-card" />
-        <path d="M2 33c1.5-7 7.5-11.5 16-11.5S34.5 26 36 33v3H2v-3Z" className={variant.scrub} />
-        <circle cx="18" cy="16" r="9" className="fill-muted" />
-        <path d={variant.hairPath} className={variant.hair} />
-      </svg>
+      {photoUrl ? (
+        <img src={photoUrl} alt={name} className="size-full rounded-full object-cover" />
+      ) : (
+        <svg viewBox="0 0 36 36" role="img" aria-label={name} className="size-full">
+          <circle cx="18" cy="18" r="18" className="fill-card" />
+          <path d="M2 33c1.5-7 7.5-11.5 16-11.5S34.5 26 36 33v3H2v-3Z" className={variant.scrub} />
+          <circle cx="18" cy="16" r="9" className="fill-muted" />
+          <path d={variant.hairPath} className={variant.hair} />
+        </svg>
+      )}
       {showStatus && (
         <span className="absolute bottom-0 right-0 flex size-3.5 items-center justify-center rounded-full bg-card">
           <span className="size-2.5 rounded-full bg-tertiary" aria-hidden="true" />
