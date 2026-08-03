@@ -166,8 +166,15 @@ export async function registerDoctor(
 
   if (licenseFile) {
     const objectKey = `doctor-verification/${user.id}.pdf`;
-    await uploadBuffer(objectKey, licenseFile.buffer, "application/pdf");
-    await prisma.doctorProfile.update({ where: { userId: user.id }, data: { licenseDocKey: objectKey } });
+    try {
+      await uploadBuffer(objectKey, licenseFile.buffer, "application/pdf");
+      await prisma.doctorProfile.update({ where: { userId: user.id }, data: { licenseDocKey: objectKey } });
+    } catch (error) {
+      // Storage being down must not lose an otherwise-valid registration -- the account still
+      // gets created, just without licenseDocKey set, so it's visibly missing a document to the
+      // admin reviewing it instead of vanishing into a 500.
+      console.error("License document upload failed, registration still created", error);
+    }
   }
 
   return user;
