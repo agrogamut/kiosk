@@ -76,6 +76,33 @@ jobs:
       - run: docker run -d --name madamgy-ci-minio -e MINIO_ROOT_USER=madamgy -e MINIO_ROOT_PASSWORD=madamgy123 -p 19000:9000 minio/minio server /data
       - run: npm run test --workspace @madamgy/server
 
+  build-android-apk:
+    runs-on: ubuntu-latest
+    env:
+      VITE_API_URL: https://kiosk-production-060d.up.railway.app/api
+      VITE_SOCKET_URL: https://kiosk-production-060d.up.railway.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: npm ci
+      - run: npm run build --workspace @madamgy/api-client
+      - run: npm run build --workspace @madamgy/web
+      - run: npx cap sync android
+        working-directory: packages/kiosk-android
+      - run: chmod +x gradlew && ./gradlew assembleDebug
+        working-directory: packages/kiosk-android/android
+      - uses: actions/upload-artifact@v4
+        with:
+          name: madamgy-debug-apk
+          path: packages/kiosk-android/android/app/build/outputs/apk/debug/app-debug.apk
+
   dependency-audit:
     runs-on: ubuntu-latest
     steps:
