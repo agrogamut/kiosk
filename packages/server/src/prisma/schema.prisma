@@ -104,21 +104,86 @@ model PatientProfile {
 }
 
 model DoctorProfile {
-  id             String   @id @default(cuid())
-  userId         String   @unique
-  degree         String
-  regNumber      String   @unique
-  specialization String?
-  isAvailable    Boolean  @default(true)
-  isApproved     Boolean  @default(false)
-  approvedAt     DateTime?
-  approvedById   String?
-  licenseDocKey  String?
-  photoKey       String?
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  degree          String
+  regNumber       String    @unique
+  specialization  String?
+  isAvailable     Boolean   @default(true)
+  isApproved      Boolean   @default(false)
+  approvedAt      DateTime?
+  approvedById    String?
+  licenseDocKey   String?
+  photoKey        String?
+  email           String?
+  altMobile       String?
+  gender          Gender?
+  dob             DateTime?
+  city            String?
+  state           String?
+  pincode         String?
+  regYear         String?
+  regType         String?
+  experienceYears Int?
+  address         String?
+  about           String?
 
-  user User @relation(fields: [userId], references: [id])
+  user            User                   @relation(fields: [userId], references: [id])
+  educations      DoctorEducation[]
+  experiences     DoctorExperience[]
+  hospitals       DoctorHospital[]
+  specializations DoctorSpecialization[]
 
   @@index([isAvailable])
+}
+
+model DoctorEducation {
+  id              String   @id @default(cuid())
+  doctorProfileId String
+  degree          String
+  institution     String
+  year            String?
+  createdAt       DateTime @default(now())
+
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id], onDelete: Cascade)
+
+  @@index([doctorProfileId])
+}
+
+model DoctorExperience {
+  id              String   @id @default(cuid())
+  doctorProfileId String
+  organization    String
+  role            String?
+  years           String?
+  createdAt       DateTime @default(now())
+
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id], onDelete: Cascade)
+
+  @@index([doctorProfileId])
+}
+
+model DoctorHospital {
+  id              String   @id @default(cuid())
+  doctorProfileId String
+  name            String
+  address         String?
+  createdAt       DateTime @default(now())
+
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id], onDelete: Cascade)
+
+  @@index([doctorProfileId])
+}
+
+model DoctorSpecialization {
+  id              String   @id @default(cuid())
+  doctorProfileId String
+  name            String
+  createdAt       DateTime @default(now())
+
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id], onDelete: Cascade)
+
+  @@index([doctorProfileId])
 }
 
 // A hand-written migration (unique_active_call_per_patient) adds a partial unique index --

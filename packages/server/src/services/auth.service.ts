@@ -99,7 +99,22 @@ export async function registerDoctor(
     password: string;
     degree: string;
     regNumber: string;
-    specialization?: string;
+    regYear: string;
+    regType: string;
+    email: string;
+    altMobile?: string;
+    gender: "MALE" | "FEMALE" | "OTHER";
+    dob: string;
+    experienceYears: number;
+    city: string;
+    state: string;
+    pincode?: string;
+    address: string;
+    about: string;
+    specializations: string[];
+    educations: { degree: string; institution: string; year?: string }[];
+    experiences?: { organization: string; role?: string; years?: string }[];
+    hospitals?: { name: string; address?: string }[];
   },
   licenseFile?: { buffer: Buffer; mimetype: string },
 ) {
@@ -116,6 +131,7 @@ export async function registerDoctor(
   }
 
   const passwordHash = await bcrypt.hash(data.password, 12);
+  const dob = parseDateOfBirth(data.dob);
   const user = await prisma.user.create({
     data: {
       phone: data.phone,
@@ -126,7 +142,23 @@ export async function registerDoctor(
         create: {
           degree: data.degree,
           regNumber: data.regNumber,
-          specialization: data.specialization,
+          specialization: data.specializations.join(", "),
+          regYear: data.regYear,
+          regType: data.regType,
+          email: data.email,
+          altMobile: data.altMobile,
+          gender: data.gender,
+          dob,
+          experienceYears: data.experienceYears,
+          city: data.city,
+          state: data.state,
+          pincode: data.pincode,
+          address: data.address,
+          about: data.about,
+          specializations: { create: data.specializations.map((name) => ({ name })) },
+          educations: { create: data.educations },
+          experiences: { create: data.experiences ?? [] },
+          hospitals: { create: data.hospitals ?? [] },
         },
       },
     },

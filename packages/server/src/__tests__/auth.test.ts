@@ -5,6 +5,29 @@ import { app } from "../index.js";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 
+function validDoctorRegisterPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    phone: "9999000002",
+    name: "Test Doctor",
+    password: "password123",
+    degree: "MBBS",
+    regNumber: "DOC-9999000002",
+    regYear: "2015",
+    regType: "Medical Council of India",
+    email: "doctor@example.com",
+    gender: "MALE",
+    dob: "01/01/1990",
+    experienceYears: 5,
+    city: "Mumbai",
+    state: "Maharashtra",
+    address: "123 Health St",
+    about: "Experienced general physician.",
+    specializations: ["General Medicine"],
+    educations: [{ degree: "MBBS", institution: "Grant Medical College", year: "2012" }],
+    ...overrides,
+  };
+}
+
 async function deleteTestUsers(): Promise<void> {
   const users = await prisma.user.findMany({
     where: {
@@ -287,14 +310,7 @@ describe("Doctor auth", () => {
   it("registers a doctor pending approval", async () => {
     const response = await request(app)
       .post("/api/auth/doctor/register")
-      .field("data", JSON.stringify({
-        phone: "9999000002",
-        name: "Test Doctor",
-        password: "password123",
-        degree: "MBBS",
-        regNumber: "DOC-9999000002",
-        specialization: "General Medicine",
-      }));
+      .field("data", JSON.stringify(validDoctorRegisterPayload()));
 
     expect(response.status).toBe(201);
     expect(response.body.message).toContain("awaiting admin approval");
@@ -303,22 +319,12 @@ describe("Doctor auth", () => {
   it("rejects duplicate doctor phone and registration number", async () => {
     const duplicatePhone = await request(app)
       .post("/api/auth/doctor/register")
-      .field("data", JSON.stringify({
-        phone: "9999000002",
-        name: "Duplicate Doctor",
-        password: "password123",
-        degree: "MBBS",
-        regNumber: "DOC-NEW",
-      }));
+      .field("data", JSON.stringify(validDoctorRegisterPayload({ name: "Duplicate Doctor", regNumber: "DOC-NEW" })));
     const duplicateReg = await request(app)
       .post("/api/auth/doctor/register")
-      .field("data", JSON.stringify({
-        phone: "9999000003",
-        name: "Duplicate Registration",
-        password: "password123",
-        degree: "MBBS",
-        regNumber: "DOC-9999000002",
-      }));
+      .field("data", JSON.stringify(
+        validDoctorRegisterPayload({ phone: "9999000003", name: "Duplicate Registration" }),
+      ));
 
     expect(duplicatePhone.status).toBe(409);
     expect(duplicateReg.status).toBe(409);
@@ -393,13 +399,9 @@ describe("Doctor auth", () => {
     for (let i = 0; i < 5; i++) {
       const response = await request(app)
         .post("/api/auth/doctor/register")
-        .field("data", JSON.stringify({
-          phone: "9999000002",
-          name: "Rate Limit Doctor",
-          password: "password123",
-          degree: "MBBS",
-          regNumber: `DOC-RATE-${i}`,
-        }));
+        .field("data", JSON.stringify(
+          validDoctorRegisterPayload({ name: "Rate Limit Doctor", regNumber: `DOC-RATE-${i}` }),
+        ));
 
       expect(response.status).toBe(409);
     }

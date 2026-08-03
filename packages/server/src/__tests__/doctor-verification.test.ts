@@ -24,6 +24,18 @@ describe("Doctor verification document upload", () => {
         password: "password123",
         degree: "MBBS",
         regNumber: "VERIFY-REG-1",
+        regYear: "2015",
+        regType: "Medical Council of India",
+        email: "verify-doctor@example.com",
+        gender: "MALE",
+        dob: "01/01/1990",
+        experienceYears: 5,
+        city: "Mumbai",
+        state: "Maharashtra",
+        address: "123 Health St",
+        about: "Experienced general physician.",
+        specializations: ["General Medicine"],
+        educations: [{ degree: "MBBS", institution: "Grant Medical College", year: "2012" }],
       }))
       .attach("licenseDocument", Buffer.from("%PDF-1.4 fake license content"), "license.pdf");
 

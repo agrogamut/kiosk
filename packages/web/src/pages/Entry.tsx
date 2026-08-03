@@ -338,7 +338,7 @@ export default function Entry() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col justify-center bg-background px-6 py-10">
+    <div className="flex min-h-dvh flex-col justify-center bg-background px-6 py-10">
       <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-8">
         <div className="text-center">
           <div

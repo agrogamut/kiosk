@@ -60,27 +60,166 @@ export declare const PatientLoginOtpVerifySchema: z.ZodObject<{
     otp: string;
 }>;
 export type PatientLoginOtpVerify = z.infer<typeof PatientLoginOtpVerifySchema>;
+export declare const DoctorEducationEntrySchema: z.ZodObject<{
+    degree: z.ZodString;
+    institution: z.ZodString;
+    year: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    degree: string;
+    institution: string;
+    year?: string | undefined;
+}, {
+    degree: string;
+    institution: string;
+    year?: string | undefined;
+}>;
+export type DoctorEducationEntry = z.infer<typeof DoctorEducationEntrySchema>;
+export declare const DoctorExperienceEntrySchema: z.ZodObject<{
+    organization: z.ZodString;
+    role: z.ZodOptional<z.ZodString>;
+    years: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    organization: string;
+    role?: string | undefined;
+    years?: string | undefined;
+}, {
+    organization: string;
+    role?: string | undefined;
+    years?: string | undefined;
+}>;
+export type DoctorExperienceEntry = z.infer<typeof DoctorExperienceEntrySchema>;
+export declare const DoctorHospitalEntrySchema: z.ZodObject<{
+    name: z.ZodString;
+    address: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    address?: string | undefined;
+}, {
+    name: string;
+    address?: string | undefined;
+}>;
+export type DoctorHospitalEntry = z.infer<typeof DoctorHospitalEntrySchema>;
 export declare const DoctorRegisterSchema: z.ZodObject<{
     phone: z.ZodString;
     name: z.ZodString;
     password: z.ZodString;
     degree: z.ZodString;
     regNumber: z.ZodString;
-    specialization: z.ZodOptional<z.ZodString>;
+    regYear: z.ZodString;
+    regType: z.ZodString;
+    email: z.ZodString;
+    altMobile: z.ZodOptional<z.ZodString>;
+    gender: z.ZodEnum<["MALE", "FEMALE", "OTHER"]>;
+    dob: z.ZodEffects<z.ZodString, string, string>;
+    experienceYears: z.ZodNumber;
+    city: z.ZodString;
+    state: z.ZodString;
+    pincode: z.ZodOptional<z.ZodString>;
+    address: z.ZodString;
+    about: z.ZodString;
+    specializations: z.ZodArray<z.ZodString, "many">;
+    educations: z.ZodArray<z.ZodObject<{
+        degree: z.ZodString;
+        institution: z.ZodString;
+        year: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        degree: string;
+        institution: string;
+        year?: string | undefined;
+    }, {
+        degree: string;
+        institution: string;
+        year?: string | undefined;
+    }>, "many">;
+    experiences: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        organization: z.ZodString;
+        role: z.ZodOptional<z.ZodString>;
+        years: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        organization: string;
+        role?: string | undefined;
+        years?: string | undefined;
+    }, {
+        organization: string;
+        role?: string | undefined;
+        years?: string | undefined;
+    }>, "many">>;
+    hospitals: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        name: z.ZodString;
+        address: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        address?: string | undefined;
+    }, {
+        name: string;
+        address?: string | undefined;
+    }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     phone: string;
     name: string;
-    password: string;
+    dob: string;
+    gender: "MALE" | "FEMALE" | "OTHER";
+    email: string;
     degree: string;
+    address: string;
+    password: string;
     regNumber: string;
-    specialization?: string | undefined;
+    regYear: string;
+    regType: string;
+    experienceYears: number;
+    city: string;
+    state: string;
+    about: string;
+    specializations: string[];
+    educations: {
+        degree: string;
+        institution: string;
+        year?: string | undefined;
+    }[];
+    altMobile?: string | undefined;
+    pincode?: string | undefined;
+    experiences?: {
+        organization: string;
+        role?: string | undefined;
+        years?: string | undefined;
+    }[] | undefined;
+    hospitals?: {
+        name: string;
+        address?: string | undefined;
+    }[] | undefined;
 }, {
     phone: string;
     name: string;
-    password: string;
+    dob: string;
+    gender: "MALE" | "FEMALE" | "OTHER";
+    email: string;
     degree: string;
+    address: string;
+    password: string;
     regNumber: string;
-    specialization?: string | undefined;
+    regYear: string;
+    regType: string;
+    experienceYears: number;
+    city: string;
+    state: string;
+    about: string;
+    specializations: string[];
+    educations: {
+        degree: string;
+        institution: string;
+        year?: string | undefined;
+    }[];
+    altMobile?: string | undefined;
+    pincode?: string | undefined;
+    experiences?: {
+        organization: string;
+        role?: string | undefined;
+        years?: string | undefined;
+    }[] | undefined;
+    hospitals?: {
+        name: string;
+        address?: string | undefined;
+    }[] | undefined;
 }>;
 export type DoctorRegister = z.infer<typeof DoctorRegisterSchema>;
 export declare const DoctorLoginInitiateSchema: z.ZodObject<{
@@ -126,15 +265,15 @@ export declare const UserSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     phone: string;
     name: string;
-    id: string;
     role: "PATIENT" | "DOCTOR" | "ADMIN" | "SUPER_ADMIN";
+    id: string;
     disabled: boolean;
     createdAt: string;
 }, {
     phone: string;
     name: string;
-    id: string;
     role: "PATIENT" | "DOCTOR" | "ADMIN" | "SUPER_ADMIN";
+    id: string;
     disabled: boolean;
     createdAt: string;
 }>;
@@ -174,15 +313,15 @@ export declare const StaffCreateSchema: z.ZodDiscriminatedUnion<"role", [z.ZodOb
     phone: string;
     name: string;
     degree: string;
-    regNumber: string;
     role: "DOCTOR";
+    regNumber: string;
     specialization?: string | undefined;
 }, {
     phone: string;
     name: string;
     degree: string;
-    regNumber: string;
     role: "DOCTOR";
+    regNumber: string;
     specialization?: string | undefined;
 }>]>;
 export type StaffCreate = z.infer<typeof StaffCreateSchema>;
@@ -278,12 +417,12 @@ export declare const AuditLogSchema: z.ZodObject<{
         role: z.ZodEnum<["PATIENT", "DOCTOR", "ADMIN", "SUPER_ADMIN"]>;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        id: string;
         role: "PATIENT" | "DOCTOR" | "ADMIN" | "SUPER_ADMIN";
+        id: string;
     }, {
         name: string;
-        id: string;
         role: "PATIENT" | "DOCTOR" | "ADMIN" | "SUPER_ADMIN";
+        id: string;
     }>;
 }, "strip", z.ZodTypeAny, {
     id: string;
@@ -293,8 +432,8 @@ export declare const AuditLogSchema: z.ZodObject<{
     targetId: string | null;
     actor: {
         name: string;
-        id: string;
         role: "PATIENT" | "DOCTOR" | "ADMIN" | "SUPER_ADMIN";
+        id: string;
     };
     metadata?: unknown;
 }, {
@@ -305,8 +444,8 @@ export declare const AuditLogSchema: z.ZodObject<{
     targetId: string | null;
     actor: {
         name: string;
-        id: string;
         role: "PATIENT" | "DOCTOR" | "ADMIN" | "SUPER_ADMIN";
+        id: string;
     };
     metadata?: unknown;
 }>;

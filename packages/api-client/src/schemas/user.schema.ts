@@ -68,13 +68,48 @@ export const PatientLoginOtpVerifySchema = z.object({
 });
 export type PatientLoginOtpVerify = z.infer<typeof PatientLoginOtpVerifySchema>;
 
+export const DoctorEducationEntrySchema = z.object({
+  degree: z.string().min(1, "Enter the degree"),
+  institution: z.string().min(1, "Enter the institution"),
+  year: z.string().max(20).optional(),
+});
+export type DoctorEducationEntry = z.infer<typeof DoctorEducationEntrySchema>;
+
+export const DoctorExperienceEntrySchema = z.object({
+  organization: z.string().min(1, "Enter the organization"),
+  role: z.string().max(100).optional(),
+  years: z.string().max(20).optional(),
+});
+export type DoctorExperienceEntry = z.infer<typeof DoctorExperienceEntrySchema>;
+
+export const DoctorHospitalEntrySchema = z.object({
+  name: z.string().min(1, "Enter the hospital or clinic name"),
+  address: z.string().max(250).optional(),
+});
+export type DoctorHospitalEntry = z.infer<typeof DoctorHospitalEntrySchema>;
+
 export const DoctorRegisterSchema = z.object({
   phone: phoneField,
   name: nameField,
   password: z.string().min(8, "Password must be at least 8 characters"),
   degree: z.string().min(1, "Enter your medical degree"),
   regNumber: z.string().min(1, "Enter your registration number"),
-  specialization: z.string().optional(),
+  regYear: z.string().min(1, "Enter your registration year"),
+  regType: z.string().min(1, "Enter your registration type/council"),
+  email: z.string().email("Enter a valid email address"),
+  altMobile: z.string().max(20).optional(),
+  gender: GenderSchema,
+  dob: DateOfBirthSchema,
+  experienceYears: z.coerce.number().int().min(0, "Enter years of experience").max(80),
+  city: z.string().min(1, "Enter your city"),
+  state: z.string().min(1, "Enter your state"),
+  pincode: z.string().max(20).optional(),
+  address: z.string().min(1, "Enter your clinic/practice address"),
+  about: z.string().min(1, "Tell patients a bit about yourself"),
+  specializations: z.array(z.string().min(1)).min(1, "Add at least one specialization"),
+  educations: z.array(DoctorEducationEntrySchema).min(1, "Add at least one qualification"),
+  experiences: z.array(DoctorExperienceEntrySchema).optional(),
+  hospitals: z.array(DoctorHospitalEntrySchema).optional(),
 });
 export type DoctorRegister = z.infer<typeof DoctorRegisterSchema>;
 
