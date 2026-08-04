@@ -17,6 +17,8 @@ export function registerCallHandlers(io: Server, socket: Socket, userId: string)
         data: { status: "ACTIVE", startedAt: new Date() },
       });
 
+      await livekitService.createRoom(call.livekitRoom);
+
       const [doctorToken, patientToken] = await Promise.all([
         livekitService.generateToken(call.livekitRoom, userId),
         livekitService.generateToken(call.livekitRoom, call.patientId),
