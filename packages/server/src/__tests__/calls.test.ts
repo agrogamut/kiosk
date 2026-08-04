@@ -307,6 +307,33 @@ describe("GET /calls/active", () => {
     await prisma.callSession.deleteMany({ where: { id: call.id } });
   });
 
+  it("returns the call when the doctor authenticates as the call's doctor", async () => {
+    const uniquePhone = `9999100088${Date.now()}`;
+    const doctor = await prisma.user.create({
+      data: {
+        phone: uniquePhone,
+        name: "Doctor Test User",
+        role: "DOCTOR",
+        doctorProfile: { create: { degree: "MBBS", regNumber: `DOCTOR-TEST-REG-${Date.now()}`, isApproved: true } },
+      },
+    });
+    const doctorToken = signAccessToken({ sub: doctor.id, role: "DOCTOR" });
+
+    const call = await prisma.callSession.create({
+      data: { patientId, doctorId: doctor.id, status: "ACTIVE", livekitRoom: "room-doctor-test", startedAt: new Date() },
+    });
+
+    const response = await request(app).get("/api/calls/active").set("Authorization", `Bearer ${doctorToken}`);
+    expect(response.status).toBe(200);
+    expect(response.body.callSession.id).toBe(call.id);
+    expect(typeof response.body.livekitToken).toBe("string");
+    expect(response.body.livekitToken.length).toBeGreaterThan(20);
+
+    await prisma.callSession.deleteMany({ where: { id: call.id } });
+    await prisma.doctorProfile.deleteMany({ where: { userId: doctor.id } });
+    await prisma.user.deleteMany({ where: { id: doctor.id } });
+  });
+
   it("requires auth", async () => {
     const response = await request(app).get("/api/calls/active");
     expect(response.status).toBe(401);
