@@ -17,6 +17,7 @@ import { paymentsRouter } from "./routes/payments.routes.js";
 import { prescriptionsRouter } from "./routes/prescriptions.routes.js";
 import { supportRouter } from "./routes/support.routes.js";
 import { usersRouter } from "./routes/users.routes.js";
+import { webhooksRouter } from "./routes/webhooks.routes.js";
 import { initSocketHandlers } from "./socket/index.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
 import { prisma } from "./lib/prisma.js";
@@ -46,6 +47,7 @@ initSocketHandlers(io);
 app.use(helmet());
 app.use(cors({ origin: webUrl, credentials: true }));
 app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
+app.use("/api/webhooks/livekit", express.raw({ type: "application/webhook+json" }));
 app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 if (process.env.NODE_ENV !== "test") {
@@ -110,6 +112,7 @@ app.use("/api/doctor", doctorRouter);
 app.use("/api/doctors", doctorsRouter);
 app.use("/api/account", accountRouter);
 app.use("/api/support", supportRouter);
+app.use("/api/webhooks", webhooksRouter);
 
 app.use(errorMiddleware);
 
