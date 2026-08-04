@@ -2,6 +2,7 @@ import { Prisma, type CallStatus } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { io } from "../index.js";
 import { getRevenueConfig } from "./revenue-config.service.js";
+import { livekitService } from "./livekit.service.js";
 
 function isDuplicateCreditError(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
@@ -55,7 +56,7 @@ export async function completeCall(callSessionId: string): Promise<void> {
     });
 
     if (!call.doctorId) {
-      return { patientId: call.patientId, doctorId: null as string | null };
+      return { patientId: call.patientId, doctorId: null as string | null, livekitRoom: call.livekitRoom };
     }
 
     await tx.doctorProfile.update({
@@ -100,7 +101,7 @@ export async function completeCall(callSessionId: string): Promise<void> {
       }
     }
 
-    return { patientId: call.patientId, doctorId: call.doctorId as string | null };
+    return { patientId: call.patientId, doctorId: call.doctorId as string | null, livekitRoom: call.livekitRoom };
   });
 
   if (!result) {
@@ -111,4 +112,9 @@ export async function completeCall(callSessionId: string): Promise<void> {
   if (result.doctorId) {
     io.to(`user:${result.doctorId}`).emit("call:ended", { callSessionId });
   }
+
+  // Runs after the transaction has committed and the wallet credit / socket notifications above
+  // have already happened, so a LiveKit failure here can never roll back DB state or block
+  // crediting -- see livekitService.deleteRoom's own best-effort/never-throws contract.
+  await livekitService.deleteRoom(result.livekitRoom);
 }

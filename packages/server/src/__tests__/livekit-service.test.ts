@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const createRoomMock = vi.fn();
+const deleteRoomMock = vi.fn();
 let shouldThrowOnConstructor = false;
 
 vi.mock("livekit-server-sdk", async () => {
@@ -14,6 +15,7 @@ vi.mock("livekit-server-sdk", async () => {
         }
       }
       createRoom = createRoomMock;
+      deleteRoom = deleteRoomMock;
     },
   };
 });
@@ -25,6 +27,7 @@ describe("livekitService.createRoom", () => {
 
   afterEach(() => {
     createRoomMock.mockReset();
+    deleteRoomMock.mockReset();
     shouldThrowOnConstructor = false;
   });
 
@@ -49,5 +52,33 @@ describe("livekitService.createRoom", () => {
     const { livekitService } = await import("../services/livekit.service.js");
 
     await expect(livekitService.createRoom("room-test-3")).resolves.toBeUndefined();
+  });
+});
+
+describe("livekitService.deleteRoom", () => {
+  beforeEach(() => {
+    shouldThrowOnConstructor = false;
+  });
+
+  afterEach(() => {
+    createRoomMock.mockReset();
+    deleteRoomMock.mockReset();
+    shouldThrowOnConstructor = false;
+  });
+
+  it("deletes the room", async () => {
+    deleteRoomMock.mockResolvedValueOnce(undefined);
+    const { livekitService } = await import("../services/livekit.service.js");
+
+    await livekitService.deleteRoom("room-test-4");
+
+    expect(deleteRoomMock).toHaveBeenCalledWith("room-test-4");
+  });
+
+  it("swallows errors instead of throwing", async () => {
+    deleteRoomMock.mockRejectedValueOnce(new Error("connection refused"));
+    const { livekitService } = await import("../services/livekit.service.js");
+
+    await expect(livekitService.deleteRoom("room-test-5")).resolves.toBeUndefined();
   });
 });

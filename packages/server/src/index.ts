@@ -36,6 +36,18 @@ if (process.env.NODE_ENV === "production" && !process.env.WEB_URL) {
 }
 const webUrl = process.env.WEB_URL ?? "*";
 
+// .env.example (loaded as a fallback for any var not already set -- see config/env.ts) ships
+// LIVEKIT_HOST=ws://localhost:7880 for local dev. A production deployment that forgets to set
+// its own LIVEKIT_HOST doesn't fail loudly: it silently falls back to that localhost value, and
+// createRoom()'s best-effort try/catch just logs the resulting connection error. That would
+// silently degrade the 2-minute departure-timeout grace window down to LiveKit's own default.
+// Warn loudly at startup instead of failing hard, since createRoom() already degrades gracefully.
+if (process.env.NODE_ENV === "production" && (!process.env.LIVEKIT_HOST || process.env.LIVEKIT_HOST.includes("localhost"))) {
+  console.warn(
+    "WARNING: LIVEKIT_HOST is unset or points at localhost in production — LiveKit room creation (2-minute departure timeout) will silently fail. Set LIVEKIT_HOST to your real LiveKit server URL.",
+  );
+}
+
 export const app = express();
 export const httpServer = createServer(app);
 export const io = new Server(httpServer, {

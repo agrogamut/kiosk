@@ -33,7 +33,12 @@ export function CallLayout({ screenShare = false, children }: CallLayoutProps) {
         <ParticipantTile />
       </GridLayout>
       <RoomAudioRenderer />
-      <ControlBar controls={{ chat: false, screenShare, settings: true }} />
+      {/* leave: false -- LiveKit's default Leave button just calls room.disconnect(), which this
+          branch's onDisconnected handler treats as a lost connection (shows "Connection lost /
+          Rejoin" with no other way out, since both call routes sit outside their shell nav).
+          Both doctor and patient already have their own explicit way to end a call (Close room,
+          prescription submit, Cancel), so LiveKit's own leave control would only add a dead end. */}
+      <ControlBar controls={{ chat: false, screenShare, settings: true, leave: false }} />
       {children}
     </LayoutContextProvider>
   );

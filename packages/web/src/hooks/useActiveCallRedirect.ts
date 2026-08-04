@@ -30,7 +30,19 @@ export function useActiveCallRedirect(): void {
           setLivekitToken(livekitToken);
         }
 
-        navigate(role === "DOCTOR" ? `/doctor/call/${callSession.id}` : "/consult");
+        if (role === "DOCTOR") {
+          // Only ACTIVE calls have a minted livekitToken (GET /calls/active only mints one for
+          // ACTIVE status). Redirecting a doctor into /doctor/call/:id for a QUEUED/RINGING call
+          // sends them to a screen with no token, which bounces them right back out -- and since
+          // that route is outside DoctorShell, the bounce remounts this hook and loops forever.
+          // Let a still-ringing call surface via the doctor's normal incoming-call UI instead.
+          if (callSession.status === "ACTIVE") {
+            navigate(`/doctor/call/${callSession.id}`);
+          }
+          return;
+        }
+
+        navigate("/consult");
       })
       .catch(() => {
         // No active call, or a transient error -- stay on the current page either way.

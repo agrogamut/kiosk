@@ -41,4 +41,17 @@ export const livekitService = {
       console.error("livekit createRoom failed, falling back to implicit room creation", room, error);
     }
   },
+
+  // Best-effort: called after a call is marked ENDED so a still-open LiveKit room doesn't
+  // outlive it. If a participant's socket connection is down but their WebRTC connection is
+  // still alive, they'd otherwise never receive the call:ended socket event and stay in a live
+  // room after the other side has already been credited for the call. Never throws -- this must
+  // never block or roll back the DB completion it runs after.
+  async deleteRoom(room: string): Promise<void> {
+    try {
+      await getRoomService().deleteRoom(room);
+    } catch (error) {
+      console.error("livekit deleteRoom failed", room, error);
+    }
+  },
 };

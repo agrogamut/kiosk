@@ -16,3 +16,16 @@ keys:
   devkey: c063bccf7164bfcaa205cd629a5725ac2667d8131eb5682e
 logging:
   level: warn
+# Fires room_finished (and other) events at the backend's webhook endpoint so it can clean up
+# calls LiveKit itself decided to end (e.g. departure timeout) even when nobody explicitly
+# closed the room from the app. The api_key here must be one of the keys above -- LiveKit signs
+# webhook payloads with it so the receiver can verify authenticity.
+# network_mode is `host` for this service in docker-compose.yml, so it shares the host's network
+# namespace and can reach the dev server directly via localhost.
+# In production, point the equivalent config (self-hosted livekit.yaml or LiveKit Cloud's
+# webhook settings) at the deployed backend's own /api/webhooks/livekit URL -- that's a
+# deployment-time step outside this repo's automation.
+webhook:
+  api_key: devkey
+  urls:
+    - http://localhost:3000/api/webhooks/livekit
