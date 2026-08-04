@@ -6,10 +6,12 @@ import toast from "react-hot-toast";
 import { PatientBottomNav } from "./PatientBottomNav";
 import { IdleGuard } from "../kiosk/IdleGuard";
 import { connectSocket } from "../../lib/socket";
+import { useActiveCallRedirect } from "../../hooks/useActiveCallRedirect";
 
 export function PatientShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  useActiveCallRedirect();
 
   useEffect(() => {
     const socket = connectSocket();

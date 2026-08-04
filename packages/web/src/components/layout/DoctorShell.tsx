@@ -6,6 +6,7 @@ import { Logo } from "../brand/Logo";
 import { Button } from "../ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "../ui/sheet";
 import { logout } from "../../lib/logout";
+import { useActiveCallRedirect } from "../../hooks/useActiveCallRedirect";
 
 interface NavItem {
   label: string;
@@ -27,6 +28,7 @@ export function DoctorShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  useActiveCallRedirect();
 
   async function signOut(): Promise<void> {
     await logout();
