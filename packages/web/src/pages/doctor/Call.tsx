@@ -65,7 +65,14 @@ export default function DoctorCall() {
   }
 
   async function handleRejoin(): Promise<void> {
-    const active = await fetchActiveCall().catch(() => ({ callSession: null, livekitToken: null }));
+    let active: { callSession: any | null; livekitToken: string | null };
+    try {
+      active = await fetchActiveCall();
+    } catch {
+      toast.error("Couldn't reach the server. Check your connection and try again.");
+      return;
+    }
+
     if (!active.callSession || active.callSession.status !== "ACTIVE" || !active.livekitToken) {
       toast("The call has ended");
       clearCall();
