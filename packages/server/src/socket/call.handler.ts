@@ -53,6 +53,12 @@ export function registerCallHandlers(io: Server, socket: Socket, userId: string)
       if (!call || (call.patientId !== userId && call.doctorId !== userId)) {
         return;
       }
+      // Once a call is ACTIVE, only the doctor may end it -- a network-dropped patient can only
+      // leave (disconnect), not close the room. Pre-ACTIVE (QUEUED/RINGING) keeps the old
+      // either-party behavior so the patient's existing Cancel button still works.
+      if (call.status === "ACTIVE" && call.doctorId !== userId) {
+        return;
+      }
 
       await completeCall(callSessionId);
     } catch (error) {

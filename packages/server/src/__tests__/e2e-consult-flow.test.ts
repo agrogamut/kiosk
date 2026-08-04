@@ -251,6 +251,122 @@ describe("Full consult flow (real workers + sockets, no mocks)", () => {
     doctorSocket.close();
   }, 30_000);
 
+  it("only lets the doctor end an ACTIVE call, not the patient", async () => {
+    const rand = Math.floor(Math.random() * 1e8);
+    const patientPhone = `70003${rand}`.slice(0, 12);
+    const doctorPhone = `80003${rand}`.slice(0, 12);
+    const { phone: adminPhone, password: adminPassword } = await ensureAdmin();
+
+    const patientRegister = await api.post("/auth/patient/register", {
+      phone: patientPhone,
+      name: "E2E Guard Patient",
+      dob: "01/01/1990",
+      consent: true,
+    });
+    const patientToken: string = patientRegister.data.accessToken;
+
+    const doctorForm = new FormData();
+    doctorForm.append(
+      "data",
+      JSON.stringify({
+        phone: doctorPhone,
+        name: "E2E Guard Doctor",
+        password: "password123",
+        degree: "MBBS",
+        regNumber: `E2E-REG-GUARD-${rand}`,
+        regYear: "2015",
+        regType: "Medical Council of India",
+        email: "e2e-guard-doctor@example.com",
+        gender: "MALE",
+        dob: "01/01/1990",
+        experienceYears: 5,
+        city: "Mumbai",
+        state: "Maharashtra",
+        address: "123 Health St",
+        about: "Experienced general physician.",
+        specializations: ["General Medicine"],
+        educations: [{ degree: "MBBS", institution: "Grant Medical College", year: "2012" }],
+      }),
+    );
+    await api.post("/auth/doctor/register", doctorForm, { headers: doctorForm.getHeaders() });
+
+    const adminLogin = await api.post("/auth/admin/login", { phone: adminPhone, password: adminPassword });
+    const adminToken: string = adminLogin.data.accessToken;
+    const doctors = await api.get("/admin/doctors", { headers: { Authorization: `Bearer ${adminToken}` } });
+    const doctor = doctors.data.find((d: { phone: string }) => d.phone === doctorPhone);
+    await api.put(`/admin/doctors/${doctor.id}/approve`, {}, { headers: { Authorization: `Bearer ${adminToken}` } });
+
+    await api.post("/auth/doctor/login/initiate", { phone: doctorPhone, password: "password123" });
+    const doctorLogin = await api.post("/auth/doctor/login/verify", { phone: doctorPhone, otp: "000000" });
+    const doctorToken: string = doctorLogin.data.accessToken;
+
+    const patientSocket: Socket = ioClient(`http://localhost:${PORT}`, { auth: { token: patientToken } });
+    const doctorSocket: Socket = ioClient(`http://localhost:${PORT}`, { auth: { token: doctorToken } });
+
+    await new Promise<void>((resolve, reject) => {
+      let connected = 0;
+      const done = () => {
+        connected++;
+        if (connected === 2) resolve();
+      };
+      patientSocket.on("connect", done);
+      doctorSocket.on("connect", done);
+      patientSocket.on("connect_error", reject);
+      doctorSocket.on("connect_error", reject);
+      setTimeout(() => reject(new Error("socket connect timeout")), 5000);
+    });
+
+    doctorSocket.emit("presence:ping");
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const incomingPromise = new Promise<{ callSession: { id: string } }>((resolve, reject) => {
+      doctorSocket.once("call:incoming", resolve);
+      setTimeout(() => reject(new Error("call:incoming timeout")), 8000);
+    });
+    const createCall = await api.post("/calls", {}, { headers: { Authorization: `Bearer ${patientToken}` } });
+    const callSessionId: string = createCall.data.id;
+    await incomingPromise;
+
+    const acceptedPromise = new Promise<void>((resolve, reject) => {
+      let got = 0;
+      const done = () => {
+        got++;
+        if (got === 2) resolve();
+      };
+      patientSocket.once("call:accepted", done);
+      doctorSocket.once("call:accepted", done);
+      setTimeout(() => reject(new Error("call:accepted timeout")), 5000);
+    });
+    doctorSocket.emit("call:accept", { callSessionId });
+    await acceptedPromise;
+
+    // Patient tries to end the now-ACTIVE call -- must be ignored, no call:ended fires.
+    let endedFired = false;
+    patientSocket.once("call:ended", () => {
+      endedFired = true;
+    });
+    patientSocket.emit("call:end", { callSessionId });
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect(endedFired).toBe(false);
+
+    const stillActive = await prisma.callSession.findUniqueOrThrow({ where: { id: callSessionId } });
+    expect(stillActive.status).toBe("ACTIVE");
+
+    // Doctor ends it -- must succeed.
+    const doctorEndedPromise = new Promise<void>((resolve, reject) => {
+      patientSocket.once("call:ended", () => resolve());
+      setTimeout(() => reject(new Error("call:ended timeout")), 5000);
+    });
+    doctorSocket.emit("call:end", { callSessionId });
+    await doctorEndedPromise;
+
+    const ended = await prisma.callSession.findUniqueOrThrow({ where: { id: callSessionId } });
+    expect(ended.status).toBe("ENDED");
+
+    patientSocket.close();
+    doctorSocket.close();
+  }, 30_000);
+
   it("matches a doctor who logs in after the patient already started searching", async () => {
     const rand = Math.floor(Math.random() * 1e8);
     const patientPhone = `70002${rand}`.slice(0, 12);
