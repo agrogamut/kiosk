@@ -74,4 +74,28 @@ describe("POST /api/webhooks/livekit", () => {
     const response = await request(app).post("/api/webhooks/livekit").set(headers).send(body);
     expect(response.status).toBe(200);
   });
+
+  it("does not re-complete a call that is already ENDED", async () => {
+    const endedCall = await prisma.callSession.create({
+      data: {
+        patientId,
+        doctorId,
+        status: "ENDED",
+        livekitRoom: "room-webhook-already-ended",
+        startedAt: new Date(),
+        endedAt: new Date(),
+      },
+    });
+
+    const body = JSON.stringify({ event: "room_finished", room: { name: "room-webhook-already-ended" } });
+    const headers = await signedWebhookHeaders(body);
+
+    const response = await request(app).post("/api/webhooks/livekit").set(headers).send(body);
+    expect(response.status).toBe(200);
+
+    const callAfter = await prisma.callSession.findUniqueOrThrow({ where: { id: endedCall.id } });
+    expect(callAfter.status).toBe("ENDED");
+
+    await prisma.callSession.delete({ where: { id: endedCall.id } });
+  });
 });
