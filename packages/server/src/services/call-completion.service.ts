@@ -7,7 +7,7 @@ function isDuplicateCreditError(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
 
-const ACTIVE_STATUSES = ["QUEUED", "RINGING", "ACTIVE"];
+export const ACTIVE_STATUSES = ["QUEUED", "RINGING", "ACTIVE"];
 
 type Tx = Prisma.TransactionClient;
 
