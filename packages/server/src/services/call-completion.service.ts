@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type CallStatus } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { io } from "../index.js";
 import { getRevenueConfig } from "./revenue-config.service.js";
@@ -7,7 +7,7 @@ function isDuplicateCreditError(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
 
-export const ACTIVE_STATUSES = ["QUEUED", "RINGING", "ACTIVE"];
+export const ACTIVE_STATUSES: CallStatus[] = ["QUEUED", "RINGING", "ACTIVE"];
 
 type Tx = Prisma.TransactionClient;
 
