@@ -1,10 +1,17 @@
 import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
 
-const roomService = new RoomServiceClient(
-  process.env.LIVEKIT_HOST!,
-  process.env.LIVEKIT_API_KEY!,
-  process.env.LIVEKIT_API_SECRET!,
-);
+let roomService: RoomServiceClient | undefined;
+
+function getRoomService(): RoomServiceClient {
+  if (!roomService) {
+    roomService = new RoomServiceClient(
+      process.env.LIVEKIT_HOST!,
+      process.env.LIVEKIT_API_KEY!,
+      process.env.LIVEKIT_API_SECRET!,
+    );
+  }
+  return roomService;
+}
 
 export const livekitService = {
   async generateToken(room: string, participantId: string): Promise<string> {
@@ -29,7 +36,7 @@ export const livekitService = {
   // call can still connect -- this must never block call:accept.
   async createRoom(room: string): Promise<void> {
     try {
-      await roomService.createRoom({ name: room, departureTimeout: 120 });
+      await getRoomService().createRoom({ name: room, departureTimeout: 120 });
     } catch (error) {
       console.error("livekit createRoom failed, falling back to implicit room creation", room, error);
     }
