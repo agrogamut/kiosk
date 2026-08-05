@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../../components/ui/alert-dialog";
 import { CallChatPanel } from "../../components/call/CallChatPanel";
 import { PatientHistoryPanel } from "../../components/call/PatientHistoryPanel";
 import { DoctorCallView } from "../../components/video/DoctorCallView";
@@ -10,7 +21,8 @@ import { Textarea } from "../../components/ui/textarea";
 import { PulseRing } from "../../components/brand/PulseRing";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
-import { connectSocket } from "../../lib/socket";
+import { connectSocket, getSocket } from "../../lib/socket";
+import { fetchActiveCall } from "../../lib/activeCall";
 import { useDoctorPresenceHeartbeat } from "../../hooks/useDoctorPresenceHeartbeat";
 import { useImmersiveStatusBar } from "../../hooks/useImmersiveStatusBar";
 import { useCallStore } from "../../store/call.store";
@@ -36,17 +48,48 @@ export default function DoctorCall() {
   const navigate = useNavigate();
   const location = useLocation();
   const storedLivekitToken = useCallStore((state) => state.livekitToken);
+  const setLivekitToken = useCallStore((state) => state.setLivekitToken);
   const clearCall = useCallStore((state) => state.clearCall);
   const [submitting, setSubmitting] = useState(false);
   const [patientId] = useState<string | null>(() => (location.state as { patientId?: string } | null)?.patientId ?? null);
   const [rightTab, setRightTab] = useState<"chat" | "history">("chat");
   const [prescription, setPrescription] = useState<PrescriptionFields>(EMPTY_PRESCRIPTION);
+  const [connectionLost, setConnectionLost] = useState(false);
+  const [rejoinKey, setRejoinKey] = useState(0);
 
   useImmersiveStatusBar();
   useDoctorPresenceHeartbeat();
 
   function updatePrescriptionField(name: keyof PrescriptionFields, value: string): void {
     setPrescription((current) => ({ ...current, [name]: value }));
+  }
+
+  async function handleRejoin(): Promise<void> {
+    let active: { callSession: any | null; livekitToken: string | null };
+    try {
+      active = await fetchActiveCall();
+    } catch {
+      toast.error("Couldn't reach the server. Check your connection and try again.");
+      return;
+    }
+
+    if (!active.callSession || active.callSession.status !== "ACTIVE" || !active.livekitToken) {
+      toast("The call has ended");
+      clearCall();
+      navigate("/doctor");
+      return;
+    }
+
+    setLivekitToken(active.livekitToken);
+    setConnectionLost(false);
+    setRejoinKey((key) => key + 1);
+  }
+
+  function closeRoom(): void {
+    if (!callSessionId) {
+      return;
+    }
+    getSocket().emit("call:end", { callSessionId });
   }
 
   const canSubmitPrescription = Object.values(prescription).some((value) => value.trim().length > 0);
@@ -62,6 +105,26 @@ export default function DoctorCall() {
       socket.off("call:ended");
     };
   }, [clearCall, navigate]);
+
+  useEffect(() => {
+    if (storedLivekitToken || !callSessionId) {
+      return;
+    }
+
+    fetchActiveCall()
+      .then((active) => {
+        if (active.callSession?.id === callSessionId && active.livekitToken) {
+          setLivekitToken(active.livekitToken);
+        } else {
+          toast.error("This call is no longer active");
+          navigate("/doctor");
+        }
+      })
+      .catch(() => {
+        toast.error("Could not reconnect to the call");
+        navigate("/doctor");
+      });
+  }, [storedLivekitToken, callSessionId, navigate, setLivekitToken]);
 
   async function submitPrescription(): Promise<void> {
     if (!callSessionId || !canSubmitPrescription) {
@@ -92,12 +155,42 @@ export default function DoctorCall() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <div className="h-[55vh] lg:h-[70vh]">
-        <DoctorCallView
-          token={storedLivekitToken}
-          serverUrl={import.meta.env.VITE_LIVEKIT_URL ?? "ws://localhost:7880"}
-          onDisconnected={() => navigate("/doctor")}
-        />
+      <div className="relative h-[55vh] lg:h-[70vh]">
+        <div className="absolute right-3 top-3 z-20">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm">
+                Close room
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Close this room?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This ends the call for the patient immediately and can't be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={closeRoom}>Close room</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+        {connectionLost ? (
+          <div className="flex h-full flex-col items-center justify-center gap-4 bg-background p-8 text-center">
+            <p className="text-xl text-foreground">Connection lost</p>
+            <p className="text-muted-foreground">The room is still open. Rejoin when you're ready.</p>
+            <Button onClick={() => void handleRejoin()}>Rejoin call</Button>
+          </div>
+        ) : (
+          <DoctorCallView
+            key={rejoinKey}
+            token={storedLivekitToken}
+            serverUrl={import.meta.env.VITE_LIVEKIT_URL ?? "ws://localhost:7880"}
+            onDisconnected={() => setConnectionLost(true)}
+          />
+        )}
       </div>
 
       <div className="grid min-h-0 flex-1 gap-4 border-t border-input bg-background p-4 lg:grid-cols-[1fr_24rem]">

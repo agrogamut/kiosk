@@ -17,6 +17,8 @@ export function registerCallHandlers(io: Server, socket: Socket, userId: string)
         data: { status: "ACTIVE", startedAt: new Date() },
       });
 
+      await livekitService.createRoom(call.livekitRoom);
+
       const [doctorToken, patientToken] = await Promise.all([
         livekitService.generateToken(call.livekitRoom, userId),
         livekitService.generateToken(call.livekitRoom, call.patientId),
@@ -49,6 +51,12 @@ export function registerCallHandlers(io: Server, socket: Socket, userId: string)
     try {
       const call = await prisma.callSession.findUnique({ where: { id: callSessionId } });
       if (!call || (call.patientId !== userId && call.doctorId !== userId)) {
+        return;
+      }
+      // Once a call is ACTIVE, only the doctor may end it -- a network-dropped patient can only
+      // leave (disconnect), not close the room. Pre-ACTIVE (QUEUED/RINGING) keeps the old
+      // either-party behavior so the patient's existing Cancel button still works.
+      if (call.status === "ACTIVE" && call.doctorId !== userId) {
         return;
       }
 

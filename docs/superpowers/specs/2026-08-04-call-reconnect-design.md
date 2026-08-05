@@ -34,7 +34,7 @@ Desired behavior: a network drop should not end the call. The room stays open un
 
 **`stale-call-reaper.worker.ts`** — delete the call-ending half of `reapStaleCalls()` (the doctor-heartbeat-driven `completeCall()` loop). Keep `reapRingingTimeouts()` as-is.
 
-**`prescriptions.routes.ts`** — after a successful prescription submission, call `completeCall(callSessionId)` directly (the same effect as the doctor pressing "Close room") rather than leaving the call to expire via the empty-room timeout. This keeps wallet-credit timing immediate instead of adding an incidental 2-minute delay after every normal consult.
+No change needed here: `render-pdf.worker.ts` already calls `completeCall(prescription.callSessionId)` once the prescription PDF finishes rendering (confirmed by `e2e-consult-flow.test.ts`, which submits a prescription and asserts `call:ended` fires and the doctor's wallet is credited). This path is independent of the heartbeat reaper being removed, so a normal consult-with-prescription already closes the room promptly today — no 2-minute delay to fix. (An earlier draft of this doc incorrectly assumed prescription submission left the call to expire via reaper/timeout; it doesn't.)
 
 ### Frontend
 

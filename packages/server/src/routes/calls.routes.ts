@@ -8,6 +8,8 @@ import { assignDoctorQueue } from "../lib/queues.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { resolveAssistingAdmin } from "../services/kiosk.service.js";
+import { ACTIVE_STATUSES } from "../services/call-completion.service.js";
+import { livekitService } from "../services/livekit.service.js";
 
 export const callsRouter = Router();
 
@@ -119,6 +121,29 @@ callsRouter.get("/history", requireAuth(), async (req: Request, res: Response, n
     ]);
 
     res.json({ calls, total, page, pages: Math.ceil(total / limit) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+callsRouter.get("/active", requireAuth(), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.sub;
+    const role = req.user!.role;
+
+    const where: Prisma.CallSessionWhereInput =
+      role === "DOCTOR"
+        ? { doctorId: userId, status: { in: ACTIVE_STATUSES } }
+        : { patientId: userId, status: { in: ACTIVE_STATUSES } };
+
+    const call = await prisma.callSession.findFirst({ where, orderBy: { createdAt: "desc" } });
+    if (!call) {
+      res.json({ callSession: null, livekitToken: null });
+      return;
+    }
+
+    const livekitToken = call.status === "ACTIVE" ? await livekitService.generateToken(call.livekitRoom, userId) : null;
+    res.json({ callSession: call, livekitToken });
   } catch (error) {
     next(error);
   }

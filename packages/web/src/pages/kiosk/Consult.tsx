@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import type { CallSession } from "@madamgy/api-client";
+import { Button } from "../../components/ui/button";
 import { CallChatPanel } from "../../components/call/CallChatPanel";
 import { KioskCallView } from "../../components/video/KioskCallView";
 import { PulseRing } from "../../components/brand/PulseRing";
 import { api } from "../../lib/api";
+import { fetchActiveCall } from "../../lib/activeCall";
 import { getApiErrorMessage } from "../../lib/errors";
 import { getSocket } from "../../lib/socket";
 import { useCallListener } from "../../hooks/useCall";
@@ -41,8 +43,35 @@ const PAYMENT_RETRY_DELAY_MS = 1500;
 
 export default function KioskConsult() {
   const navigate = useNavigate();
-  const { callSession, livekitToken, setCall, clearCall } = useCallStore();
+  const { callSession, livekitToken, setCall, setLivekitToken, clearCall } = useCallStore();
   const [loading, setLoading] = useState(!callSession);
+  const [connectionLost, setConnectionLost] = useState(false);
+  const [rejoinKey, setRejoinKey] = useState(0);
+
+  function handleDisconnected(): void {
+    setConnectionLost(true);
+  }
+
+  async function handleRejoin(): Promise<void> {
+    let active: { callSession: CallSession | null; livekitToken: string | null };
+    try {
+      active = await fetchActiveCall();
+    } catch {
+      toast.error("Couldn't reach the server. Check your connection and try again.");
+      return;
+    }
+
+    if (!active.callSession || active.callSession.status !== "ACTIVE" || !active.livekitToken) {
+      toast("The call has ended");
+      clearCall();
+      navigate("/dashboard");
+      return;
+    }
+
+    setLivekitToken(active.livekitToken);
+    setConnectionLost(false);
+    setRejoinKey((key) => key + 1);
+  }
 
   useCallListener();
   useImmersiveStatusBar();
@@ -128,8 +157,21 @@ export default function KioskConsult() {
       }
     }
 
-    void startConsult().finally(() => setLoading(false));
-  }, [callSession, navigate, setCall]);
+    async function bootstrap(): Promise<void> {
+      const active = await fetchActiveCall().catch(() => ({ callSession: null, livekitToken: null }));
+      if (active.callSession) {
+        setCall(active.callSession);
+        if (active.livekitToken) {
+          setLivekitToken(active.livekitToken);
+        }
+        return;
+      }
+
+      await startConsult();
+    }
+
+    void bootstrap().finally(() => setLoading(false));
+  }, [callSession, navigate, setCall, setLivekitToken]);
 
   function cancel(): void {
     if (callSession) {
@@ -157,11 +199,20 @@ export default function KioskConsult() {
     return (
       <div className="flex min-h-screen flex-col bg-background lg:flex-row">
         <div className="h-[60vh] min-h-0 lg:h-screen lg:flex-1">
-          <KioskCallView
-            token={livekitToken}
-            serverUrl={import.meta.env.VITE_LIVEKIT_URL ?? "ws://localhost:7880"}
-            onDisconnected={cancel}
-          />
+          {connectionLost ? (
+            <div className="flex h-full flex-col items-center justify-center gap-4 bg-background p-8 text-center">
+              <p className="text-xl text-foreground">Connection lost</p>
+              <p className="text-muted-foreground">The room is still open. Rejoin when you're ready.</p>
+              <Button onClick={() => void handleRejoin()}>Rejoin call</Button>
+            </div>
+          ) : (
+            <KioskCallView
+              key={rejoinKey}
+              token={livekitToken}
+              serverUrl={import.meta.env.VITE_LIVEKIT_URL ?? "ws://localhost:7880"}
+              onDisconnected={handleDisconnected}
+            />
+          )}
         </div>
         <div className="h-[40vh] p-3 lg:h-screen lg:w-96">
           <CallChatPanel callSessionId={callSession.id} />
