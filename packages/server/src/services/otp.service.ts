@@ -30,13 +30,14 @@ export async function sendOtpSms(phone: string, otp: string): Promise<void> {
   const mobile = localDigits.startsWith("91") && localDigits.length === 12 ? localDigits : `91${localDigits}`;
 
   const response = await axios.post(
-    "https://api.msg91.com/api/v5/otp",
+    "https://control.msg91.com/api/v5/otp",
+    {},
     {
-      template_id: process.env.MSG91_TEMPLATE_ID,
-      mobile,
-      otp,
-    },
-    {
+      params: {
+        template_id: process.env.MSG91_TEMPLATE_ID,
+        mobile,
+        otp,
+      },
       headers: {
         authkey: process.env.MSG91_AUTH_KEY,
         "Content-Type": "application/json",
