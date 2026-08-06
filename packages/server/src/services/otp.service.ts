@@ -29,23 +29,30 @@ export async function sendOtpSms(phone: string, otp: string): Promise<void> {
   const localDigits = phone.replace(/\D/g, "").replace(/^0+/, "");
   const mobile = localDigits.startsWith("91") && localDigits.length === 12 ? localDigits : `91${localDigits}`;
 
-  const response = await axios.post(
-    "https://control.msg91.com/api/v5/otp",
-    {},
-    {
-      params: {
-        template_id: process.env.MSG91_TEMPLATE_ID,
-        mobile,
-        otp,
+  try {
+    const response = await axios.post(
+      "https://control.msg91.com/api/v5/otp",
+      {},
+      {
+        params: {
+          template_id: process.env.MSG91_TEMPLATE_ID,
+          mobile,
+          otp,
+        },
+        headers: {
+          authkey: process.env.MSG91_AUTH_KEY,
+          "Content-Type": "application/json",
+        },
       },
-      headers: {
-        authkey: process.env.MSG91_AUTH_KEY,
-        "Content-Type": "application/json",
-      },
-    },
-  );
+    );
 
-  if (response.data?.type === "error") {
-    throw new Error(`MSG91 rejected OTP send: ${JSON.stringify(response.data)}`);
+    if (response.data?.type === "error") {
+      throw new Error(`MSG91 rejected OTP send: ${response.data.message ?? "unknown error"}`);
+    }
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      throw new Error(`MSG91 OTP request failed: ${error.response?.status} ${error.response?.data?.message ?? error.message}`);
+    }
+    throw error;
   }
 }
