@@ -26,11 +26,14 @@ export async function sendOtpSms(phone: string, otp: string): Promise<void> {
     return;
   }
 
-  await axios.post(
+  const localDigits = phone.replace(/\D/g, "").replace(/^0+/, "");
+  const mobile = localDigits.startsWith("91") && localDigits.length === 12 ? localDigits : `91${localDigits}`;
+
+  const response = await axios.post(
     "https://api.msg91.com/api/v5/otp",
     {
       template_id: process.env.MSG91_TEMPLATE_ID,
-      mobile: phone,
+      mobile,
       otp,
     },
     {
@@ -40,4 +43,8 @@ export async function sendOtpSms(phone: string, otp: string): Promise<void> {
       },
     },
   );
+
+  if (response.data?.type === "error") {
+    throw new Error(`MSG91 rejected OTP send: ${JSON.stringify(response.data)}`);
+  }
 }
