@@ -70,13 +70,13 @@ export default function Appointments() {
                 <p className="text-sm text-muted-foreground">No doctors available right now — check back soon.</p>
               )}
               {doctorsQuery.data && doctorsQuery.data.length > 0 && (
-                <div className="grid grid-cols-3 gap-3">
-                  {doctorsQuery.data.slice(0, 3).map((doctor) => (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                  {doctorsQuery.data.map((doctor) => (
                     <button
                       key={doctor.id}
                       type="button"
                       onClick={() => navigate("/consult")}
-                      className="flex flex-col items-center gap-2 rounded-2xl bg-card p-4 text-center shadow-sm shadow-foreground/5"
+                      className="flex flex-col items-center gap-2 rounded-2xl bg-card p-4 text-center shadow-sm shadow-foreground/5 transition-shadow hover:shadow-md"
                     >
                       <DoctorAvatar
                         id={doctor.id}
@@ -114,9 +114,9 @@ export default function Appointments() {
                   key={file.id}
                   type="button"
                   onClick={() => navigate(`/prescription/${file.id}`)}
-                  className="flex items-center gap-4 rounded-2xl bg-card p-5 text-left shadow-sm shadow-foreground/5"
+                  className="flex items-center gap-4 rounded-2xl bg-card p-5 text-left shadow-sm shadow-foreground/5 transition-shadow hover:shadow-md"
                 >
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                  <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
                     <FileText className="size-5" aria-hidden="true" />
                   </div>
                   <div>
