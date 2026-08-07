@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,6 +15,7 @@ import {
 } from "@madamgy/api-client";
 import { NumPad } from "../components/kiosk/NumPad";
 import { Logo } from "../components/brand/Logo";
+import { PatientRegisterForm } from "../components/patient/PatientRegisterForm";
 import { ContactUsDialog } from "../components/support/ContactUsDialog";
 import {
   AlertDialog,
@@ -88,6 +89,12 @@ export default function Entry() {
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Unlocked patient tab only (see `locked` branch in the render below, which
+  // never reads this) -- which of the two patient views is showing. Defaults
+  // to signup since most people landing on an unlocked "/" are new patients;
+  // a locked kiosk's own patient screen always shows login regardless of
+  // this value.
+  const [patientView, setPatientView] = useState<"signup" | "login">("signup");
   const [showUnlock, setShowUnlock] = useState(false);
   // Which role the long-press unlock is signing into -- null means "show the chooser,
   // nothing picked yet". Doctor and Kiosk Owner are both reachable this way; Patient never
@@ -154,6 +161,7 @@ export default function Entry() {
     setRole(value);
     setStep("credentials");
     setOtp("");
+    setPatientView("signup");
   }
 
   function enterApp(user: { role: UserRole }): void {
@@ -337,6 +345,24 @@ export default function Entry() {
     enterApp(response.user);
   }
 
+  function renderPatientLoginForm(footer: ReactNode): ReactNode {
+    return (
+      <form onSubmit={patientForm.handleSubmit(sendPatientOtp)} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="patient-phone">Phone number</Label>
+          <Input id="patient-phone" type="tel" placeholder="10-digit phone number" {...patientForm.register("phone")} />
+          {patientForm.formState.errors.phone && (
+            <p className="text-sm text-destructive">{patientForm.formState.errors.phone.message}</p>
+          )}
+        </div>
+        <Button type="submit" disabled={submitting} className="w-full rounded-full">
+          {submitting ? "Sending..." : "Send OTP"}
+        </Button>
+        {footer}
+      </form>
+    );
+  }
+
   return (
     <div className="flex min-h-dvh flex-col justify-center bg-background px-6 py-10">
       <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-8">
@@ -405,24 +431,40 @@ export default function Entry() {
                 </button>
               </div>
             ) : displayRole === "PATIENT" ? (
-              <form onSubmit={patientForm.handleSubmit(sendPatientOtp)} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="patient-phone">Phone number</Label>
-                  <Input id="patient-phone" type="tel" placeholder="10-digit phone number" {...patientForm.register("phone")} />
-                  {patientForm.formState.errors.phone && (
-                    <p className="text-sm text-destructive">{patientForm.formState.errors.phone.message}</p>
-                  )}
-                </div>
-                <Button type="submit" disabled={submitting} className="w-full rounded-full">
-                  {submitting ? "Sending..." : "Send OTP"}
-                </Button>
-                <p className="text-center text-sm text-muted-foreground">
-                  New here?{" "}
-                  <Link to="/register" className="font-semibold text-primary">
-                    Create an account
-                  </Link>
-                </p>
-              </form>
+              locked ? (
+                renderPatientLoginForm(
+                  <p className="text-center text-sm text-muted-foreground">
+                    New here?{" "}
+                    <Link to="/register" className="font-semibold text-primary">
+                      Create an account
+                    </Link>
+                  </p>,
+                )
+              ) : patientView === "signup" ? (
+                <PatientRegisterForm
+                  onSuccess={(response) => {
+                    setAuth(response.accessToken, response.user);
+                    enterApp(response.user);
+                  }}
+                  footer={
+                    <p className="text-center text-sm text-muted-foreground">
+                      Already have an account?{" "}
+                      <button type="button" onClick={() => setPatientView("login")} className="font-semibold text-primary">
+                        Log in
+                      </button>
+                    </p>
+                  }
+                />
+              ) : (
+                renderPatientLoginForm(
+                  <p className="text-center text-sm text-muted-foreground">
+                    New here?{" "}
+                    <button type="button" onClick={() => setPatientView("signup")} className="font-semibold text-primary">
+                      Create an account
+                    </button>
+                  </p>,
+                )
+              )
             ) : displayRole === "DOCTOR" ? (
               <form onSubmit={doctorForm.handleSubmit(sendDoctorOtp)} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
