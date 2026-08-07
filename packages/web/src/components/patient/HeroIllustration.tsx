@@ -13,17 +13,17 @@ export function HeroIllustration({ name, greeting, availableCount, onConsult, cl
   return (
     <div
       className={cn(
-        "relative flex min-h-72 flex-col justify-between gap-5 overflow-hidden rounded-3xl bg-gradient-to-br from-primary/15 via-secondary/10 to-tertiary/10 p-6",
+        "relative flex min-h-80 flex-col justify-between gap-5 overflow-hidden rounded-3xl bg-gradient-to-br from-primary/15 via-secondary/10 to-tertiary/10 p-6 sm:min-h-96 lg:min-h-[30rem]",
         className,
       )}
     >
       <img
-        src="https://images.unsplash.com/photo-1758691462743-f9fc9e430d39?q=80&w=1200&auto=format&fit=crop"
+        src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=1200&auto=format&fit=crop"
         alt=""
         aria-hidden="true"
-        className="absolute inset-0 size-full object-cover"
+        className="absolute inset-0 size-full object-cover object-top"
       />
-      <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-primary/75 via-primary/25 to-primary/70" />
+      <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-primary/70 via-primary/15 to-primary/80" />
 
       {/* Botanical line-art accent -- the page's one aesthetic signature, echoed
           faintly again on the doctor cards below. */}
