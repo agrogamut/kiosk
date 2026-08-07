@@ -95,6 +95,8 @@ export default function Entry() {
   // a locked kiosk's own patient screen always shows login regardless of
   // this value.
   const [patientView, setPatientView] = useState<"signup" | "login">("signup");
+  // Seconds remaining before Resend OTP is clickable again; 0 means ready.
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [showUnlock, setShowUnlock] = useState(false);
   // Which role the long-press unlock is signing into -- null means "show the chooser,
   // nothing picked yet". Doctor and Kiosk Owner are both reachable this way; Patient never
@@ -157,6 +159,16 @@ export default function Entry() {
     }
   }, []);
 
+  useEffect(() => {
+    if (step !== "otp" || resendCooldown <= 0) {
+      return;
+    }
+    const timer = setInterval(() => {
+      setResendCooldown((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [step, resendCooldown]);
+
   function changeRole(value: EntryRole): void {
     setRole(value);
     setStep("credentials");
@@ -205,6 +217,7 @@ export default function Entry() {
       await api.post("/auth/patient/login/otp/initiate", values);
       setPhone(values.phone);
       setStep("otp");
+      setResendCooldown(30);
       toast.success("OTP sent");
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not send the OTP. Check the number and try again."));
@@ -233,6 +246,7 @@ export default function Entry() {
       await api.post("/auth/doctor/login/initiate", values);
       setPhone(values.phone);
       setStep("otp");
+      setResendCooldown(30);
       toast.success("OTP sent");
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not log in. Check your phone and password."));
@@ -252,6 +266,17 @@ export default function Entry() {
       setOtp("");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function resendOtp(): Promise<void> {
+    if (resendCooldown > 0 || submitting) {
+      return;
+    }
+    if (displayRole === "DOCTOR") {
+      await sendDoctorOtp(doctorForm.getValues());
+    } else {
+      await sendPatientOtp(patientForm.getValues());
     }
   }
 
@@ -428,6 +453,14 @@ export default function Entry() {
                 </Button>
                 <button type="button" onClick={() => setStep("credentials")} className="text-sm font-semibold text-primary">
                   Change phone number
+                </button>
+                <button
+                  type="button"
+                  disabled={resendCooldown > 0 || submitting}
+                  onClick={() => void resendOtp()}
+                  className="text-sm font-semibold text-primary disabled:text-muted-foreground"
+                >
+                  {resendCooldown > 0 ? `Resend code in 0:${resendCooldown.toString().padStart(2, "0")}` : "Resend OTP"}
                 </button>
               </div>
             ) : displayRole === "PATIENT" ? (
