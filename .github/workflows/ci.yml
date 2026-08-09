@@ -133,6 +133,30 @@ jobs:
       - run: npm run build --workspace @madamgy/web
       - run: npx cap sync android
         working-directory: packages/kiosk-android
+      # Every signing input is checked up front. Gradle reports a missing password, an empty
+      # keystore and a corrupt keystore identically -- as
+      # "KeytoolException: ... Tag number over 30 is not supported" -- because a wrong password
+      # decrypts the PKCS12 into bytes that only fail later, during ASN.1 parsing. That error
+      # names the keystore file whatever the real cause was, so without these checks a missing
+      # password sends you hunting a file that was never the problem.
+      - name: Check signing secrets are present
+        run: |
+          missing=""
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD ANDROID_KEY_ALIAS; do
+            if [ -z "${!name}" ]; then
+              missing="$missing $name"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing or empty repository secret(s):$missing"
+            echo "All four must be set on THIS repository -- secrets are per-repo and are not shared with a fork or mirror."
+            exit 1
+          fi
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       - run: |
           mkdir -p packages/kiosk-android/android/keystore
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > packages/kiosk-android/android/keystore/madamgy-release.keystore
@@ -148,6 +172,16 @@ jobs:
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      # Fails here, naming the password, rather than 90 seconds later inside Gradle naming the file.
+      - name: Verify the keystore decodes and the password opens it
+        run: |
+          keytool -list \
+            -keystore packages/kiosk-android/android/keystore/madamgy-release.keystore \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" > /dev/null
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       - run: chmod +x gradlew && ./gradlew assembleRelease
         working-directory: packages/kiosk-android/android
