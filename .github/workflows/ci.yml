@@ -81,6 +81,9 @@ jobs:
     env:
       VITE_API_URL: https://kiosk-production-060d.up.railway.app/api
       VITE_SOCKET_URL: https://kiosk-production-060d.up.railway.app
+      # Baked into the bundle at build time. Without it the APK dials ws://localhost:7880 and no
+      # call ever connects -- see packages/web/src/lib/livekitUrl.ts.
+      VITE_LIVEKIT_URL: ${{ secrets.LIVEKIT_WS_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -108,6 +111,9 @@ jobs:
     env:
       VITE_API_URL: https://kiosk-production-060d.up.railway.app/api
       VITE_SOCKET_URL: https://kiosk-production-060d.up.railway.app
+      # Baked into the bundle at build time. Without it the APK dials ws://localhost:7880 and no
+      # call ever connects -- see packages/web/src/lib/livekitUrl.ts.
+      VITE_LIVEKIT_URL: ${{ secrets.LIVEKIT_WS_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

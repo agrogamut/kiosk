@@ -21,6 +21,7 @@ import { Textarea } from "../../components/ui/textarea";
 import { PulseRing } from "../../components/brand/PulseRing";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
+import { getLivekitUrl } from "../../lib/livekitUrl";
 import { connectSocket, getSocket } from "../../lib/socket";
 import { fetchActiveCall } from "../../lib/activeCall";
 import { useDoctorPresenceHeartbeat } from "../../hooks/useDoctorPresenceHeartbeat";
@@ -187,7 +188,7 @@ export default function DoctorCall() {
           <DoctorCallView
             key={rejoinKey}
             token={storedLivekitToken}
-            serverUrl={import.meta.env.VITE_LIVEKIT_URL ?? "ws://localhost:7880"}
+            serverUrl={getLivekitUrl()}
             onDisconnected={() => setConnectionLost(true)}
           />
         )}

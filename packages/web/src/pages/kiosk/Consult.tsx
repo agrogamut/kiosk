@@ -10,6 +10,7 @@ import { PulseRing } from "../../components/brand/PulseRing";
 import { api } from "../../lib/api";
 import { fetchActiveCall } from "../../lib/activeCall";
 import { getApiErrorMessage } from "../../lib/errors";
+import { getLivekitUrl } from "../../lib/livekitUrl";
 import { getSocket } from "../../lib/socket";
 import { useCallListener } from "../../hooks/useCall";
 import { useImmersiveStatusBar } from "../../hooks/useImmersiveStatusBar";
@@ -209,7 +210,7 @@ export default function KioskConsult() {
             <KioskCallView
               key={rejoinKey}
               token={livekitToken}
-              serverUrl={import.meta.env.VITE_LIVEKIT_URL ?? "ws://localhost:7880"}
+              serverUrl={getLivekitUrl()}
               onDisconnected={handleDisconnected}
             />
           )}
