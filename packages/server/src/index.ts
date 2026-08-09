@@ -34,7 +34,33 @@ import { startStaleCallReaper } from "./workers/stale-call-reaper.worker.js";
 if (process.env.NODE_ENV === "production" && !process.env.WEB_URL) {
   throw new Error("WEB_URL must be set in production (CORS origin + credentials requires an explicit value)");
 }
-const webUrl = process.env.WEB_URL ?? "*";
+// The Capacitor Android build serves the same bundle from inside a WebView, whose origin is
+// https://localhost (androidScheme defaults to https) -- not the Vercel URL. XHR from that
+// WebView is still subject to CORS, so the APK's every API call and socket handshake is a
+// cross-origin credentialed request from an origin that will never equal WEB_URL. Allowing the
+// browser origin alone is what makes an installed APK look completely dead while the website
+// works fine. WEB_URL therefore accepts a comma-separated list, and the Capacitor origins are
+// always allowed alongside it.
+//
+// These extra origins are only ever reachable from a WebView running on the user's own device
+// (nothing on the public internet can claim origin https://localhost), so they don't widen the
+// surface the way an extra public origin would.
+const CAPACITOR_ORIGINS = ["https://localhost", "http://localhost", "capacitor://localhost"];
+
+// A literal "*" (what the test env and local dev use) has to stay the string the cors package
+// treats as a wildcard -- putting it in a list would turn it into an origin matched by exact
+// string equality, which nothing ever sends.
+const configuredWebUrl = process.env.WEB_URL ?? "*";
+const webUrl: string | string[] =
+  configuredWebUrl === "*"
+    ? "*"
+    : [
+        ...configuredWebUrl
+          .split(",")
+          .map((origin) => origin.trim())
+          .filter(Boolean),
+        ...CAPACITOR_ORIGINS,
+      ];
 
 // .env.example (loaded as a fallback for any var not already set -- see config/env.ts) ships
 // LIVEKIT_HOST=ws://localhost:7880 for local dev. A production deployment that forgets to set
