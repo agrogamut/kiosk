@@ -15,6 +15,7 @@
     "db:migrate": "prisma migrate dev --schema src/prisma/schema.prisma",
     "db:migrate:deploy": "prisma migrate deploy --schema src/prisma/schema.prisma",
     "db:seed": "tsx src/prisma/seed.ts",
+    "db:seed:doctor": "tsx src/prisma/seed-doctor.ts",
     "db:studio": "prisma studio --schema src/prisma/schema.prisma"
   },
   "dependencies": {
