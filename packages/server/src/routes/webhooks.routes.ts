@@ -13,7 +13,11 @@ webhooksRouter.post("/livekit", async (req: Request, res: Response, _next: NextF
 
   let event;
   try {
-    event = await receiver.receive(body, req.get("Authorize"));
+    // LiveKit signs the payload with a JWT in the standard `Authorization` header. Reading any
+    // other header name means every real webhook is rejected as unsigned -- including the
+    // room_finished events this endpoint exists to handle, so calls LiveKit ends on its own stay
+    // ACTIVE forever and the doctor is never credited.
+    event = await receiver.receive(body, req.get("Authorization"));
   } catch (error) {
     console.error("livekit webhook signature verification failed", error);
     res.status(400).json({ message: "invalid webhook payload" });

@@ -10,7 +10,10 @@ async function signedWebhookHeaders(bodyString: string): Promise<Record<string, 
   const token = new AccessToken(process.env.LIVEKIT_API_KEY!, process.env.LIVEKIT_API_SECRET!);
   token.sha256 = hash;
   const jwt = await token.toJwt();
-  return { Authorize: jwt, "Content-Type": "application/webhook+json" };
+  // Must be the same header name LiveKit itself sends. These tests previously used `Authorize`,
+  // which matched the handler but not LiveKit, so they passed green while every real webhook was
+  // rejected in production as unsigned.
+  return { Authorization: jwt, "Content-Type": "application/webhook+json" };
 }
 
 describe("POST /api/webhooks/livekit", () => {
@@ -61,7 +64,21 @@ describe("POST /api/webhooks/livekit", () => {
 
     const response = await request(app)
       .post("/api/webhooks/livekit")
-      .set({ Authorize: "not-a-real-token", "Content-Type": "application/webhook+json" })
+      .set({ Authorization: "not-a-real-token", "Content-Type": "application/webhook+json" })
+      .send(body);
+
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects a signed payload sent under the wrong header name", async () => {
+    // Guards the regression this endpoint actually shipped with: a correctly signed event whose
+    // JWT arrives under any header other than Authorization must not be treated as verified.
+    const body = JSON.stringify({ event: "room_finished", room: { name: "room-webhook-test" } });
+    const { Authorization, ...rest } = await signedWebhookHeaders(body);
+
+    const response = await request(app)
+      .post("/api/webhooks/livekit")
+      .set({ ...rest, Authorize: Authorization })
       .send(body);
 
     expect(response.status).toBe(400);
