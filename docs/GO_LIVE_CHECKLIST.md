@@ -18,42 +18,25 @@ code and what still needs to be done in the Railway/Vercel/LiveKit dashboards.
 | `VITE_LIVEKIT_URL` unset in the Vercel build and in both CI APK jobs | Shipped bundle dialled `ws://localhost:7880`. No call could ever connect, on web or APK. Verified present in the currently deployed bundle. | CI jobs now pass `VITE_LIVEKIT_URL` from the `LIVEKIT_WS_URL` secret; `packages/web/src/lib/livekitUrl.ts` logs a loud console error if a production build ever ships without it again. |
 | No way to get a testable doctor without the full flow | Doctor sign-up is a ~20-field form plus a SUPER_ADMIN approval, all of which needs a working admin login first. | `npm run db:seed:doctor --workspace @madamgy/server` creates an already-approved doctor. Re-runnable: resets the password and re-approves an existing one. |
 
-## Still to do — dashboard config
+## LiveKit — done, except the webhook
 
-### 1. Stand up a LiveKit server (blocks all calls)
+A LiveKit Cloud project (`kiosk-iq6jq9cr`) now backs the deployment. Configured on 2026-08-10:
 
-Nothing in prod runs LiveKit today; `livekit/livekit.yaml` is the local docker-compose one only.
-LiveKit Cloud's free tier is the quickest path. Once the project exists:
+- **Railway**: `LIVEKIT_HOST`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`. Note the server reads
+  `LIVEKIT_HOST` — LiveKit's own dashboard calls the same value `LIVEKIT_URL`.
+- **Vercel**: `VITE_LIVEKIT_URL` (Production).
+- **CI**: inlined in both APK jobs. It is deliberately not a secret — this is the public signalling
+  URL every client dials, and it is useless without the key/secret, which stay server-side.
 
-**Railway** (API service variables):
+Vite inlines `VITE_*` at build time, so a Vercel redeploy and an APK rebuild are what actually put
+the URL into the shipped bundles. Changing the variable alone does nothing to an existing build.
 
-```
-LIVEKIT_HOST=wss://<your-project>.livekit.cloud
-LIVEKIT_API_KEY=<from LiveKit Cloud>
-LIVEKIT_API_SECRET=<from LiveKit Cloud>
-```
+### Still to do: the LiveKit webhook
 
-`LIVEKIT_HOST` containing `localhost` in production is already logged as a startup warning — check
-the Railway deploy logs for it after setting these.
-
-**Vercel** (project env, all environments):
-
-```
-VITE_LIVEKIT_URL=wss://<your-project>.livekit.cloud
-```
-
-**GitHub** (repo secret, used by both APK jobs):
-
-```
-LIVEKIT_WS_URL=wss://<your-project>.livekit.cloud
-```
-
-**LiveKit Cloud webhook** → point at `https://kiosk-production-060d.up.railway.app/api/webhooks/livekit`,
-signed with the same API key/secret. Without it, rooms LiveKit ends on its own (departure timeout)
-never mark the call completed server-side, so the doctor never gets credited.
-
-Vite inlines `VITE_*` at build time, so **redeploy Vercel and re-run the APK job** after setting these.
-An already-built bundle will not pick them up.
+In the LiveKit Cloud project settings, add a webhook pointing at
+`https://kiosk-production-060d.up.railway.app/api/webhooks/livekit`, signed with the same API key.
+Without it, a room LiveKit ends on its own (the 2-minute departure timeout) never gets marked
+complete server-side, so the call stays ACTIVE and the doctor is never credited.
 
 ### 2. Confirm the Railway variables that already matter
 

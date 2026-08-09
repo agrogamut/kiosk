@@ -82,8 +82,10 @@ jobs:
       VITE_API_URL: https://kiosk-production-060d.up.railway.app/api
       VITE_SOCKET_URL: https://kiosk-production-060d.up.railway.app
       # Baked into the bundle at build time. Without it the APK dials ws://localhost:7880 and no
-      # call ever connects -- see packages/web/src/lib/livekitUrl.ts.
-      VITE_LIVEKIT_URL: ${{ secrets.LIVEKIT_WS_URL }}
+      # call ever connects -- see packages/web/src/lib/livekitUrl.ts. Not a secret: this is the
+      # public signalling URL clients dial, and it is useless without the API key/secret, which
+      # live only on the server. Kept inline alongside the other two URLs above for that reason.
+      VITE_LIVEKIT_URL: wss://kiosk-iq6jq9cr.livekit.cloud
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -112,8 +114,10 @@ jobs:
       VITE_API_URL: https://kiosk-production-060d.up.railway.app/api
       VITE_SOCKET_URL: https://kiosk-production-060d.up.railway.app
       # Baked into the bundle at build time. Without it the APK dials ws://localhost:7880 and no
-      # call ever connects -- see packages/web/src/lib/livekitUrl.ts.
-      VITE_LIVEKIT_URL: ${{ secrets.LIVEKIT_WS_URL }}
+      # call ever connects -- see packages/web/src/lib/livekitUrl.ts. Not a secret: this is the
+      # public signalling URL clients dial, and it is useless without the API key/secret, which
+      # live only on the server. Kept inline alongside the other two URLs above for that reason.
+      VITE_LIVEKIT_URL: wss://kiosk-iq6jq9cr.livekit.cloud
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
