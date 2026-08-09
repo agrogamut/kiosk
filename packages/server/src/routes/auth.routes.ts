@@ -14,6 +14,7 @@ import {
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../middleware/error.middleware.js";
 import { checkAttemptLimit, clearAttempts, recordFailedAttempt } from "../lib/rate-limit.js";
+import { REFRESH_COOKIE_MAX_AGE_MS, refreshCookieOptions } from "../lib/refresh-cookie.js";
 import {
   findActivePatientByPhone,
   loginStaff,
@@ -37,10 +38,8 @@ const upload = multer({
 
 function setRefreshCookie(res: Response, token: string): void {
   res.cookie("refreshToken", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 30 * 24 * 60 * 60 * 1000,
+    ...refreshCookieOptions(),
+    maxAge: REFRESH_COOKIE_MAX_AGE_MS,
   });
 }
 
@@ -263,6 +262,9 @@ authRouter.post("/refresh", async (req: Request, res: Response, next: NextFuncti
 });
 
 authRouter.post("/logout", (_req: Request, res: Response): void => {
-  res.clearCookie("refreshToken");
+  // Browsers only drop a cookie when the clearing Set-Cookie carries the same attributes it was
+  // written with, so this has to mirror setRefreshCookie -- otherwise logout would leave the
+  // production (SameSite=None; Secure) cookie sitting in the jar, still good for a refresh.
+  res.clearCookie("refreshToken", refreshCookieOptions());
   res.json({ message: "Logged out" });
 });
