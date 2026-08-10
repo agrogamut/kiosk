@@ -109,7 +109,11 @@ model DoctorProfile {
   degree          String
   regNumber       String    @unique
   specialization  String?
+  // isAvailable is transient state the system owns: assign-doctor clears it for the duration of a
+  // call and completeCall/requeueRingingCall restore it. isOnDuty is the doctor's own choice and
+  // nothing but their toggle changes it, so going off duty can't be undone by a call ending.
   isAvailable     Boolean   @default(true)
+  isOnDuty        Boolean   @default(true)
   isApproved      Boolean   @default(false)
   approvedAt      DateTime?
   approvedById    String?

@@ -72,6 +72,63 @@ doctorRouter.post("/photo", upload.single("photo"), async (req: Request, res: Re
   }
 });
 
+// A doctor had no way to see whether patients could reach them, no way to go off duty, and no way
+// back if their availability got stuck -- the only fix was editing the database by hand.
+doctorRouter.get("/availability", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const profile = await prisma.doctorProfile.findUnique({
+      where: { userId: req.user!.sub },
+      select: { isOnDuty: true, isAvailable: true, isApproved: true },
+    });
+    if (!profile) {
+      throw new AppError(404, "Doctor profile not found");
+    }
+
+    res.json({
+      isOnDuty: profile.isOnDuty,
+      // isAvailable is false for the whole of a call, so on its own it would read as "off duty"
+      // to a doctor who is simply busy.
+      isInCall: profile.isOnDuty && profile.isApproved && !profile.isAvailable,
+      reachable: profile.isOnDuty && profile.isApproved && profile.isAvailable,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+doctorRouter.put("/availability", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { isOnDuty } = req.body ?? {};
+    if (typeof isOnDuty !== "boolean") {
+      throw new AppError(400, "isOnDuty must be true or false");
+    }
+
+    // Coming back on duty also clears a stuck isAvailable, which is the only recovery a doctor
+    // can perform for themselves -- but not while they are genuinely on a call, or the next
+    // assignment would ring them in the middle of the consultation they are already in.
+    const busy =
+      isOnDuty &&
+      (await prisma.callSession.findFirst({
+        where: { doctorId: req.user!.sub, status: { in: ["RINGING", "ACTIVE"] } },
+        select: { id: true },
+      })) !== null;
+
+    const profile = await prisma.doctorProfile.update({
+      where: { userId: req.user!.sub },
+      data: isOnDuty ? { isOnDuty: true, isAvailable: !busy } : { isOnDuty: false },
+      select: { isOnDuty: true, isAvailable: true, isApproved: true },
+    });
+
+    res.json({
+      isOnDuty: profile.isOnDuty,
+      isInCall: profile.isOnDuty && profile.isApproved && !profile.isAvailable,
+      reachable: profile.isOnDuty && profile.isApproved && profile.isAvailable,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 doctorRouter.get("/patients/:patientId/records", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const doctorId = req.user!.sub;

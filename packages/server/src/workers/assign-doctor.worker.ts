@@ -24,6 +24,7 @@ export function startAssignDoctorWorker(): Worker<AssignDoctorJobData> {
       const doctor = await prisma.$transaction(async (tx) => {
         const where: Prisma.DoctorProfileWhereInput = {
           isAvailable: true,
+          isOnDuty: true,
           isApproved: true,
           userId: excludedDoctorIds.length > 0 ? { notIn: excludedDoctorIds } : undefined,
         };

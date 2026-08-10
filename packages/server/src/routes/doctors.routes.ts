@@ -9,7 +9,7 @@ export const doctorsRouter = Router();
 doctorsRouter.get("/available", requireAuth("PATIENT"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const doctors = await prisma.doctorProfile.findMany({
-      where: { isApproved: true, isAvailable: true },
+      where: { isApproved: true, isAvailable: true, isOnDuty: true },
       select: {
         specialization: true,
         photoKey: true,

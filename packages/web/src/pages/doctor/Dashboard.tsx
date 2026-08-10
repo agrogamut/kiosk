@@ -48,6 +48,12 @@ interface WalletResponse {
   balance: string;
 }
 
+interface AvailabilityResponse {
+  isOnDuty: boolean;
+  isInCall: boolean;
+  reachable: boolean;
+}
+
 interface HistoryResponse {
   calls: (CallSession & { patient: { name: string } })[];
   total: number;
@@ -61,6 +67,12 @@ export default function DoctorDashboard() {
   const [profile, setProfile] = useState<DoctorProfile | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: availability, refetch: refetchAvailability } = useQuery({
+    queryKey: ["doctor-availability"],
+    queryFn: () => api.get<AvailabilityResponse>("/doctor/availability").then((response) => response.data),
+  });
+  const [togglingDuty, setTogglingDuty] = useState(false);
 
   const { data: wallet } = useQuery({
     queryKey: ["wallet", "/doctor"],
@@ -115,6 +127,9 @@ export default function DoctorDashboard() {
     // and Accept silently did nothing because the server refuses a call that isn't RINGING.
     socket.on("call:ended", ({ callSessionId }: { callSessionId: string }) => {
       setIncoming((current) => (current && current.callSession.id !== callSessionId ? current : null));
+      // The doctor becomes reachable again the moment the call closes, so the badge above has to
+      // stop saying "On a call".
+      void refetchAvailability();
     });
 
     return () => {
@@ -122,7 +137,7 @@ export default function DoctorDashboard() {
       socket.off("call:accepted");
       socket.off("call:ended");
     };
-  }, [navigate, setLivekitToken]);
+  }, [navigate, setLivekitToken, refetchAvailability]);
 
   useDoctorPresenceHeartbeat();
 
@@ -142,6 +157,22 @@ export default function DoctorDashboard() {
 
     getSocket().emit("call:reject", { callSessionId: incoming.callSession.id });
     setIncoming(null);
+  }
+
+  async function toggleDuty(): Promise<void> {
+    if (!availability) {
+      return;
+    }
+
+    setTogglingDuty(true);
+    try {
+      await api.put("/doctor/availability", { isOnDuty: !availability.isOnDuty });
+      await refetchAvailability();
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "We couldn't change your availability. Try again."));
+    } finally {
+      setTogglingDuty(false);
+    }
   }
 
   async function uploadPhoto(file: File): Promise<void> {
@@ -176,6 +207,39 @@ export default function DoctorDashboard() {
       <div className="mb-8">
         <h1 className="font-display text-2xl font-bold text-foreground">Welcome, Dr. {user?.name}</h1>
       </div>
+
+      {availability && (
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-card p-6 shadow-sm">
+          <div>
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden="true"
+                className={`size-2.5 rounded-full ${
+                  availability.reachable ? "bg-primary" : availability.isInCall ? "bg-amber-500" : "bg-muted-foreground"
+                }`}
+              />
+              <p className="font-semibold text-foreground">
+                {availability.reachable ? "Available for calls" : availability.isInCall ? "On a call" : "Off duty"}
+              </p>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {availability.reachable
+                ? "Patients can reach you right now."
+                : availability.isInCall
+                  ? "You'll be reachable again when this call ends."
+                  : "Patients can't reach you until you go on duty."}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant={availability.isOnDuty ? "outline" : "default"}
+            disabled={togglingDuty}
+            onClick={() => void toggleDuty()}
+          >
+            {availability.isOnDuty ? "Go off duty" : "Go on duty"}
+          </Button>
+        </div>
+      )}
 
       {incoming && (
         <div className="mb-8 rounded-xl bg-card p-6 shadow-sm ring-1 ring-primary/30">
