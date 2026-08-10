@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChatMessage, Vitals } from "@madamgy/api-client";
+import { format } from "date-fns";
 import { Paperclip } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { VitalsForm } from "../kiosk/VitalsForm";
+import { Textarea } from "../ui/textarea";
+import { VitalsForm, hasInvalidVitals } from "../kiosk/VitalsForm";
 import { ChatImageMessage } from "./ChatImageMessage";
 import { api } from "../../lib/api";
 import { getApiErrorMessage } from "../../lib/errors";
@@ -19,6 +20,15 @@ interface CallChatPanelProps {
 
 const emptyVitals: Vitals = {};
 
+function mergeMessage(
+  current: ChatMessageWithSender[],
+  message: ChatMessageWithSender,
+): ChatMessageWithSender[] {
+  // The socket can deliver a message that the history fetch already returned, and vice versa,
+  // depending on which lands first after a rejoin.
+  return current.some((existing) => existing.id === message.id) ? current : [...current, message];
+}
+
 export function CallChatPanel({ callSessionId }: CallChatPanelProps) {
   const user = useAuthStore((state) => state.user);
   const canSendVitals = user?.role === "PATIENT";
@@ -27,20 +37,51 @@ export function CallChatPanel({ callSessionId }: CallChatPanelProps) {
   const [showVitals, setShowVitals] = useState(false);
   const [vitals, setVitals] = useState<Vitals>(emptyVitals);
   const [uploading, setUploading] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
+    // Messages were always persisted; nothing ever read them back, so a reload or a rejoin
+    // mid-call showed an empty panel while the conversation sat in the database.
+    setLoadingHistory(true);
+    api
+      .get<{ messages: ChatMessageWithSender[] }>(`/chat/${callSessionId}/messages`)
+      .then((response) => {
+        if (!cancelled) {
+          setMessages((current) => response.data.messages.reduce(mergeMessage, current));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          toast.error("Couldn't load earlier messages");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingHistory(false);
+        }
+      });
+
     const socket = connectSocket();
     socket.on("chat:message", (message: ChatMessageWithSender) => {
       if (message.callSessionId === callSessionId) {
-        setMessages((current) => [...current, message]);
+        setMessages((current) => mergeMessage(current, message));
       }
     });
 
     return () => {
+      cancelled = true;
       socket.off("chat:message");
     };
   }, [callSessionId]);
+
+  // Without this the list never moves and the newest message is simply below the fold.
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, [messages]);
 
   function sendText(): void {
     const content = text.trim();
@@ -55,6 +96,12 @@ export function CallChatPanel({ callSessionId }: CallChatPanelProps) {
   function sendVitals(): void {
     const hasVitals = Object.values(vitals).some((value) => value !== undefined && value !== "");
     if (!hasVitals) {
+      return;
+    }
+    // The server parses vitals with VitalsSchema and the socket handler discards anything that
+    // fails, without replying -- so an out-of-range value would otherwise vanish in silence.
+    if (hasInvalidVitals(vitals)) {
+      toast.error("Check the highlighted readings before sending");
       return;
     }
 
@@ -83,8 +130,13 @@ export function CallChatPanel({ callSessionId }: CallChatPanelProps) {
       <div className="border-b border-input px-4 py-3">
         <h3 className="font-display font-semibold text-foreground">Call chat</h3>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-        {messages.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No messages yet</p>}
+      {/* min-h-24 keeps the message list from being squeezed to nothing when the vitals form
+          below it opens inside a short panel. */}
+      <div className="flex min-h-24 flex-1 flex-col gap-3 overflow-y-auto p-4">
+        {loadingHistory && <p className="py-4 text-center text-sm text-muted-foreground">Loading messages...</p>}
+        {!loadingHistory && messages.length === 0 && (
+          <p className="py-4 text-center text-sm text-muted-foreground">No messages yet</p>
+        )}
         {messages.map((message) => {
           const own = message.senderId === user?.id;
           return (
@@ -94,31 +146,41 @@ export function CallChatPanel({ callSessionId }: CallChatPanelProps) {
                 own ? "self-end bg-primary text-primary-foreground" : "self-start bg-muted text-foreground"
               }`}
             >
-              <p className="mb-1 text-xs opacity-70">{own ? "You" : message.sender?.name ?? "Participant"}</p>
-              {message.type === "TEXT" && <p>{message.content}</p>}
+              <div className="mb-1 flex items-baseline gap-2 text-xs opacity-70">
+                <span>{own ? "You" : message.sender?.name ?? "Participant"}</span>
+                <span>{format(new Date(message.createdAt), "HH:mm")}</span>
+              </div>
+              {message.type === "TEXT" && <p className="whitespace-pre-wrap break-words">{message.content}</p>}
               {message.type === "IMAGE" && message.imageKey && <ChatImageMessage imageKey={message.imageKey} />}
               {message.type === "VITALS" && (
                 <div className="text-sm">
                   <p className="font-semibold">Vitals</p>
                   {message.vitals?.weightKg && <p>Weight: {message.vitals.weightKg} kg</p>}
                   {message.vitals?.heightCm && <p>Height: {message.vitals.heightCm} cm</p>}
-                  {message.vitals?.bp && <p>BP: {message.vitals.bp}</p>}
+                  {message.vitals?.bp && <p>BP: {message.vitals.bp} mmHg</p>}
                   {message.vitals?.spo2 && <p>SpO2: {message.vitals.spo2}%</p>}
+                  {message.vitals?.temp && <p>Temperature: {message.vitals.temp} &deg;C</p>}
                 </div>
               )}
             </div>
           );
         })}
+        {uploading && (
+          <div className="max-w-[85%] self-end rounded-2xl bg-primary/60 px-4 py-3 text-sm text-primary-foreground">
+            Sending attachment...
+          </div>
+        )}
+        <div ref={messagesEndRef} />
       </div>
       {canSendVitals && showVitals && (
-        <div className="border-t border-input p-4">
+        <div className="max-h-[45%] shrink-0 overflow-y-auto border-t border-input p-4">
           <VitalsForm value={vitals} onChange={setVitals} />
           <Button type="button" onClick={sendVitals} className="mt-3 w-full">
             Send vitals
           </Button>
         </div>
       )}
-      <div className="flex gap-2 border-t border-input p-3">
+      <div className="flex shrink-0 items-end gap-2 border-t border-input p-3">
         {canSendVitals && (
           <Button type="button" variant="outline" onClick={() => setShowVitals((current) => !current)}>
             Vitals
@@ -147,16 +209,19 @@ export function CallChatPanel({ callSessionId }: CallChatPanelProps) {
         >
           <Paperclip className="h-4 w-4" />
         </Button>
-        <Input
+        <Textarea
           value={text}
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter") {
+            // Enter sends, Shift+Enter breaks the line -- clinical notes need more than one.
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
               sendText();
             }
           }}
           placeholder="Type message"
-          className="min-w-0 flex-1"
+          rows={1}
+          className="min-h-10 min-w-0 flex-1 resize-none"
         />
         <Button type="button" onClick={sendText}>
           Send

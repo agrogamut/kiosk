@@ -168,8 +168,11 @@ export default function DoctorCall() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <div className="relative h-[55vh] lg:h-[70vh]">
+    // Proportional rather than a fixed 55vh: on a phone that left the video cramped and the
+    // control bar crowding the prescription form under it. dvh so the mobile URL bar can't push
+    // the composer off-screen.
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
+      <div className="relative min-h-56 flex-[3] lg:flex-[7]">
         <div className="absolute right-3 top-3 z-20">
           <AlertDialog>
             <AlertDialogTrigger asChild>

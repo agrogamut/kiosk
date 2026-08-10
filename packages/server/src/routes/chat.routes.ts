@@ -27,6 +27,29 @@ async function requireCallMembership(callSessionId: string, userId: string) {
   return call;
 }
 
+// chat.handler.ts has always persisted every message, but nothing ever read them back, so the
+// panel showed "No messages yet" after any reload or rejoin while the messages sat in the
+// database. Same membership rule as /upload.
+chatRouter.get(
+  "/:callSessionId/messages",
+  requireAuth("PATIENT", "DOCTOR"),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await requireCallMembership(req.params.callSessionId, req.user!.sub);
+
+      const messages = await prisma.chatMessage.findMany({
+        where: { callSessionId: req.params.callSessionId },
+        orderBy: { createdAt: "asc" },
+        include: { sender: { select: { id: true, name: true } } },
+      });
+
+      res.json({ messages });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 chatRouter.post(
   "/upload",
   requireAuth("PATIENT", "DOCTOR"),

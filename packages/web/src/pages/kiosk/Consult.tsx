@@ -198,8 +198,10 @@ export default function KioskConsult() {
 
   if (livekitToken && callSession) {
     return (
-      <div className="flex min-h-screen flex-col bg-background lg:flex-row">
-        <div className="h-[60vh] min-h-0 lg:h-screen lg:flex-1">
+      // dvh, not vh: on a phone the mobile browser's URL bar is excluded from vh, so the chat
+      // composer sat below the fold until you scrolled.
+      <div className="flex h-[100dvh] flex-col overflow-hidden bg-background lg:flex-row">
+        <div className="min-h-56 flex-[3] lg:h-full lg:flex-1">
           {connectionLost ? (
             <div className="flex h-full flex-col items-center justify-center gap-4 bg-background p-8 text-center">
               <p className="text-xl text-foreground">Connection lost</p>
@@ -215,7 +217,7 @@ export default function KioskConsult() {
             />
           )}
         </div>
-        <div className="h-[40vh] p-3 lg:h-screen lg:w-96">
+        <div className="min-h-0 flex-[2] p-3 lg:h-full lg:flex-none lg:w-96">
           <CallChatPanel callSessionId={callSession.id} />
         </div>
       </div>
