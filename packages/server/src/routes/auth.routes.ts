@@ -31,9 +31,11 @@ import { io } from "../index.js";
 
 export const authRouter = Router();
 
+// 10MB, matching every other upload in the app -- a scanned registration certificate regularly
+// exceeds 5MB, and being rejected at sign-up blocks the doctor entirely.
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 function setRefreshCookie(res: Response, token: string): void {

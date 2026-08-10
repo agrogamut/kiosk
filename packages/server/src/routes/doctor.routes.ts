@@ -13,9 +13,11 @@ export const doctorRouter = Router();
 
 doctorRouter.use(requireAuth("DOCTOR"));
 
+// 10MB, matching the chat upload limit: a photo taken on a modern phone is routinely 3-12MB, and
+// the old 5MB cap rejected ordinary camera output.
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 doctorRouter.post(
