@@ -214,6 +214,8 @@ export default function KioskConsult() {
               token={livekitToken}
               serverUrl={getLivekitUrl()}
               onDisconnected={handleDisconnected}
+              waitingTitle="Waiting for your doctor to join"
+              startedAt={callSession.startedAt}
             />
           )}
         </div>

@@ -10,10 +10,21 @@ interface DoctorCallViewProps {
   token: string;
   serverUrl: string;
   onDisconnected: () => void;
+  peerName?: string;
+  startedAt?: string | null;
+  actions?: ReactNode;
   children?: ReactNode;
 }
 
-export function DoctorCallView({ token, serverUrl, onDisconnected, children }: DoctorCallViewProps) {
+export function DoctorCallView({
+  token,
+  serverUrl,
+  onDisconnected,
+  peerName,
+  startedAt,
+  actions,
+  children,
+}: DoctorCallViewProps) {
   return (
     <LiveKitRoom
       token={token}
@@ -29,7 +40,9 @@ export function DoctorCallView({ token, serverUrl, onDisconnected, children }: D
       style={{ height: "100%", position: "relative" }}
       options={{ adaptiveStream: true, dynacast: true, publishDefaults: { simulcast: true } }}
     >
-      <CallLayout screenShare>{children}</CallLayout>
+      <CallLayout screenShare peerName={peerName} startedAt={startedAt} actions={actions}>
+        {children}
+      </CallLayout>
     </LiveKitRoom>
   );
 }

@@ -64,6 +64,10 @@ export default function DoctorDashboard() {
   const setLivekitToken = useCallStore((state) => state.setLivekitToken);
   const navigate = useNavigate();
   const [incoming, setIncoming] = useState<IncomingCall | null>(null);
+  // Read inside the socket handler, which is registered once and would otherwise close over the
+  // value of `incoming` from first render.
+  const incomingRef = useRef<IncomingCall | null>(null);
+  incomingRef.current = incoming;
   const [profile, setProfile] = useState<DoctorProfile | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -119,7 +123,11 @@ export default function DoctorDashboard() {
       "call:accepted",
       ({ callSessionId, livekitToken, patientId }: { callSessionId: string; livekitToken: string; patientId?: string }) => {
         setLivekitToken(livekitToken);
-        navigate(`/doctor/call/${callSessionId}`, { state: { patientId } });
+        // The name comes from the incoming-call card so the call screen can name the patient
+        // straight away instead of waiting on a round trip.
+        navigate(`/doctor/call/${callSessionId}`, {
+          state: { patientId, patientName: incomingRef.current?.patient.name },
+        });
       },
     );
     // Fires when the patient hangs up mid-ring and when an unanswered ring is requeued to another

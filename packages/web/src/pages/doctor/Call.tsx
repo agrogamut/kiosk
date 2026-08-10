@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -38,27 +38,50 @@ interface PrescriptionFields {
 
 const EMPTY_PRESCRIPTION: PrescriptionFields = { complaint: "", diagnosis: "", medications: "", advice: "" };
 
-const PRESCRIPTION_FIELDS: { name: keyof PrescriptionFields; label: string; placeholder: string }[] = [
-  { name: "complaint", label: "Patient complaint", placeholder: "What the patient reported" },
-  { name: "diagnosis", label: "Diagnosis", placeholder: "Your assessment" },
-  { name: "medications", label: "Medications", placeholder: "Drug, dose, frequency, duration" },
-  { name: "advice", label: "Advice", placeholder: "Follow-up, precautions, next steps" },
+const PRESCRIPTION_FIELDS: { name: keyof PrescriptionFields; label: string; placeholder: string; rows: number }[] = [
+  { name: "complaint", label: "Patient complaint", placeholder: "What the patient reported", rows: 3 },
+  { name: "diagnosis", label: "Diagnosis", placeholder: "Your assessment", rows: 3 },
+  { name: "medications", label: "Medications", placeholder: "Drug, dose, frequency, duration", rows: 4 },
+  { name: "advice", label: "Advice", placeholder: "Follow-up, precautions, next steps", rows: 3 },
 ];
+
+type RailTab = "prescription" | "chat" | "history";
+
+const TABS: { id: RailTab; label: string }[] = [
+  { id: "prescription", label: "Prescription" },
+  { id: "chat", label: "Chat" },
+  { id: "history", label: "History" },
+];
+
+interface CallRouteState {
+  patientId?: string;
+  patientName?: string;
+}
 
 export default function DoctorCall() {
   const { id: callSessionId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const routeState = location.state as CallRouteState | null;
   const storedLivekitToken = useCallStore((state) => state.livekitToken);
   const setLivekitToken = useCallStore((state) => state.setLivekitToken);
   const clearCall = useCallStore((state) => state.clearCall);
   const [submitting, setSubmitting] = useState(false);
-  const [patientId] = useState<string | null>(() => (location.state as { patientId?: string } | null)?.patientId ?? null);
-  const [rightTab, setRightTab] = useState<"chat" | "history">("chat");
+  const [patientId, setPatientId] = useState<string | null>(routeState?.patientId ?? null);
+  const [patientName, setPatientName] = useState<string | null>(routeState?.patientName ?? null);
+  const [startedAt, setStartedAt] = useState<string | null>(null);
+  const [railTab, setRailTab] = useState<RailTab>("prescription");
+  const [unreadChat, setUnreadChat] = useState(0);
   const [prescription, setPrescription] = useState<PrescriptionFields>(EMPTY_PRESCRIPTION);
+  const [prescriptionSubmitted, setPrescriptionSubmitted] = useState(false);
   const [connectionLost, setConnectionLost] = useState(false);
   const [rejoinKey, setRejoinKey] = useState(0);
-  const [prescriptionSubmitted, setPrescriptionSubmitted] = useState(false);
+  const hydratedFor = useRef<string | null>(null);
+  const tabRefs = useRef<Record<RailTab, HTMLButtonElement | null>>({
+    prescription: null,
+    chat: null,
+    history: null,
+  });
 
   useImmersiveStatusBar();
   useDoctorPresenceHeartbeat();
@@ -67,8 +90,26 @@ export default function DoctorCall() {
     setPrescription((current) => ({ ...current, [name]: value }));
   }
 
+  function selectTab(tab: RailTab): void {
+    setRailTab(tab);
+    if (tab === "chat") {
+      setUnreadChat(0);
+    }
+  }
+
+  function onTabKeyDown(event: React.KeyboardEvent, index: number): void {
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") {
+      return;
+    }
+    event.preventDefault();
+    const offset = event.key === "ArrowRight" ? 1 : -1;
+    const next = TABS[(index + offset + TABS.length) % TABS.length];
+    selectTab(next.id);
+    tabRefs.current[next.id]?.focus();
+  }
+
   async function handleRejoin(): Promise<void> {
-    let active: { callSession: any | null; livekitToken: string | null };
+    let active: Awaited<ReturnType<typeof fetchActiveCall>>;
     try {
       active = await fetchActiveCall();
     } catch {
@@ -109,25 +150,50 @@ export default function DoctorCall() {
     };
   }, [clearCall, navigate]);
 
+  // Fills in whatever the dashboard didn't hand over -- the patient's name and the start time for
+  // the timer, and the token itself after a reload. Guarded by a ref rather than by the state it
+  // sets, which would otherwise re-trigger this effect on each field it filled in.
   useEffect(() => {
-    if (storedLivekitToken || !callSessionId) {
+    if (!callSessionId || hydratedFor.current === callSessionId) {
       return;
     }
+    if (storedLivekitToken && patientName && startedAt) {
+      return;
+    }
+    hydratedFor.current = callSessionId;
 
+    let cancelled = false;
     fetchActiveCall()
       .then((active) => {
-        if (active.callSession?.id === callSessionId && active.livekitToken) {
+        if (cancelled) {
+          return;
+        }
+        if (active.callSession?.id !== callSessionId) {
+          if (!storedLivekitToken) {
+            toast.error("This call is no longer active");
+            navigate("/doctor");
+          }
+          return;
+        }
+
+        setPatientId((current) => current ?? active.callSession?.patient?.id ?? null);
+        setPatientName((current) => current ?? active.callSession?.patient?.name ?? null);
+        setStartedAt((current) => current ?? active.callSession?.startedAt ?? null);
+        if (active.livekitToken && !storedLivekitToken) {
           setLivekitToken(active.livekitToken);
-        } else {
-          toast.error("This call is no longer active");
-          navigate("/doctor");
         }
       })
       .catch(() => {
-        toast.error("Could not reconnect to the call");
-        navigate("/doctor");
+        if (!cancelled && !storedLivekitToken) {
+          toast.error("Could not reconnect to the call");
+          navigate("/doctor");
+        }
       });
-  }, [storedLivekitToken, callSessionId, navigate, setLivekitToken]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [callSessionId, storedLivekitToken, patientName, startedAt, navigate, setLivekitToken]);
 
   async function submitPrescription(): Promise<void> {
     if (!callSessionId || !canSubmitPrescription || prescriptionSubmitted) {
@@ -138,11 +204,10 @@ export default function DoctorCall() {
     try {
       await api.post("/prescriptions", { callSessionId, content: prescription });
       toast.success("Prescription submitted");
-      // Deliberately stays on the call. Navigating away here used to unmount DoctorCallView,
-      // which disconnected the doctor from the LiveKit room and left the patient alone until
-      // LiveKit's departure timeout fired room_finished and ended the consultation -- so writing
-      // the prescription silently hung up on the patient. The doctor ends the call via
-      // "Close room" instead.
+      // Deliberately stays on the call. Navigating away here used to unmount the call view, which
+      // disconnected the doctor from the LiveKit room and left the patient alone until LiveKit's
+      // departure timeout ended the consultation -- so writing the prescription silently hung up
+      // on the patient. The doctor ends the call with "Close room" instead.
       setPrescriptionSubmitted(true);
     } catch (error) {
       // The server allows exactly one prescription per call and answers 409 for a second one.
@@ -158,9 +223,34 @@ export default function DoctorCall() {
     }
   }
 
+  const closeRoomButton = (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <button
+          type="button"
+          className="shrink-0 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:border-destructive hover:bg-destructive focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        >
+          Close room
+        </button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Close this room?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This ends the call for the patient immediately and can't be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={closeRoom}>Close room</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   if (!storedLivekitToken) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background p-8">
+      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-6 bg-background p-8">
         <PulseRing size="lg" />
         <p className="text-center text-xl text-foreground">Waiting for connection...</p>
       </div>
@@ -168,37 +258,35 @@ export default function DoctorCall() {
   }
 
   return (
-    // Proportional rather than a fixed 55vh: on a phone that left the video cramped and the
-    // control bar crowding the prescription form under it. dvh so the mobile URL bar can't push
-    // the composer off-screen.
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
-      <div className="relative min-h-56 flex-[3] lg:flex-[7]">
-        <div className="absolute right-3 top-3 z-20">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm">
-                Close room
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Close this room?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This ends the call for the patient immediately and can't be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={closeRoom}>Close room</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
+    // Two panes side by side rather than stacked. Stacking made the video and the work surface
+    // compete for the same vertical space, and on a laptop the video won by default -- the
+    // prescription form was left with a couple of hundred pixels and the chat was off-screen.
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background lg:flex-row">
+      <section className="relative min-h-44 flex-[2] lg:min-h-0 lg:w-0 lg:min-w-0 lg:flex-1">
         {connectionLost ? (
           <div className="flex h-full flex-col items-center justify-center gap-4 bg-background p-8 text-center">
             <p className="text-xl text-foreground">Connection lost</p>
             <p className="text-muted-foreground">The room is still open. Rejoin when you're ready.</p>
-            <Button onClick={() => void handleRejoin()}>Rejoin call</Button>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Button onClick={() => void handleRejoin()}>Rejoin call</Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline">Close room</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Close this room?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This ends the call for the patient immediately and can't be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={closeRoom}>Close room</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         ) : (
           <DoctorCallView
@@ -206,78 +294,129 @@ export default function DoctorCall() {
             token={storedLivekitToken}
             serverUrl={getLivekitUrl()}
             onDisconnected={() => setConnectionLost(true)}
+            peerName={patientName ?? undefined}
+            startedAt={startedAt}
+            actions={closeRoomButton}
           />
         )}
-      </div>
+      </section>
 
-      <div className="grid min-h-0 flex-1 gap-4 border-t border-input bg-background p-4 lg:grid-cols-[1fr_24rem]">
-        <div className="flex min-h-0 flex-col overflow-y-auto">
-          <h3 className="font-display mb-2 text-lg font-semibold text-foreground">Prescription</h3>
-          {prescriptionSubmitted && (
-            <p className="mb-3 rounded-lg bg-primary/10 p-3 text-sm text-foreground">
-              Prescription submitted. The patient will receive it as a PDF. You're still in the call &mdash; use{" "}
-              <strong>Close room</strong> when you're done.
-            </p>
-          )}
-          <div className="flex flex-col gap-3">
-            {PRESCRIPTION_FIELDS.map((field) => (
-              <div key={field.name}>
-                <Label htmlFor={`prescription-${field.name}`} className="mb-1.5">
-                  {field.label}
-                </Label>
-                <Textarea
-                  id={`prescription-${field.name}`}
-                  value={prescription[field.name]}
-                  onChange={(event) => updatePrescriptionField(field.name, event.target.value)}
-                  placeholder={field.placeholder}
-                  rows={3}
-                  readOnly={prescriptionSubmitted}
-                  className={prescriptionSubmitted ? "bg-muted" : "bg-card"}
-                />
-              </div>
-            ))}
-          </div>
-          <Button
-            type="button"
-            onClick={() => void submitPrescription()}
-            disabled={submitting || !canSubmitPrescription || prescriptionSubmitted}
-            className="mt-3 w-full text-lg"
-          >
-            {prescriptionSubmitted ? "Submitted" : submitting ? "Submitting..." : "Submit prescription"}
-          </Button>
+      <aside className="flex min-h-0 flex-[3] flex-col border-t border-input bg-card lg:w-96 lg:flex-none lg:border-l lg:border-t-0 xl:w-[28rem] 2xl:w-[34rem]">
+        <div role="tablist" aria-label="Consultation panels" className="flex shrink-0 gap-1 border-b border-input px-2 pt-2">
+          {TABS.map((tab, index) => {
+            const selected = railTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                ref={(node) => {
+                  tabRefs.current[tab.id] = node;
+                }}
+                type="button"
+                role="tab"
+                id={`rail-tab-${tab.id}`}
+                aria-selected={selected}
+                aria-controls={`rail-panel-${tab.id}`}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => selectTab(tab.id)}
+                onKeyDown={(event) => onTabKeyDown(event, index)}
+                className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-t-lg px-2 py-2.5 text-sm font-semibold transition-colors ${
+                  selected ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+                {/* The doctor writing a prescription cannot see the chat, and a photo or a set of
+                    vitals arriving is exactly the thing they must not miss. */}
+                {tab.id === "chat" && unreadChat > 0 && (
+                  <span
+                    className="size-1.5 rounded-full bg-tertiary"
+                    aria-label={`${unreadChat} new ${unreadChat === 1 ? "message" : "messages"}`}
+                  />
+                )}
+                {selected && <span aria-hidden="true" className="absolute inset-x-3 -bottom-px h-0.5 rounded bg-primary" />}
+              </button>
+            );
+          })}
         </div>
-        <div className="flex min-h-0 flex-col rounded-xl bg-card shadow-sm">
-          <div className="flex border-b border-input">
-            <button
-              type="button"
-              onClick={() => setRightTab("chat")}
-              className={`flex-1 rounded-tl-xl py-3 text-sm font-semibold ${
-                rightTab === "chat" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"
-              }`}
-            >
-              Chat
-            </button>
-            <button
-              type="button"
-              onClick={() => setRightTab("history")}
-              className={`flex-1 rounded-tr-xl py-3 text-sm font-semibold ${
-                rightTab === "history" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"
-              }`}
-            >
-              Patient history
-            </button>
-          </div>
-          <div className="min-h-0 flex-1">
-            {rightTab === "chat" && callSessionId && <CallChatPanel callSessionId={callSessionId} />}
-            {rightTab === "history" &&
-              (patientId ? (
-                <PatientHistoryPanel patientId={patientId} />
-              ) : (
-                <p className="p-4 text-sm text-muted-foreground">Patient not identified yet.</p>
+
+        {/* All three stay mounted: unmounting the chat would drop its socket subscription and
+            refetch the history every time the doctor switched back to the form. */}
+        <div
+          role="tabpanel"
+          id="rail-panel-prescription"
+          aria-labelledby="rail-tab-prescription"
+          hidden={railTab !== "prescription"}
+          className={railTab === "prescription" ? "flex min-h-0 flex-1 flex-col" : "hidden"}
+        >
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            {prescriptionSubmitted && (
+              <p className="mb-4 rounded-lg bg-tertiary/15 p-3 text-sm text-foreground">
+                Prescription submitted. The patient will receive it as a PDF. You're still in the call.
+              </p>
+            )}
+            <div className="flex flex-col gap-4">
+              {PRESCRIPTION_FIELDS.map((field) => (
+                <div key={field.name}>
+                  <Label htmlFor={`prescription-${field.name}`} className="mb-1.5">
+                    {field.label}
+                  </Label>
+                  <Textarea
+                    id={`prescription-${field.name}`}
+                    value={prescription[field.name]}
+                    onChange={(event) => updatePrescriptionField(field.name, event.target.value)}
+                    placeholder={field.placeholder}
+                    rows={field.rows}
+                    readOnly={prescriptionSubmitted}
+                    className={prescriptionSubmitted ? "bg-muted" : "bg-card"}
+                  />
+                </div>
               ))}
+            </div>
+          </div>
+          <div className="shrink-0 border-t border-input p-3">
+            <Button
+              type="button"
+              onClick={() => void submitPrescription()}
+              disabled={submitting || !canSubmitPrescription || prescriptionSubmitted}
+              className="w-full"
+            >
+              {prescriptionSubmitted ? "Submitted" : submitting ? "Submitting..." : "Submit prescription"}
+            </Button>
+            {!prescriptionSubmitted && (
+              <p className="mt-2 text-center text-xs text-muted-foreground">Submitting keeps you in the call.</p>
+            )}
           </div>
         </div>
-      </div>
+
+        <div
+          role="tabpanel"
+          id="rail-panel-chat"
+          aria-labelledby="rail-tab-chat"
+          hidden={railTab !== "chat"}
+          className={railTab === "chat" ? "flex min-h-0 flex-1 flex-col" : "hidden"}
+        >
+          {callSessionId && (
+            <CallChatPanel
+              callSessionId={callSessionId}
+              embedded
+              onMessageFromPeer={() => setUnreadChat((count) => count + 1)}
+            />
+          )}
+        </div>
+
+        <div
+          role="tabpanel"
+          id="rail-panel-history"
+          aria-labelledby="rail-tab-history"
+          hidden={railTab !== "history"}
+          className={railTab === "history" ? "flex min-h-0 flex-1 flex-col overflow-y-auto" : "hidden"}
+        >
+          {patientId ? (
+            <PatientHistoryPanel patientId={patientId} />
+          ) : (
+            <p className="p-4 text-sm text-muted-foreground">Patient not identified yet.</p>
+          )}
+        </div>
+      </aside>
     </div>
   );
 }

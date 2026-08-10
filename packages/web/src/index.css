@@ -50,3 +50,30 @@ body {
   --radius: 1.25rem;
   --radius-md: calc(var(--radius) - 4px);
 }
+
+/* LiveKit's ControlBar is built to sit in a full-width band under the video. Here it is docked
+   as a floating pill over the stage instead, so the controls cost no layout height and the video
+   keeps the whole panel -- the stacked band was what squeezed the prescription form into a
+   sliver. Only the container is restyled; the buttons keep LiveKit's own appearance. */
+.call-dock .lk-control-bar {
+  border: 0;
+  padding: 0.25rem;
+  gap: 0.25rem;
+  background: hsl(0 8% 10% / 0.92);
+  border-radius: 999px;
+  box-shadow: 0 2px 12px hsl(0 0% 0% / 0.45);
+  backdrop-filter: blur(6px);
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.call-dock .lk-control-bar::-webkit-scrollbar {
+  display: none;
+}
+
+/* The stage paints its own placeholder for a camera that is off, so LiveKit's stock silhouette
+   would sit behind it as a second, conflicting empty state. */
+.lk-participant-tile .lk-participant-placeholder {
+  display: none;
+}

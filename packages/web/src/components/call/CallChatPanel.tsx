@@ -16,6 +16,10 @@ type ChatMessageWithSender = ChatMessage & { sender?: { id: string; name: string
 
 interface CallChatPanelProps {
   callSessionId: string;
+  /** Fires only for live messages from the other person, so a hidden panel can show an unread mark. */
+  onMessageFromPeer?: () => void;
+  /** Drops the card chrome and title when the panel already sits inside a titled container. */
+  embedded?: boolean;
 }
 
 const emptyVitals: Vitals = {};
@@ -29,7 +33,7 @@ function mergeMessage(
   return current.some((existing) => existing.id === message.id) ? current : [...current, message];
 }
 
-export function CallChatPanel({ callSessionId }: CallChatPanelProps) {
+export function CallChatPanel({ callSessionId, onMessageFromPeer, embedded = false }: CallChatPanelProps) {
   const user = useAuthStore((state) => state.user);
   const canSendVitals = user?.role === "PATIENT";
   const [messages, setMessages] = useState<ChatMessageWithSender[]>([]);
@@ -40,6 +44,12 @@ export function CallChatPanel({ callSessionId }: CallChatPanelProps) {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Held in a ref so the socket subscription below doesn't tear down and re-run every time the
+  // parent re-renders with a fresh inline callback.
+  const notifyPeerMessage = useRef(onMessageFromPeer);
+  notifyPeerMessage.current = onMessageFromPeer;
+  const ownUserId = useRef(user?.id);
+  ownUserId.current = user?.id;
 
   useEffect(() => {
     let cancelled = false;
@@ -67,8 +77,12 @@ export function CallChatPanel({ callSessionId }: CallChatPanelProps) {
 
     const socket = connectSocket();
     socket.on("chat:message", (message: ChatMessageWithSender) => {
-      if (message.callSessionId === callSessionId) {
-        setMessages((current) => mergeMessage(current, message));
+      if (message.callSessionId !== callSessionId) {
+        return;
+      }
+      setMessages((current) => mergeMessage(current, message));
+      if (message.senderId !== ownUserId.current) {
+        notifyPeerMessage.current?.();
       }
     });
 
@@ -126,10 +140,12 @@ export function CallChatPanel({ callSessionId }: CallChatPanelProps) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-xl bg-card shadow-sm">
-      <div className="border-b border-input px-4 py-3">
-        <h3 className="font-display font-semibold text-foreground">Call chat</h3>
-      </div>
+    <div className={`flex h-full min-h-0 flex-col bg-card ${embedded ? "" : "rounded-xl shadow-sm"}`}>
+      {!embedded && (
+        <div className="border-b border-input px-4 py-3">
+          <h3 className="font-display font-semibold text-foreground">Call chat</h3>
+        </div>
+      )}
       {/* min-h-24 keeps the message list from being squeezed to nothing when the vitals form
           below it opens inside a short panel. */}
       <div className="flex min-h-24 flex-1 flex-col gap-3 overflow-y-auto p-4">

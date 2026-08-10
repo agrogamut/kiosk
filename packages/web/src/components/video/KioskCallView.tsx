@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import toast from "react-hot-toast";
 import { type MediaDeviceFailure } from "livekit-client";
 import { LiveKitRoom } from "@livekit/components-react";
@@ -9,9 +10,21 @@ interface KioskCallViewProps {
   token: string;
   serverUrl: string;
   onDisconnected: () => void;
+  peerName?: string;
+  waitingTitle?: string;
+  startedAt?: string | null;
+  actions?: ReactNode;
 }
 
-export function KioskCallView({ token, serverUrl, onDisconnected }: KioskCallViewProps) {
+export function KioskCallView({
+  token,
+  serverUrl,
+  onDisconnected,
+  peerName,
+  waitingTitle,
+  startedAt,
+  actions,
+}: KioskCallViewProps) {
   return (
     <LiveKitRoom
       token={token}
@@ -27,7 +40,7 @@ export function KioskCallView({ token, serverUrl, onDisconnected }: KioskCallVie
       style={{ height: "100%", position: "relative" }}
       options={{ adaptiveStream: true, dynacast: true, publishDefaults: { simulcast: true } }}
     >
-      <CallLayout />
+      <CallLayout peerName={peerName} waitingTitle={waitingTitle} startedAt={startedAt} actions={actions} />
     </LiveKitRoom>
   );
 }
