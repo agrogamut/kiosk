@@ -168,7 +168,12 @@ if (process.env.NODE_ENV !== "test") {
   handleRenderPdfFailed(renderPdfWorker);
   console.log("Queue workers started");
 
-  if (process.env.STALE_CALL_REAPER_ENABLED === "true") {
+  // On by default: nothing else releases a doctor whose ring went unanswered. assign-doctor sets
+  // isAvailable=false, and only completeCall/requeueRingingCall set it back -- neither of which
+  // fires for a call that is still RINGING. Without this the first unanswered call leaves that
+  // doctor permanently unavailable and invisible to every patient. The LiveKit room_finished
+  // webhook does not cover it either: that only fires for calls that reached ACTIVE.
+  if (process.env.STALE_CALL_REAPER_ENABLED !== "false") {
     startStaleCallReaper();
     console.log("Stale call reaper started");
   }

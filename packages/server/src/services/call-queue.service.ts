@@ -12,6 +12,10 @@ export async function requeueRingingCall(callSessionId: string, doctorId: string
   ]);
 
   io.to(`user:${patientId}`).emit("call:rejected", { callSessionId });
+  // The doctor is losing this call -- either they never answered and the ring timed out, or they
+  // rejected it. Their dashboard is still showing the incoming-call card, and accepting it now
+  // would be refused by the server since the call is back to QUEUED, so tell them it's gone.
+  io.to(`user:${doctorId}`).emit("call:ended", { callSessionId });
   await assignDoctorQueue.add(
     "assign",
     { callSessionId, excludedDoctorIds: [doctorId] },
