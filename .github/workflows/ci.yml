@@ -10,7 +10,7 @@ jobs:
   lint-typecheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -62,7 +62,7 @@ jobs:
       WEB_URL: "*"
       REQUIRE_PAYMENT_FOR_CALLS: "false"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -86,7 +86,7 @@ jobs:
       # live only on the server. Kept inline alongside the other two URLs above for that reason.
       VITE_LIVEKIT_URL: wss://kiosk-iq6jq9cr.livekit.cloud
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -118,7 +118,7 @@ jobs:
       # live only on the server. Kept inline alongside the other two URLs above for that reason.
       VITE_LIVEKIT_URL: wss://kiosk-iq6jq9cr.livekit.cloud
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -192,7 +192,7 @@ jobs:
   dependency-audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 20
