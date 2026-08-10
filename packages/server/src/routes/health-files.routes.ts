@@ -4,7 +4,8 @@ import multer from "multer";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { AppError } from "../middleware/error.middleware.js";
-import { deleteObject, getPresignedUrl, uploadBuffer } from "../services/storage.service.js";
+import { deleteObject, uploadBuffer } from "../services/storage.service.js";
+import { buildFileUrl } from "../services/file-url.service.js";
 
 export const healthFilesRouter = Router();
 
@@ -22,11 +23,7 @@ healthFilesRouter.get("/", requireAuth("PATIENT"), async (req: Request, res: Res
       orderBy: { createdAt: "desc" },
     });
 
-    const withUrls = await Promise.all(
-      files.map(async (file) => ({ ...file, url: await getPresignedUrl(file.objectKey) })),
-    );
-
-    res.json(withUrls);
+    res.json(files.map((file) => ({ ...file, url: buildFileUrl(req, file.objectKey) })));
   } catch (error) {
     next(error);
   }
@@ -42,7 +39,7 @@ healthFilesRouter.get("/:id", requireAuth(), async (req: Request, res: Response,
       throw new AppError(403, "Forbidden");
     }
 
-    res.json({ ...file, url: await getPresignedUrl(file.objectKey) });
+    res.json({ ...file, url: buildFileUrl(req, file.objectKey) });
   } catch (error) {
     next(error);
   }
@@ -72,7 +69,7 @@ healthFilesRouter.post(
         },
       });
 
-      res.status(201).json({ ...file, url: await getPresignedUrl(objectKey) });
+      res.status(201).json({ ...file, url: buildFileUrl(req, objectKey) });
     } catch (error) {
       next(error);
     }

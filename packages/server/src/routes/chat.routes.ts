@@ -4,7 +4,8 @@ import multer from "multer";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { AppError } from "../middleware/error.middleware.js";
-import { getPresignedUrl, uploadBuffer } from "../services/storage.service.js";
+import { uploadBuffer } from "../services/storage.service.js";
+import { buildFileUrl } from "../services/file-url.service.js";
 
 export const chatRouter = Router();
 
@@ -66,7 +67,7 @@ chatRouter.get(
       const callSessionId = key.split("/")[1];
       await requireCallMembership(callSessionId, req.user!.sub);
 
-      res.json({ url: await getPresignedUrl(key) });
+      res.json({ url: buildFileUrl(req, key) });
     } catch (error) {
       next(error);
     }

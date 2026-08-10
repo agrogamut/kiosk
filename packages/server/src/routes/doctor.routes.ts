@@ -5,7 +5,8 @@ import { WithdrawRequestSchema } from "@madamgy/api-client";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { AppError } from "../middleware/error.middleware.js";
-import { getPresignedUrl, uploadBuffer } from "../services/storage.service.js";
+import { uploadBuffer } from "../services/storage.service.js";
+import { buildFileUrl } from "../services/file-url.service.js";
 import { createWithdrawRequest, getWalletBalance } from "../services/wallet.service.js";
 
 export const doctorRouter = Router();
@@ -65,7 +66,7 @@ doctorRouter.post("/photo", upload.single("photo"), async (req: Request, res: Re
     await uploadBuffer(objectKey, req.file.buffer, req.file.mimetype);
     await prisma.doctorProfile.update({ where: { userId: doctorId }, data: { photoKey: objectKey } });
 
-    res.json({ photoUrl: await getPresignedUrl(objectKey) });
+    res.json({ photoUrl: buildFileUrl(req, objectKey) });
   } catch (error) {
     next(error);
   }
@@ -96,9 +97,7 @@ doctorRouter.get("/patients/:patientId/records", async (req: Request, res: Respo
       }),
     ]);
 
-    const healthFilesWithUrls = await Promise.all(
-      healthFiles.map(async (file) => ({ ...file, url: await getPresignedUrl(file.objectKey) })),
-    );
+    const healthFilesWithUrls = healthFiles.map((file) => ({ ...file, url: buildFileUrl(req, file.objectKey) }));
 
     res.json({ healthFiles: healthFilesWithUrls, prescriptions });
   } catch (error) {

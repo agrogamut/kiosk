@@ -709,7 +709,13 @@ describe("Health files API", () => {
     expect(uploadResponse.status).toBe(201);
     expect(uploadResponse.body.name).toBe("lab-report.pdf");
     expect(uploadResponse.body.type).toBe("LAB_REPORT");
-    expect(uploadResponse.body.url).toContain("lab-report.pdf");
+    // The URL is an opaque signed capability against the API, not a presigned bucket URL, so it
+    // no longer carries the filename -- what matters is that following it returns the file.
+    expect(uploadResponse.body.url).toContain("/api/files/");
+    const uploadedFile = await request(app).get(new URL(uploadResponse.body.url).pathname);
+    expect(uploadedFile.status).toBe(200);
+    expect(uploadedFile.headers["content-type"]).toContain("application/pdf");
+    expect(Buffer.from(uploadedFile.body).toString()).toBe("lab report");
 
     const fileId = uploadResponse.body.id as string;
     const getResponse = await request(app).get(`/api/health-files/${fileId}`).set("Authorization", `Bearer ${patientToken}`);

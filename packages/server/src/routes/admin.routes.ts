@@ -23,7 +23,7 @@ import {
   rejectWithdrawal,
 } from "../services/wallet.service.js";
 import { recordAuditLog } from "../services/audit-log.service.js";
-import { getPresignedUrl } from "../services/storage.service.js";
+import { buildFileUrl } from "../services/file-url.service.js";
 import { getRevenueConfig, updateRevenueConfig } from "../services/revenue-config.service.js";
 import { anonymizeUser } from "../services/account-deletion.service.js";
 import { listContactMessages } from "../services/support.service.js";
@@ -108,10 +108,7 @@ adminRouter.get("/doctors/:id/license", requireAuth("SUPER_ADMIN"), async (req: 
       throw new AppError(404, "No license document uploaded");
     }
 
-    const url = await getPresignedUrl(profile.licenseDocKey, 3600, {
-      "response-content-disposition": "attachment",
-    });
-    res.json({ url });
+    res.json({ url: buildFileUrl(req, profile.licenseDocKey, { downloadAs: "license-document" }) });
   } catch (error) {
     next(error);
   }

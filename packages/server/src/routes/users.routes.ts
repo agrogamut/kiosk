@@ -4,7 +4,7 @@ import { UpdateProfileSchema } from "@madamgy/api-client";
 import { parseDateOfBirth } from "../lib/date-of-birth.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
-import { getPresignedUrl } from "../services/storage.service.js";
+import { buildFileUrl } from "../services/file-url.service.js";
 
 export const usersRouter = Router();
 
@@ -20,13 +20,14 @@ const SAFE_USER_SELECT = {
   doctorProfile: true,
 } as const;
 
-async function withDoctorPhotoUrl<T extends { doctorProfile?: { photoKey: string | null } | null }>(
+function withDoctorPhotoUrl<T extends { doctorProfile?: { photoKey: string | null } | null }>(
+  req: Request,
   user: T,
-): Promise<T & { doctorProfile?: (T["doctorProfile"] & { photoUrl: string | null }) | null }> {
+): T & { doctorProfile?: (T["doctorProfile"] & { photoUrl: string | null }) | null } {
   if (!user.doctorProfile) {
     return { ...user, doctorProfile: user.doctorProfile ?? null };
   }
-  const photoUrl = user.doctorProfile.photoKey ? await getPresignedUrl(user.doctorProfile.photoKey) : null;
+  const photoUrl = user.doctorProfile.photoKey ? buildFileUrl(req, user.doctorProfile.photoKey) : null;
   return { ...user, doctorProfile: { ...user.doctorProfile, photoUrl } };
 }
 
@@ -36,7 +37,7 @@ usersRouter.get("/me", requireAuth(), async (req: Request, res: Response, next: 
       where: { id: req.user!.sub },
       select: SAFE_USER_SELECT,
     });
-    res.json(await withDoctorPhotoUrl(user));
+    res.json(withDoctorPhotoUrl(req, user));
   } catch (error) {
     next(error);
   }

@@ -6,7 +6,7 @@ import { renderPdfQueue } from "../lib/queues.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { AppError } from "../middleware/error.middleware.js";
-import { getPresignedUrl } from "../services/storage.service.js";
+import { buildFileUrl } from "../services/file-url.service.js";
 
 export const prescriptionsRouter = Router();
 
@@ -82,7 +82,7 @@ prescriptionsRouter.get(
 
       const result: Record<string, unknown> = { ...prescription };
       if (prescription.objectKey && prescription.pdfReady) {
-        result.pdfUrl = await getPresignedUrl(prescription.objectKey);
+        result.pdfUrl = buildFileUrl(req, prescription.objectKey);
       }
 
       res.json(result);
