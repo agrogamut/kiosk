@@ -4,6 +4,7 @@ import { verifyAccessToken } from "../services/auth.service.js";
 import { registerCallHandlers } from "./call.handler.js";
 import { registerChatHandlers } from "./chat.handler.js";
 import { registerPresenceHandlers } from "./presence.handler.js";
+import { restoreDoctorAvailability } from "../services/call-queue.service.js";
 
 export function initSocketHandlers(io: Server): void {
   io.use(async (socket, next) => {
@@ -45,11 +46,11 @@ export function initSocketHandlers(io: Server): void {
     // Disconnect marks a doctor unavailable (below); nothing previously reversed that on the
     // next reconnect, so any doctor who ever lost their connection -- a closed tab, a reload, a
     // network blip -- stayed permanently unassignable with no recovery path anywhere in the
-    // product. Restore availability here, mirroring the disconnect handler.
+    // product. Restore availability here, mirroring the disconnect handler -- but only for a
+    // doctor with no call in flight, since a doctor is unavailable for the whole of their own
+    // consultation and a reconnect during it would otherwise ring them for a second call.
     if (userRole === "DOCTOR") {
-      prisma.doctorProfile
-        .updateMany({ where: { userId, isAvailable: false }, data: { isAvailable: true } })
-        .catch((error: unknown) => console.error(error));
+      restoreDoctorAvailability(userId).catch((error: unknown) => console.error(error));
     }
 
     socket.on("disconnect", () => {

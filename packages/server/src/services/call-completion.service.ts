@@ -48,7 +48,11 @@ export async function completeCall(callSessionId: string): Promise<void> {
       return null;
     }
 
-    const wasActive = call.status === "ACTIVE";
+    // startedAt is set once, by the accept that moved the call out of RINGING, and is never
+    // cleared -- it is the durable record that the consultation actually connected. Reading the
+    // instantaneous status instead meant any status churn between the consultation and the
+    // hang-up silently cost the doctor their fee, which is exactly what the requeue race did.
+    const connected = call.startedAt !== null;
 
     await tx.callSession.update({
       where: { id: callSessionId },
@@ -64,7 +68,7 @@ export async function completeCall(callSessionId: string): Promise<void> {
       data: { isAvailable: true },
     });
 
-    if (wasActive) {
+    if (connected) {
       const payment = await tx.payment.findUnique({ where: { callSessionId } });
 
       let fee: number;

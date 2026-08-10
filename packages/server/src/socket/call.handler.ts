@@ -2,20 +2,17 @@ import type { Server, Socket } from "socket.io";
 import { prisma } from "../lib/prisma.js";
 import { livekitService } from "../services/livekit.service.js";
 import { completeCall } from "../services/call-completion.service.js";
-import { requeueRingingCall } from "../services/call-queue.service.js";
+import { acceptRingingCall, requeueRingingCall } from "../services/call-queue.service.js";
 
 export function registerCallHandlers(io: Server, socket: Socket, userId: string): void {
   socket.on("call:accept", async ({ callSessionId }: { callSessionId: string }) => {
     try {
-      const call = await prisma.callSession.findUnique({ where: { id: callSessionId } });
-      if (!call || call.doctorId !== userId || call.status !== "RINGING") {
+      // Returns null unless this accept is the one that moved the call out of RINGING, so a
+      // second accept from the same doctor can't reset startedAt or re-issue tokens.
+      const call = await acceptRingingCall(callSessionId, userId);
+      if (!call) {
         return;
       }
-
-      await prisma.callSession.update({
-        where: { id: callSessionId },
-        data: { status: "ACTIVE", startedAt: new Date() },
-      });
 
       await livekitService.createRoom(call.livekitRoom);
 

@@ -95,10 +95,18 @@ export function handleAssignDoctorFailed(worker: Worker<AssignDoctorJobData>): v
       return;
     }
 
-    const call = await prisma.callSession.update({
-      where: { id: job.data.callSessionId },
+    // Guarded on QUEUED for the same reason every other transition here is: this handler runs off
+    // a worker event, well after the job body read the row. A call the patient cancelled in the
+    // meantime -- or one that has since been assigned -- would otherwise be overwritten with
+    // NO_DOCTOR and, worse, have its payment refunded for a consultation that did take place.
+    const abandoned = await prisma.callSession.updateMany({
+      where: { id: job.data.callSessionId, status: "QUEUED" },
       data: { status: "NO_DOCTOR" },
     });
+    if (abandoned.count === 0) {
+      return;
+    }
+    const call = await prisma.callSession.findUniqueOrThrow({ where: { id: job.data.callSessionId } });
 
     const payment = await prisma.payment.findUnique({ where: { callSessionId: job.data.callSessionId } });
     if (payment && payment.status === "PAID") {
