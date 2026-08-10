@@ -1,5 +1,4 @@
-import type { ReactNode } from "react";
-import toast from "react-hot-toast";
+import { type ReactNode, useState } from "react";
 import { type MediaDeviceFailure } from "livekit-client";
 import { LiveKitRoom } from "@livekit/components-react";
 import "@livekit/components-styles";
@@ -25,6 +24,11 @@ export function DoctorCallView({
   actions,
   children,
 }: DoctorCallViewProps) {
+  // Held as state rather than shown as a toast: a camera that never started is a condition the
+  // call stays in, and a toast was gone long before anyone worked out why the other side could
+  // not see or hear them.
+  const [mediaNotice, setMediaNotice] = useState<string | null>(null);
+
   return (
     <LiveKitRoom
       token={token}
@@ -34,13 +38,20 @@ export function DoctorCallView({
       audio
       onDisconnected={onDisconnected}
       onMediaDeviceFailure={(failure?: MediaDeviceFailure, kind?: MediaDeviceKind) =>
-        toast(describeMediaDeviceFailure(failure, kind))
+        setMediaNotice(describeMediaDeviceFailure(failure, kind))
       }
       data-lk-theme="default"
       style={{ height: "100%", position: "relative" }}
       options={{ adaptiveStream: true, dynacast: true, publishDefaults: { simulcast: true } }}
     >
-      <CallLayout screenShare peerName={peerName} startedAt={startedAt} actions={actions}>
+      <CallLayout
+        screenShare
+        peerName={peerName}
+        startedAt={startedAt}
+        actions={actions}
+        mediaNotice={mediaNotice}
+        onMediaNoticeResolved={() => setMediaNotice(null)}
+      >
         {children}
       </CallLayout>
     </LiveKitRoom>

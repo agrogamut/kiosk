@@ -1,14 +1,30 @@
 import { type ReactNode, useEffect, useState } from "react";
+import type { TrackSourceWithOptions } from "@livekit/components-core";
 import { ConnectionState, Track } from "livekit-client";
-import { UserRound } from "lucide-react";
+import { MicOff, UserRound } from "lucide-react";
 import {
   ControlBar,
   LayoutContextProvider,
   RoomAudioRenderer,
+  isTrackReference,
   useConnectionState,
+  useRemoteParticipants,
+  useRoomContext,
   useTracks,
 } from "@livekit/components-react";
+import toast from "react-hot-toast";
 import { CameraOffTile, initials } from "./CameraOffTile";
+
+// withPlaceholder is the whole point here. useTracks given plain sources returns only tracks that
+// are actually published, so someone who joins with their camera off contributes nothing to the
+// array -- which is indistinguishable from them not being in the room at all. A placeholder means
+// every participant is represented the moment they connect, whether or not they are sending
+// media. Screen share stays placeholder-free: it should appear only once something is shared.
+const STAGE_SOURCES: TrackSourceWithOptions[] = [
+  { source: Track.Source.Camera, withPlaceholder: true },
+  { source: Track.Source.Microphone, withPlaceholder: true },
+  { source: Track.Source.ScreenShare, withPlaceholder: false },
+];
 
 interface CallLayoutProps {
   screenShare?: boolean;
@@ -20,6 +36,9 @@ interface CallLayoutProps {
   startedAt?: string | null;
   /** Rendered at the top right of the stage -- the call's single end action. */
   actions?: ReactNode;
+  /** Set when the camera or mic could not be started, so the failure can be shown and retried. */
+  mediaNotice?: string | null;
+  onMediaNoticeResolved?: () => void;
   children?: ReactNode;
 }
 
@@ -53,22 +72,54 @@ export function CallLayout({
   waitingTitle,
   startedAt,
   actions,
+  mediaNotice,
+  onMediaNoticeResolved,
   children,
 }: CallLayoutProps) {
-  const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare], { onlySubscribed: false });
+  const tracks = useTracks(STAGE_SOURCES, { onlySubscribed: false });
   const connectionState = useConnectionState();
   const reconnecting =
     connectionState === ConnectionState.Reconnecting || connectionState === ConnectionState.SignalReconnecting;
   const elapsed = useElapsed(startedAt);
+  const room = useRoomContext();
+  const [retrying, setRetrying] = useState(false);
 
-  // The other person is what the doctor is here to look at, so they get the stage and the local
-  // camera is demoted to a corner. A plain grid split the two evenly, which on a wide console
-  // meant half the screen was the doctor looking at themselves.
-  const remoteTracks = tracks.filter((track) => !track.participant.isLocal);
-  const localCamera = tracks.find((track) => track.participant.isLocal && track.source === Track.Source.Camera);
+  // Presence comes from the participant list, never from whether a track exists. Someone sitting
+  // in the room with their camera off has joined; saying otherwise is what made a connected call
+  // look like one that never started.
+  const peerPresent = useRemoteParticipants().length > 0;
+
+  // Filtered by source explicitly. The other person is what the doctor is here to look at, so
+  // they get the stage and the local camera is demoted to a corner -- an even grid meant half of
+  // a wide console was the doctor watching themselves.
+  const cameras = tracks.filter((track) => track.source === Track.Source.Camera);
+  const remoteCamera = cameras.find((track) => !track.participant.isLocal);
+  const localCamera = cameras.find((track) => track.participant.isLocal);
   const sharedScreen = tracks.find((track) => track.source === Track.Source.ScreenShare);
-  const mainTrack =
-    sharedScreen ?? remoteTracks.find((track) => track.source === Track.Source.Camera) ?? remoteTracks[0];
+  const mainTrack = sharedScreen ?? remoteCamera;
+
+  const remoteMic = tracks.find(
+    (track) => track.source === Track.Source.Microphone && !track.participant.isLocal,
+  );
+  // No publication at all counts as muted: the point is only whether the doctor can expect to
+  // hear anything.
+  const peerMicOff = peerPresent && (!remoteMic || !isTrackReference(remoteMic) || remoteMic.publication.isMuted);
+
+  async function retryDevices(): Promise<void> {
+    setRetrying(true);
+    try {
+      // Sequential, not Promise.all: when the devices are held by another app the second request
+      // tends to fail simply because the first is still negotiating for the same hardware.
+      await room.localParticipant.setMicrophoneEnabled(true);
+      await room.localParticipant.setCameraEnabled(true);
+      onMediaNoticeResolved?.();
+      toast.success("Camera and microphone are on");
+    } catch {
+      toast.error("Still can't reach the camera or microphone. Close any other app using them.");
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   return (
     // ControlBar's settings menu (device picker) reads useLayoutContext internally --
@@ -115,8 +166,11 @@ export function CallLayout({
               aria-hidden="true"
               className={`size-2 shrink-0 rounded-full ${reconnecting ? "bg-destructive" : "bg-tertiary"}`}
             />
-            {peerName && (
-              <span className="truncate font-display font-semibold text-white">{peerName}</span>
+            {peerName && <span className="truncate font-display font-semibold text-white">{peerName}</span>}
+            {peerMicOff && (
+              <span title="Their microphone is off" className="flex items-center text-white/70">
+                <MicOff className="size-4" aria-label="Their microphone is off" />
+              </span>
             )}
             {elapsed && (
               <>
@@ -130,6 +184,23 @@ export function CallLayout({
           </div>
           {actions}
         </div>
+
+        {/* A toast was wrong for this: losing the camera is a state you stay in, not an event that
+            passes, and the toast disappeared long before anyone worked out why the other side
+            couldn't see them. */}
+        {mediaNotice && (
+          <div className="absolute inset-x-3 top-14 z-30 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-destructive/95 px-3 py-2 text-sm text-destructive-foreground shadow-lg sm:inset-x-4">
+            <span className="min-w-0">{mediaNotice}</span>
+            <button
+              type="button"
+              onClick={() => void retryDevices()}
+              disabled={retrying}
+              className="shrink-0 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-white/30 disabled:opacity-60"
+            >
+              {retrying ? "Trying..." : "Try again"}
+            </button>
+          </div>
+        )}
 
         <div className="call-dock absolute inset-x-0 bottom-0 z-30 flex justify-center px-2 pb-3">
           {/* leave: false -- LiveKit's default Leave button just calls room.disconnect(), which
