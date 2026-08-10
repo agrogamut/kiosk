@@ -196,9 +196,18 @@ export function CallChatPanel({ callSessionId, onMessageFromPeer, embedded = fal
           </Button>
         </div>
       )}
+      {/* items-end so the row grows downward as the message box does, which means every control
+          has to share one height at rest: the buttons are h-11, the icon button defaults to
+          size-8, and the message box to min-h-20, so all three sat at different heights. */}
       <div className="flex shrink-0 items-end gap-2 border-t border-input p-3">
         {canSendVitals && (
-          <Button type="button" variant="outline" onClick={() => setShowVitals((current) => !current)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowVitals((current) => !current)}
+            aria-pressed={showVitals}
+            className="shrink-0 px-3"
+          >
             Vitals
           </Button>
         )}
@@ -222,8 +231,9 @@ export function CallChatPanel({ callSessionId, onMessageFromPeer, embedded = fal
           disabled={uploading}
           onClick={() => fileInputRef.current?.click()}
           aria-label="Attach file"
+          className="size-11 shrink-0"
         >
-          <Paperclip className="h-4 w-4" />
+          <Paperclip className="size-4" />
         </Button>
         <Textarea
           value={text}
@@ -237,9 +247,13 @@ export function CallChatPanel({ callSessionId, onMessageFromPeer, embedded = fal
           }}
           placeholder="Type message"
           rows={1}
-          className="min-h-10 min-w-0 flex-1 resize-none"
+          // Sized to match the buttons' h-11 exactly: 24px line + 9px padding either side + the
+          // 1px borders border-box counts = 44px, so a single line shares their baseline instead
+          // of sitting in a taller box. max-h caps the growth from Shift+Enter before it starts
+          // swallowing the message list.
+          className="max-h-32 min-h-11 min-w-0 flex-1 resize-none py-[9px] leading-6"
         />
-        <Button type="button" onClick={sendText}>
+        <Button type="button" onClick={sendText} disabled={!text.trim()} className="shrink-0 px-4">
           Send
         </Button>
       </div>

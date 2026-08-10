@@ -207,8 +207,13 @@ export function CallLayout({
               this branch's onDisconnected handler treats as a lost connection (shows "Connection
               lost / Rejoin" with no other way out, since both call routes sit outside their shell
               nav). Both doctor and patient already have their own explicit way to end a call, so
-              LiveKit's own leave control would only add a dead end. */}
-          <ControlBar controls={{ chat: false, screenShare, settings: true, leave: false }} />
+              LiveKit's own leave control would only add a dead end.
+
+              settings: false -- the gear only dispatches toggle_settings into the layout context;
+              the panel itself has to be supplied by the app (VideoConference does it via
+              SettingsComponent), so with a bare ControlBar the button did nothing at all. Device
+              selection is already there anyway, in the dropdowns beside Microphone and Camera. */}
+          <ControlBar controls={{ chat: false, screenShare, settings: false, leave: false }} />
         </div>
 
         <RoomAudioRenderer />
