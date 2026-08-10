@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import axios from "axios";
 import toast from "react-hot-toast";
 import {
   AlertDialog,
@@ -57,6 +58,7 @@ export default function DoctorCall() {
   const [prescription, setPrescription] = useState<PrescriptionFields>(EMPTY_PRESCRIPTION);
   const [connectionLost, setConnectionLost] = useState(false);
   const [rejoinKey, setRejoinKey] = useState(0);
+  const [prescriptionSubmitted, setPrescriptionSubmitted] = useState(false);
 
   useImmersiveStatusBar();
   useDoctorPresenceHeartbeat();
@@ -128,7 +130,7 @@ export default function DoctorCall() {
   }, [storedLivekitToken, callSessionId, navigate, setLivekitToken]);
 
   async function submitPrescription(): Promise<void> {
-    if (!callSessionId || !canSubmitPrescription) {
+    if (!callSessionId || !canSubmitPrescription || prescriptionSubmitted) {
       return;
     }
 
@@ -136,10 +138,21 @@ export default function DoctorCall() {
     try {
       await api.post("/prescriptions", { callSessionId, content: prescription });
       toast.success("Prescription submitted");
-      clearCall();
-      navigate("/doctor");
+      // Deliberately stays on the call. Navigating away here used to unmount DoctorCallView,
+      // which disconnected the doctor from the LiveKit room and left the patient alone until
+      // LiveKit's departure timeout fired room_finished and ended the consultation -- so writing
+      // the prescription silently hung up on the patient. The doctor ends the call via
+      // "Close room" instead.
+      setPrescriptionSubmitted(true);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Submission failed"));
+      // The server allows exactly one prescription per call and answers 409 for a second one.
+      // Treat that as already done rather than an error the doctor can retry into forever.
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
+        setPrescriptionSubmitted(true);
+        toast("Prescription already submitted for this call");
+      } else {
+        toast.error(getApiErrorMessage(error, "Submission failed"));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -197,6 +210,12 @@ export default function DoctorCall() {
       <div className="grid min-h-0 flex-1 gap-4 border-t border-input bg-background p-4 lg:grid-cols-[1fr_24rem]">
         <div className="flex min-h-0 flex-col overflow-y-auto">
           <h3 className="font-display mb-2 text-lg font-semibold text-foreground">Prescription</h3>
+          {prescriptionSubmitted && (
+            <p className="mb-3 rounded-lg bg-primary/10 p-3 text-sm text-foreground">
+              Prescription submitted. The patient will receive it as a PDF. You're still in the call &mdash; use{" "}
+              <strong>Close room</strong> when you're done.
+            </p>
+          )}
           <div className="flex flex-col gap-3">
             {PRESCRIPTION_FIELDS.map((field) => (
               <div key={field.name}>
@@ -209,7 +228,8 @@ export default function DoctorCall() {
                   onChange={(event) => updatePrescriptionField(field.name, event.target.value)}
                   placeholder={field.placeholder}
                   rows={3}
-                  className="bg-card"
+                  readOnly={prescriptionSubmitted}
+                  className={prescriptionSubmitted ? "bg-muted" : "bg-card"}
                 />
               </div>
             ))}
@@ -217,10 +237,10 @@ export default function DoctorCall() {
           <Button
             type="button"
             onClick={() => void submitPrescription()}
-            disabled={submitting || !canSubmitPrescription}
+            disabled={submitting || !canSubmitPrescription || prescriptionSubmitted}
             className="mt-3 w-full text-lg"
           >
-            {submitting ? "Submitting..." : "Submit prescription"}
+            {prescriptionSubmitted ? "Submitted" : submitting ? "Submitting..." : "Submit prescription"}
           </Button>
         </div>
         <div className="flex min-h-0 flex-col rounded-xl bg-card shadow-sm">

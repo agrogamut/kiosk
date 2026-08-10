@@ -19,6 +19,7 @@ import {
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { api } from "../../lib/api";
+import { fetchActiveCall } from "../../lib/activeCall";
 import { logout } from "../../lib/logout";
 import { getApiErrorMessage } from "../../lib/errors";
 import { connectSocket, getSocket } from "../../lib/socket";
@@ -77,6 +78,26 @@ export default function DoctorDashboard() {
       .then((response) => setProfile(response.data.doctorProfile ?? null))
       .catch(() => setProfile(null));
 
+    // `incoming` only ever came from the socket event, so a doctor who reloaded (or opened the
+    // dashboard in a new tab) during a ring lost the call with no way back, while the patient
+    // kept ringing. Rebuild it from the server instead.
+    fetchActiveCall()
+      .then((active) => {
+        const call = active.callSession;
+        if (call?.status === "RINGING" && call.patient) {
+          setIncoming({
+            callSession: { id: call.id, livekitRoom: call.livekitRoom },
+            patient: call.patient,
+          });
+        } else if (call?.status === "ACTIVE" && active.livekitToken) {
+          setLivekitToken(active.livekitToken);
+          navigate(`/doctor/call/${call.id}`, { state: { patientId: call.patient?.id } });
+        }
+      })
+      .catch(() => {
+        // Non-fatal: the socket still delivers any call that starts ringing from now on.
+      });
+
     const socket = connectSocket();
     socket.on("call:incoming", (data: IncomingCall) => {
       setIncoming(data);
@@ -89,10 +110,17 @@ export default function DoctorDashboard() {
         navigate(`/doctor/call/${callSessionId}`, { state: { patientId } });
       },
     );
+    // Fires when the patient hangs up mid-ring and when an unanswered ring is requeued to another
+    // doctor. Without this the card sat there forever advertising a call that no longer exists,
+    // and Accept silently did nothing because the server refuses a call that isn't RINGING.
+    socket.on("call:ended", ({ callSessionId }: { callSessionId: string }) => {
+      setIncoming((current) => (current && current.callSession.id !== callSessionId ? current : null));
+    });
 
     return () => {
       socket.off("call:incoming");
       socket.off("call:accepted");
+      socket.off("call:ended");
     };
   }, [navigate, setLivekitToken]);
 

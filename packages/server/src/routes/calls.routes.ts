@@ -136,7 +136,13 @@ callsRouter.get("/active", requireAuth(), async (req: Request, res: Response, ne
         ? { doctorId: userId, status: { in: ACTIVE_STATUSES } }
         : { patientId: userId, status: { in: ACTIVE_STATUSES } };
 
-    const call = await prisma.callSession.findFirst({ where, orderBy: { createdAt: "desc" } });
+    // The patient is included so a doctor who reloads while a call is ringing can rebuild the
+    // incoming-call card, which otherwise only ever exists in the socket event's payload.
+    const call = await prisma.callSession.findFirst({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: { patient: { select: { id: true, name: true } } },
+    });
     if (!call) {
       res.json({ callSession: null, livekitToken: null });
       return;
