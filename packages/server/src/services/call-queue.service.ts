@@ -3,9 +3,19 @@ import { assignDoctorQueue } from "../lib/queues.js";
 import { prisma } from "../lib/prisma.js";
 import { io } from "../index.js";
 
-// A call in one of these statuses belongs to its doctor: they are either being rung or already
-// consulting, and either way they must not be handed a second call.
-const DOCTOR_BUSY_STATUSES = ["RINGING", "ACTIVE"] as const;
+/** How long a call may ring unanswered before the reaper hands it back to the queue. */
+export const RING_TIMEOUT_MS = 25_000;
+
+/**
+ * How long a call may stay ACTIVE before it is treated as abandoned rather than in progress.
+ *
+ * Nothing else bounds an ACTIVE call. The LiveKit webhook that would report both participants
+ * leaving is not registered, and a browser that dies without firing call:end leaves the row ACTIVE
+ * forever -- which, now that a live call correctly makes its doctor unavailable, would strand that
+ * doctor permanently. Deliberately generous: it is a backstop for a dead call, not a consultation
+ * time limit.
+ */
+export const MAX_CALL_MS = 2 * 60 * 60 * 1000;
 
 /**
  * Hands a call back to the queue after its doctor rejected it or let it ring out.
@@ -96,6 +106,30 @@ export async function acceptRingingCall(callSessionId: string, doctorId: string)
 }
 
 /**
+ * Whether this doctor has a call genuinely in flight, and so must not be handed another.
+ *
+ * Freshness is the point. "Any RINGING or ACTIVE row" is the obvious reading and it is wrong: a
+ * call that outlived its ring timeout is already on its way back to the queue, and one ACTIVE past
+ * MAX_CALL_MS is a row nobody ever closed. Counting those as busy makes a doctor permanently
+ * unassignable, because every route back to available -- socket reconnect, the on-duty toggle --
+ * asks this same question, so a single stale row silently takes a doctor out of service with
+ * nothing in the UI to explain it.
+ */
+export async function findLiveCallForDoctor(doctorId: string): Promise<{ id: string } | null> {
+  const now = Date.now();
+  return prisma.callSession.findFirst({
+    where: {
+      doctorId,
+      OR: [
+        { status: "RINGING", ringingAt: { gt: new Date(now - RING_TIMEOUT_MS) } },
+        { status: "ACTIVE", startedAt: { gt: new Date(now - MAX_CALL_MS) } },
+      ],
+    },
+    select: { id: true },
+  });
+}
+
+/**
  * Restores a doctor's availability after their socket reconnects.
  *
  * The disconnect handler marks a doctor unavailable, and nothing used to reverse that, so any
@@ -103,14 +137,10 @@ export async function acceptRingingCall(callSessionId: string, doctorId: string)
  * every reconnecting doctor available -- is worse: a doctor mid-consultation is unavailable by
  * design, and socket.io reconnects on every network blip, laptop sleep and server redeploy, so
  * that put them back in the assignment pool during their own call and rang them for a second one.
- * Only free a doctor who has no call of their own in flight.
+ * Only free a doctor who has no live call of their own.
  */
 export async function restoreDoctorAvailability(doctorId: string): Promise<void> {
-  const busy = await prisma.callSession.findFirst({
-    where: { doctorId, status: { in: [...DOCTOR_BUSY_STATUSES] } },
-    select: { id: true },
-  });
-  if (busy) {
+  if (await findLiveCallForDoctor(doctorId)) {
     return;
   }
 

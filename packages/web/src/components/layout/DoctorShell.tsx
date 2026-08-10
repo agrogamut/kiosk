@@ -7,6 +7,7 @@ import { Button } from "../ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "../ui/sheet";
 import { logout } from "../../lib/logout";
 import { useActiveCallRedirect } from "../../hooks/useActiveCallRedirect";
+import { useDoctorPresenceHeartbeat } from "../../hooks/useDoctorPresenceHeartbeat";
 
 interface NavItem {
   label: string;
@@ -29,6 +30,10 @@ export function DoctorShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   useActiveCallRedirect();
+  // Lives on the shell, not on Dashboard: the heartbeat used to stop the moment a doctor opened
+  // Wallet, History or Prescriptions, and 45s later the assign worker stopped considering them
+  // for calls entirely while the UI still said they were available.
+  useDoctorPresenceHeartbeat();
 
   async function signOut(): Promise<void> {
     await logout();

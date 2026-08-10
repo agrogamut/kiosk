@@ -35,11 +35,17 @@ export function startAssignDoctorWorker(): Worker<AssignDoctorJobData> {
           orderBy: { approvedAt: "asc" },
         });
 
+        // "No doctor available" had exactly one observable form -- silence -- even though it has
+        // four quite different causes (none approved, all off duty, all mid-call, none pinging).
+        // Without this line the only way to tell them apart is a database session.
+        let staleHeartbeats = 0;
+
         for (const candidate of candidates) {
           // isAvailable can go stale (e.g. a crashed tab that never fired a clean disconnect),
           // so only hand a call to a doctor whose presence heartbeat is still fresh.
           const heartbeat = await redis.get(`doctor_heartbeat:${candidate.userId}`);
           if (!heartbeat) {
+            staleHeartbeats += 1;
             continue;
           }
 
@@ -51,6 +57,15 @@ export function startAssignDoctorWorker(): Worker<AssignDoctorJobData> {
             return candidate;
           }
         }
+
+        const [approved, onDuty] = await Promise.all([
+          tx.doctorProfile.count({ where: { isApproved: true } }),
+          tx.doctorProfile.count({ where: { isApproved: true, isOnDuty: true } }),
+        ]);
+        console.warn(
+          `assign-doctor: no doctor for call ${callSessionId} -- approved=${approved} onDuty=${onDuty} ` +
+            `free=${candidates.length} withoutHeartbeat=${staleHeartbeats}`,
+        );
 
         throw new Error("no_doctor");
       });

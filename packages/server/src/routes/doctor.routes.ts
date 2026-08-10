@@ -8,6 +8,7 @@ import { AppError } from "../middleware/error.middleware.js";
 import { uploadBuffer } from "../services/storage.service.js";
 import { buildFileUrl } from "../services/file-url.service.js";
 import { createWithdrawRequest, getWalletBalance } from "../services/wallet.service.js";
+import { findLiveCallForDoctor } from "../services/call-queue.service.js";
 
 export const doctorRouter = Router();
 
@@ -108,12 +109,10 @@ doctorRouter.put("/availability", async (req: Request, res: Response, next: Next
     // Coming back on duty also clears a stuck isAvailable, which is the only recovery a doctor
     // can perform for themselves -- but not while they are genuinely on a call, or the next
     // assignment would ring them in the middle of the consultation they are already in.
-    const busy =
-      isOnDuty &&
-      (await prisma.callSession.findFirst({
-        where: { doctorId: req.user!.sub, status: { in: ["RINGING", "ACTIVE"] } },
-        select: { id: true },
-      })) !== null;
+    // Shares findLiveCallForDoctor with the socket reconnect path so both agree on what "on a
+    // call" means. A stale row must not count, or this recovery -- the only one a doctor has --
+    // would refuse exactly when it is needed.
+    const busy = isOnDuty && (await findLiveCallForDoctor(req.user!.sub)) !== null;
 
     const profile = await prisma.doctorProfile.update({
       where: { userId: req.user!.sub },

@@ -4,7 +4,7 @@ import { assignDoctorQueue } from "../lib/queues.js";
 import { prisma } from "../lib/prisma.js";
 import { acceptRingingCall, requeueRingingCall, restoreDoctorAvailability } from "../services/call-queue.service.js";
 import { completeCall } from "../services/call-completion.service.js";
-import { reapRingingTimeouts } from "../workers/stale-call-reaper.worker.js";
+import { reapRingingTimeouts, reapStuckActiveCalls } from "../workers/stale-call-reaper.worker.js";
 
 // Every test here is a state transition that used to be a read-then-write. Each one is reachable
 // in production because two independent actors touch the same CallSession row: the doctor's
@@ -194,6 +194,46 @@ describe("call lifecycle races", () => {
 
     const profile = await prisma.doctorProfile.findUniqueOrThrow({ where: { userId: doctorId } });
     expect(profile.isAvailable).toBe(false);
+  });
+
+  // The reverse failure of the two above, and the one that takes a doctor off the platform
+  // silently: nothing else ever closes an ACTIVE call, so a browser that died without firing
+  // call:end left a row that made its doctor unavailable with no route back.
+  it("frees a doctor whose call was left ACTIVE by a client that never ended it", async () => {
+    await createCall({ status: "ACTIVE", startedAt: new Date(Date.now() - 4 * 60 * 60 * 1000) });
+
+    await restoreDoctorAvailability(doctorId);
+
+    const profile = await prisma.doctorProfile.findUniqueOrThrow({ where: { userId: doctorId } });
+    expect(profile.isAvailable).toBe(true);
+  });
+
+  it("frees a doctor whose ring already outlived the ring timeout", async () => {
+    await createCall({ status: "RINGING", ringingSecondsAgo: 300 });
+
+    await restoreDoctorAvailability(doctorId);
+
+    const profile = await prisma.doctorProfile.findUniqueOrThrow({ where: { userId: doctorId } });
+    expect(profile.isAvailable).toBe(true);
+  });
+
+  it("closes an abandoned ACTIVE call and credits the consultation", async () => {
+    const callId = await createCall({ status: "ACTIVE", startedAt: new Date(Date.now() - 4 * 60 * 60 * 1000) });
+    captureEmits();
+
+    expect(await reapStuckActiveCalls()).toBe(1);
+
+    const call = await prisma.callSession.findUniqueOrThrow({ where: { id: callId } });
+    expect(call.status).toBe("ENDED");
+    expect(await prisma.walletTransaction.count({ where: { callSessionId: callId } })).toBe(1);
+  });
+
+  it("leaves a consultation that is genuinely in progress alone", async () => {
+    const callId = await createCall({ status: "ACTIVE", startedAt: new Date(Date.now() - 60_000) });
+    captureEmits();
+
+    expect(await reapStuckActiveCalls()).toBe(0);
+    expect((await prisma.callSession.findUniqueOrThrow({ where: { id: callId } })).status).toBe("ACTIVE");
   });
 
   it("frees a doctor stuck unavailable with no live call", async () => {

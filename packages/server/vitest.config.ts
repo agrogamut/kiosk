@@ -23,6 +23,11 @@ export default defineConfig({
       DATABASE_URL: process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? "",
       REDIS_URL: process.env.TEST_REDIS_URL ?? process.env.REDIS_URL ?? "",
     },
+    globalSetup: ["./vitest.global-setup.ts"],
+    // `npm run build` emits dist/__tests__/*.test.js next to the sources. Without this, a build
+    // followed by a test run executes every test file twice -- once from src, once from a stale
+    // compiled copy -- against the same database, and they reap and delete each other's rows.
+    exclude: ["**/node_modules/**", "**/dist/**"],
     // The stale-call-reaper test scans ALL "ACTIVE" call sessions in the table
     // (by design — that's what the production reaper does), so running test files
     // in parallel lets it reap ACTIVE call sessions created by other, concurrently

@@ -23,7 +23,6 @@ import { fetchActiveCall } from "../../lib/activeCall";
 import { logout } from "../../lib/logout";
 import { getApiErrorMessage } from "../../lib/errors";
 import { connectSocket, getSocket } from "../../lib/socket";
-import { useDoctorPresenceHeartbeat } from "../../hooks/useDoctorPresenceHeartbeat";
 import { useAuthStore } from "../../store/auth.store";
 import { useCallStore } from "../../store/call.store";
 
@@ -147,7 +146,8 @@ export default function DoctorDashboard() {
     };
   }, [navigate, setLivekitToken, refetchAvailability]);
 
-  useDoctorPresenceHeartbeat();
+  // The heartbeat is mounted by DoctorShell, which wraps this page, so it keeps running across
+  // every doctor page rather than only this one.
 
   function accept(): void {
     if (!incoming) {
