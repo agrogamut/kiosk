@@ -5,6 +5,31 @@ the code, since several of these look like unrelated symptoms but share one caus
 
 Ordered by what blocks a usable test, not by effort.
 
+## Status — all fixed and deployed, 2026-08-10
+
+| # | Issue | Fixed in |
+| --- | --- | --- |
+| 1 | Files unreachable from the browser | `525a1cc` |
+| 2 | Doctor stuck after an unanswered ring | `b692a05` |
+| 3 | Prescription ends the consultation | `e41086c` |
+| 4 | Phantom incoming calls | `e41086c` |
+| 5 | Reload during a ring loses the call | `e41086c` |
+| 6 | Chat history lost on reload | `99df8a3` |
+| 7 | No availability control | `07e9261` |
+| 8, 9, 10 | Chat, vitals and video polish | `99df8a3` |
+| — | Oversized upload returned a 500 | `9c379fc` |
+
+The last row was not in the original list: it turned up in the production logs while verifying the
+deploy, and is a **second, independent cause** of "picture upload is failing" — the 5MB cap
+rejected ordinary phone-camera photos, and multer's rejection surfaced as `500 Internal server
+error` rather than anything actionable.
+
+Verified live: the reaper logs `Stale call reaper started` on boot, `/api/doctor/availability`,
+`/api/files/:token` and `/api/chat/:id/messages` all answer on Railway, and the Vercel bundle
+carries the new client code.
+
+Not yet re-tested end to end with two real participants — that is the next step.
+
 ---
 
 ## P0 — blocks testing
