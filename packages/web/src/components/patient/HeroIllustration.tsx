@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
 
@@ -9,7 +10,27 @@ interface HeroIllustrationProps {
   className?: string;
 }
 
+// Rotates behind the hero card so it doesn't read as a single stock photo. Duration and easing
+// are tuned to be barely-noticeable mid-crossfade -- fast enough that a patient glancing at the
+// dashboard doesn't wait through a visible "flash", slow enough not to be distracting motion.
+const HERO_IMAGES = [
+  "https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=1200&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=1200&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=1200&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?q=80&w=1200&auto=format&fit=crop",
+];
+const HERO_IMAGE_INTERVAL_MS = 6000;
+
 export function HeroIllustration({ name, greeting, availableCount, onConsult, className }: HeroIllustrationProps) {
+  const [imageIndex, setImageIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setImageIndex((index) => (index + 1) % HERO_IMAGES.length);
+    }, HERO_IMAGE_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div
       className={cn(
@@ -17,12 +38,21 @@ export function HeroIllustration({ name, greeting, availableCount, onConsult, cl
         className,
       )}
     >
-      <img
-        src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=1200&auto=format&fit=crop"
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 size-full object-cover object-top"
-      />
+      {/* All four stay mounted and stacked so the crossfade is a plain opacity transition
+          between already-loaded images -- swapping `src` on one <img> would flash back to
+          empty/broken while the next photo re-downloads. */}
+      {HERO_IMAGES.map((src, index) => (
+        <img
+          key={src}
+          src={src}
+          alt=""
+          aria-hidden="true"
+          className={cn(
+            "absolute inset-0 size-full object-cover object-top transition-opacity duration-1000 ease-in-out",
+            index === imageIndex ? "opacity-100" : "opacity-0",
+          )}
+        />
+      ))}
       <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-primary/70 via-primary/15 to-primary/80" />
 
       {/* Botanical line-art accent -- the page's one aesthetic signature, echoed
