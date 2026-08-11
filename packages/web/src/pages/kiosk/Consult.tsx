@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import type { CallSession } from "@madamgy/api-client";
@@ -43,7 +43,14 @@ const PAYMENT_RETRY_DELAY_MS = 1500;
 
 export default function KioskConsult() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { callSession, livekitToken, setCall, setLivekitToken, clearCall } = useCallStore();
+  // Landing here is not on its own a request for a consultation: history keeps /consult entries
+  // around (minimize, then a call that ended), and reaching one of them by a back tap used to
+  // start and pay for a fresh call the patient never asked for -- which looked like the search
+  // restarting itself the moment the doctor hung up. Only an explicit Consult tap carries this.
+  const startRequested = (location.state as { start?: boolean } | null)?.start === true;
+  const bootstrapped = useRef(false);
   const [loading, setLoading] = useState(!callSession);
   const [connectionLost, setConnectionLost] = useState(false);
   const [rejoinKey, setRejoinKey] = useState(0);
@@ -64,7 +71,7 @@ export default function KioskConsult() {
     if (!active.callSession || active.callSession.status !== "ACTIVE" || !active.livekitToken) {
       toast("The call has ended");
       clearCall();
-      navigate("/dashboard");
+      navigate("/dashboard", { replace: true });
       return;
     }
 
@@ -76,9 +83,12 @@ export default function KioskConsult() {
   useImmersiveStatusBar();
 
   useEffect(() => {
-    if (callSession) {
+    // Once per mount, never again on this instance: call:ended clears the store while this page
+    // is still mounted, and re-running would read that as "no call yet" and open a new one.
+    if (callSession || bootstrapped.current) {
       return;
     }
+    bootstrapped.current = true;
 
     async function createCallWithPayment(paymentId: string, retried = false): Promise<void> {
       try {
@@ -166,18 +176,26 @@ export default function KioskConsult() {
         return;
       }
 
+      if (!startRequested) {
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+
+      // Spend the intent before starting, so this history entry can't start a second consultation
+      // if the patient walks back onto it later.
+      navigate(".", { replace: true, state: null });
       await startConsult();
     }
 
     void bootstrap().finally(() => setLoading(false));
-  }, [callSession, navigate, setCall, setLivekitToken]);
+  }, [callSession, navigate, setCall, setLivekitToken, startRequested]);
 
   function cancel(): void {
     if (callSession) {
       getSocket().emit("call:end", { callSessionId: callSession.id });
     }
     clearCall();
-    navigate("/dashboard");
+    navigate("/dashboard", { replace: true });
   }
 
   // The search keeps running -- callSession stays in the shared store and useCallListener is

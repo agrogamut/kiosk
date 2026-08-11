@@ -51,7 +51,7 @@ export default function Appointments() {
             greeting={timeOfDayGreeting()}
             name={user?.name}
             availableCount={doctorsQuery.data?.length ?? 0}
-            onConsult={() => navigate("/consult")}
+            onConsult={() => navigate("/consult", { state: { start: true } })}
           />
         </div>
 
@@ -75,7 +75,7 @@ export default function Appointments() {
                     <button
                       key={doctor.id}
                       type="button"
-                      onClick={() => navigate("/consult")}
+                      onClick={() => navigate("/consult", { state: { start: true } })}
                       className="flex flex-col items-center gap-2 rounded-2xl bg-card p-4 text-center shadow-sm shadow-foreground/5 transition-shadow hover:shadow-md"
                     >
                       <DoctorAvatar

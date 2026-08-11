@@ -38,15 +38,18 @@ export function useCallListener(): void {
       toast("Doctor unavailable. Finding another doctor...");
     });
 
+    // replace, not push: a finished call must not stay in history. /consult starts a consultation
+    // on arrival, so a back tap onto the entry left behind by an ended call silently opened a
+    // brand-new search the patient never asked for.
     socket.on("call:no_doctor_available", () => {
       clearCall();
       toast.error("No doctors available. Please try again later.");
-      navigate("/dashboard");
+      navigate("/dashboard", { replace: true });
     });
 
     socket.on("call:ended", () => {
       clearCall();
-      navigate("/dashboard");
+      navigate("/dashboard", { replace: true });
     });
 
     return () => {
