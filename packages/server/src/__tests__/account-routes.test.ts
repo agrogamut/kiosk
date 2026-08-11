@@ -6,9 +6,12 @@ import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 
 async function registerTestPatient(phone: string) {
+  const payload = { phone, name: "Delete Route Test", dob: "01/01/1990", consent: true };
+  // Sign-up proves the phone first; outside production the code is always "000000".
+  await request(app).post("/api/auth/patient/register/initiate").send(payload);
   const response = await request(app)
     .post("/api/auth/patient/register")
-    .send({ phone, name: "Delete Route Test", dob: "01/01/1990", consent: true });
+    .send({ ...payload, otp: "000000" });
   if (!response.body.user) {
     console.error(`Failed to register patient ${phone}:`, response.status, response.body);
   }

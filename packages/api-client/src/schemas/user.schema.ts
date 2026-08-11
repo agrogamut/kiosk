@@ -40,7 +40,9 @@ const nameField = z.string().min(1, "Enter your name").max(100, "Name is too lon
 const otpField = z.string().length(6, "Enter the 6-digit code").regex(/^\d{6}$/, "Enter the 6-digit code");
 const pinField = z.string().length(4, "PIN must be 4 digits").regex(/^\d{4}$/, "PIN must be 4 digits");
 
-export const PatientRegisterSchema = z.object({
+// Step one of sign-up: the details, checked and answered with a code sent to the phone. Nothing
+// is written until step two, so a number typed here does not become an account.
+export const PatientRegisterInitiateSchema = z.object({
   phone: phoneField,
   name: nameField,
   dob: DateOfBirthSchema,
@@ -49,6 +51,10 @@ export const PatientRegisterSchema = z.object({
   pin: pinField.optional(),
   consent: z.literal(true),
 });
+export type PatientRegisterInitiate = z.infer<typeof PatientRegisterInitiateSchema>;
+
+// Step two: the same details plus the code, which is what actually creates the account.
+export const PatientRegisterSchema = PatientRegisterInitiateSchema.extend({ otp: otpField });
 export type PatientRegister = z.infer<typeof PatientRegisterSchema>;
 
 export const PatientLoginSchema = z.object({

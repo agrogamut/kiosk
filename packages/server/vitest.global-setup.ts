@@ -28,6 +28,12 @@ if (existsSync(rootEnvPath)) {
  * call -- and nothing was listening on their socket, so the call simply rang into nothing. That
  * timing dependence is why the failure came and went between otherwise identical runs.
  *
+ * The auth lockout counters have the same problem for a different reason: they live for 15
+ * minutes, and the phone numbers and the IP (always ::ffff:127.0.0.1 under supertest) are fixed
+ * per test, so a run that spends four of five doctor-register attempts hands the next run a
+ * budget of one and a 429 where it expects a 400. Pending OTPs go the same way -- a code left in
+ * Redis for a phone a later run reuses is a code that run never asked for.
+ *
  * Scans for specific prefixes rather than flushing: TEST_REDIS_URL falls back to the dev instance
  * when unset, and a blanket flush would then wipe real local data.
  */
@@ -35,7 +41,12 @@ async function clearStaleRedisState(url: string): Promise<void> {
   const redis = new Redis(url, { maxRetriesPerRequest: null, lazyConnect: true });
   try {
     await redis.connect();
-    for (const pattern of ["doctor_heartbeat:*", "bull:assign-doctor:*"]) {
+    for (const pattern of [
+      "doctor_heartbeat:*",
+      "bull:assign-doctor:*",
+      "*_attempts:*",
+      "otp:*",
+    ]) {
       let cursor = "0";
       do {
         const [next, keys] = await redis.scan(cursor, "MATCH", pattern, "COUNT", 200);

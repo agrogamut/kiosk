@@ -34,6 +34,14 @@ async function waitForHealth(): Promise<void> {
   throw new Error("server did not become healthy in time");
 }
 
+// Sign-up is code-gated: the details buy a code, the code buys the account. This spawned server
+// runs with NODE_ENV=development, where the code is always "000000".
+async function registerPatient(api: AxiosInstance, phone: string, name: string) {
+  const payload = { phone, name, dob: "01/01/1990", consent: true };
+  await api.post("/auth/patient/register/initiate", payload);
+  return api.post("/auth/patient/register", { ...payload, otp: "000000" });
+}
+
 async function ensureAdmin(): Promise<{ phone: string; password: string }> {
   const phone = process.env.ADMIN_PHONE ?? "9000000000";
   const password = process.env.ADMIN_PASSWORD ?? "admin123";
@@ -118,12 +126,7 @@ describe("Full consult flow (real workers + sockets, no mocks)", () => {
     const doctorPhone = `80001${rand}`.slice(0, 12);
     const { phone: adminPhone, password: adminPassword } = await ensureAdmin();
 
-    const patientRegister = await api.post("/auth/patient/register", {
-      phone: patientPhone,
-      name: "E2E Patient",
-      dob: "01/01/1990",
-      consent: true,
-    });
+    const patientRegister = await registerPatient(api, patientPhone, "E2E Patient");
     expect(patientRegister.status).toBe(201);
     const patientToken: string = patientRegister.data.accessToken;
 
@@ -257,12 +260,7 @@ describe("Full consult flow (real workers + sockets, no mocks)", () => {
     const doctorPhone = `80003${rand}`.slice(0, 12);
     const { phone: adminPhone, password: adminPassword } = await ensureAdmin();
 
-    const patientRegister = await api.post("/auth/patient/register", {
-      phone: patientPhone,
-      name: "E2E Guard Patient",
-      dob: "01/01/1990",
-      consent: true,
-    });
+    const patientRegister = await registerPatient(api, patientPhone, "E2E Guard Patient");
     const patientToken: string = patientRegister.data.accessToken;
 
     const doctorForm = new FormData();
@@ -373,12 +371,7 @@ describe("Full consult flow (real workers + sockets, no mocks)", () => {
     const doctorPhone = `80002${rand}`.slice(0, 12);
     const { phone: adminPhone, password: adminPassword } = await ensureAdmin();
 
-    const patientRegister = await api.post("/auth/patient/register", {
-      phone: patientPhone,
-      name: "E2E Late Patient",
-      dob: "01/01/1990",
-      consent: true,
-    });
+    const patientRegister = await registerPatient(api, patientPhone, "E2E Late Patient");
     expect(patientRegister.status).toBe(201);
     const patientToken: string = patientRegister.data.accessToken;
 

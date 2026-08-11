@@ -9,6 +9,7 @@ import {
   PatientLoginSchema,
   PatientLoginOtpInitiateSchema,
   PatientLoginOtpVerifySchema,
+  PatientRegisterInitiateSchema,
   PatientRegisterSchema,
 } from "@madamgy/api-client";
 import { prisma } from "../lib/prisma.js";
@@ -16,6 +17,7 @@ import { AppError } from "../middleware/error.middleware.js";
 import { checkAttemptLimit, clearAttempts, recordFailedAttempt } from "../lib/rate-limit.js";
 import { REFRESH_COOKIE_MAX_AGE_MS, refreshCookieOptions } from "../lib/refresh-cookie.js";
 import {
+  assertPhoneAvailable,
   findActivePatientByPhone,
   loginStaff,
   loginDoctorInitiate,
@@ -45,11 +47,51 @@ function setRefreshCookie(res: Response, token: string): void {
   });
 }
 
+// Sign-up proves the phone belongs to whoever is typing before an account exists on it. Without
+// this step anyone could open an account on any number: the old single-call register created the
+// user and returned a session outright, which both let a stranger hold a session tied to someone
+// else's number and burned that number for its real owner, who then hit "Phone already registered"
+// with no way to recover it.
+authRouter.post(
+  "/patient/register/initiate",
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const body = PatientRegisterInitiateSchema.parse(req.body);
+      const attemptKey = `register_initiate_attempts:${body.phone}:${req.ip}`;
+      await checkAttemptLimit(attemptKey);
+      // Counted whether or not it succeeds -- this endpoint spends money on an SMS per call, so
+      // the limit has to bound requests, not failures.
+      await recordFailedAttempt(attemptKey);
+
+      await assertPhoneAvailable(body.phone);
+
+      const otp = await storeOtp(body.phone, "register");
+      await sendOtpSms(body.phone, otp);
+      res.json({ message: "OTP sent" });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 authRouter.post(
   "/patient/register",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const body = PatientRegisterSchema.parse(req.body);
+      const { otp, ...body } = PatientRegisterSchema.parse(req.body);
+      const attemptKey = `register_otp_attempts:${body.phone}`;
+      await checkAttemptLimit(attemptKey);
+
+      // Only the phone is bound to the code, which is the one claim being proven; the rest of the
+      // form is self-asserted either way, so re-sending it here rather than stashing it in Redis
+      // costs nothing and keeps a sign-up from dying on an evicted key.
+      const valid = await verifyOtp(body.phone, otp, "register");
+      if (!valid) {
+        await recordFailedAttempt(attemptKey);
+        throw new AppError(401, "Invalid or expired OTP");
+      }
+      await clearAttempts(attemptKey);
+
       const user = await registerPatient(body);
       const payload = { sub: user.id, role: user.role };
       const accessToken = signAccessToken(payload);

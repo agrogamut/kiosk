@@ -1,5 +1,6 @@
 import type { SignOptions } from "jsonwebtoken";
 import type { UserRole } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { parseDateOfBirth } from "../lib/date-of-birth.js";
@@ -31,6 +32,19 @@ export function verifyRefreshToken(token: string): JwtPayload {
   return jwt.verify(token, process.env.JWT_REFRESH_SECRET!) as JwtPayload;
 }
 
+/**
+ * Rejects a sign-up for a number that is already an account, before any code is sent.
+ *
+ * Called at the start of sign-up so the caller finds out immediately, rather than after an SMS
+ * they'd have to pay for and the user would have to read.
+ */
+export async function assertPhoneAvailable(phone: string): Promise<void> {
+  const existing = await prisma.user.findUnique({ where: { phone } });
+  if (existing) {
+    throw new AppError(409, "Phone already registered");
+  }
+}
+
 export async function registerPatient(data: {
   phone: string;
   name: string;
@@ -39,24 +53,29 @@ export async function registerPatient(data: {
   email?: string;
   pin?: string;
 }) {
-  const existing = await prisma.user.findUnique({ where: { phone: data.phone } });
-  if (existing) {
-    throw new AppError(409, "Phone already registered");
-  }
-
   const dob = parseDateOfBirth(data.dob);
   const pinHash = data.pin ? await bcrypt.hash(data.pin, 12) : null;
-  return prisma.user.create({
-    data: {
-      phone: data.phone,
-      name: data.name,
-      role: "PATIENT",
-      pinHash,
-      patientProfile: {
-        create: { dob, gender: data.gender, email: data.email, consentGivenAt: new Date() },
+  try {
+    return await prisma.user.create({
+      data: {
+        phone: data.phone,
+        name: data.name,
+        role: "PATIENT",
+        pinHash,
+        patientProfile: {
+          create: { dob, gender: data.gender, email: data.email, consentGivenAt: new Date() },
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    // The unique index on phone is what actually decides this, not the read above -- two sign-ups
+    // for the same number in the same instant both pass a findUnique and only one can insert.
+    // Without this the loser surfaces as a 500 instead of the 409 it is.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new AppError(409, "Phone already registered");
+    }
+    throw error;
+  }
 }
 
 export async function findActivePatientByPhone(phone: string) {

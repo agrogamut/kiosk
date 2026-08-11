@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { app } from "../index.js";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
+import { storeOtp } from "../services/otp.service.js";
 
 function validDoctorRegisterPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -26,6 +27,16 @@ function validDoctorRegisterPayload(overrides: Record<string, unknown> = {}): Re
     educations: [{ degree: "MBBS", institution: "Grant Medical College", year: "2012" }],
     ...overrides,
   };
+}
+
+// Sign-up is two calls now: details plus a code sent to the phone, then the code. Outside
+// production storeOtp always writes "000000", so a test can request one and spend it.
+async function registerPatient(payload: Record<string, unknown>) {
+  const initiate = await request(app).post("/api/auth/patient/register/initiate").send(payload);
+  if (initiate.status !== 200) {
+    return initiate;
+  }
+  return request(app).post("/api/auth/patient/register").send({ ...payload, otp: "000000" });
 }
 
 async function deleteTestUsers(): Promise<void> {
@@ -95,7 +106,7 @@ afterAll(async () => {
 
 describe("Patient auth", () => {
   it("rejects invalid patient registration input", async () => {
-    const response = await request(app).post("/api/auth/patient/register").send({
+    const response = await request(app).post("/api/auth/patient/register/initiate").send({
       phone: "9999000000",
       name: "Invalid Patient",
       dob: "01/01/1990",
@@ -106,7 +117,7 @@ describe("Patient auth", () => {
   });
 
   it("rejects invalid patient date of birth", async () => {
-    const response = await request(app).post("/api/auth/patient/register").send({
+    const response = await request(app).post("/api/auth/patient/register/initiate").send({
       phone: "9999000000",
       name: "Invalid Patient",
       dob: "77777-08-09",
@@ -117,7 +128,7 @@ describe("Patient auth", () => {
   });
 
   it("registers a new patient", async () => {
-    const response = await request(app).post("/api/auth/patient/register").send({
+    const response = await registerPatient({
       phone: "9999000001",
       name: "Test Patient",
       dob: "01/01/1990",
@@ -137,7 +148,7 @@ describe("Patient auth", () => {
   });
 
   it("registers a patient without gender or email (both optional)", async () => {
-    const response = await request(app).post("/api/auth/patient/register").send({
+    const response = await registerPatient({
       phone: "9999000013",
       name: "No Optional Fields Patient",
       dob: "01/01/1990",
@@ -151,8 +162,9 @@ describe("Patient auth", () => {
     expect(profile?.email).toBeNull();
   });
 
+  // Caught at the first step, before an SMS goes out, so a taken number costs nothing to reject.
   it("rejects duplicate phone on register", async () => {
-    const response = await request(app).post("/api/auth/patient/register").send({
+    const response = await request(app).post("/api/auth/patient/register/initiate").send({
       phone: "9999000001",
       name: "Duplicate Patient",
       dob: "01/01/1990",
@@ -164,7 +176,7 @@ describe("Patient auth", () => {
   });
 
   it("rejects patient registration without consent", async () => {
-    const response = await request(app).post("/api/auth/patient/register").send({
+    const response = await request(app).post("/api/auth/patient/register/initiate").send({
       phone: "8889100001",
       name: "No Consent Patient",
       dob: "01/01/1990",
@@ -211,7 +223,7 @@ describe("Patient auth", () => {
   describe("Patient OTP login", () => {
     it("registers a patient with no pin, then logs in via OTP", async () => {
       const phone = "8888500001";
-      const register = await request(app).post("/api/auth/patient/register").send({
+      const register = await registerPatient({
         phone,
         name: "OTP Patient",
         dob: "15/06/1985",
@@ -230,7 +242,7 @@ describe("Patient auth", () => {
 
     it("rejects a wrong OTP and locks out after 5 attempts", async () => {
       const phone = "8888500002";
-      await request(app).post("/api/auth/patient/register").send({
+      await registerPatient({
         phone,
         name: "OTP Lockout Patient",
         dob: "15/06/1985",
@@ -255,7 +267,7 @@ describe("Patient auth", () => {
 
     it("returns an identical response for registered and unregistered phone numbers", async () => {
       const registeredPhone = "8888500003";
-      await request(app).post("/api/auth/patient/register").send({
+      await registerPatient({
         phone: registeredPhone,
         name: "OTP Enum Patient",
         dob: "15/06/1985",
@@ -283,7 +295,7 @@ describe("Patient auth", () => {
 
     it("rejects the initiate request with 429 once the attempt cap is hit", async () => {
       const phone = "8888500004";
-      await request(app).post("/api/auth/patient/register").send({
+      await registerPatient({
         phone,
         name: "OTP Rate Limit Patient",
         dob: "15/06/1985",
@@ -301,6 +313,127 @@ describe("Patient auth", () => {
       const initiateKeys = await redis.keys("otp_initiate_attempts:*");
       if (initiateKeys.length > 0) {
         await redis.del(...initiateKeys);
+      }
+    });
+  });
+
+  // Sign-up used to be a single call that created the account and returned a session outright, so
+  // anyone could open an account on a number they don't own -- taking a session tied to a stranger
+  // and permanently burning that number for whoever actually holds it.
+  describe("Patient registration phone verification", () => {
+    const payload = (phone: string) => ({ phone, name: "Gate Patient", dob: "15/06/1985", consent: true });
+
+    it("does not create an account from the details alone", async () => {
+      const phone = "8888700001";
+      const initiate = await request(app).post("/api/auth/patient/register/initiate").send(payload(phone));
+
+      expect(initiate.status).toBe(200);
+      expect(await prisma.user.findUnique({ where: { phone } })).toBeNull();
+    });
+
+    it("refuses to register without a code", async () => {
+      const phone = "8888700002";
+      await request(app).post("/api/auth/patient/register/initiate").send(payload(phone));
+
+      const response = await request(app).post("/api/auth/patient/register").send(payload(phone));
+
+      expect(response.status).toBe(400);
+      expect(await prisma.user.findUnique({ where: { phone } })).toBeNull();
+    });
+
+    it("refuses to register with the wrong code", async () => {
+      const phone = "8888700003";
+      await request(app).post("/api/auth/patient/register/initiate").send(payload(phone));
+
+      const response = await request(app)
+        .post("/api/auth/patient/register")
+        .send({ ...payload(phone), otp: "111111" });
+
+      expect(response.status).toBe(401);
+      expect(await prisma.user.findUnique({ where: { phone } })).toBeNull();
+      await redis.del(`register_otp_attempts:${phone}`);
+    });
+
+    it("refuses to register with a code that was never requested", async () => {
+      const phone = "8888700004";
+
+      const response = await request(app)
+        .post("/api/auth/patient/register")
+        .send({ ...payload(phone), otp: "000000" });
+
+      expect(response.status).toBe(401);
+      expect(await prisma.user.findUnique({ where: { phone } })).toBeNull();
+      await redis.del(`register_otp_attempts:${phone}`);
+    });
+
+    // A code issued to sign someone in is proof of nothing about opening a new account on that
+    // number -- shared key space would make every login SMS a sign-up token for the same phone.
+    it("refuses to spend a login code on a registration", async () => {
+      const phone = "8888700005";
+      await storeOtp(phone, "login");
+
+      const response = await request(app)
+        .post("/api/auth/patient/register")
+        .send({ ...payload(phone), otp: "000000" });
+
+      expect(response.status).toBe(401);
+      expect(await prisma.user.findUnique({ where: { phone } })).toBeNull();
+      await redis.del(`otp:${phone}`, `register_otp_attempts:${phone}`);
+    });
+
+    it("locks the registration out after five wrong codes", async () => {
+      const phone = "8888700006";
+      await request(app).post("/api/auth/patient/register/initiate").send(payload(phone));
+
+      for (let i = 0; i < 5; i++) {
+        const attempt = await request(app)
+          .post("/api/auth/patient/register")
+          .send({ ...payload(phone), otp: "111111" });
+        expect(attempt.status).toBe(401);
+      }
+
+      const locked = await request(app)
+        .post("/api/auth/patient/register")
+        .send({ ...payload(phone), otp: "111111" });
+      expect(locked.status).toBe(429);
+
+      await redis.del(`register_otp_attempts:${phone}`);
+    });
+
+    it("creates the account once the code checks out", async () => {
+      const phone = "8888700007";
+      await request(app).post("/api/auth/patient/register/initiate").send(payload(phone));
+
+      const response = await request(app)
+        .post("/api/auth/patient/register")
+        .send({ ...payload(phone), otp: "000000" });
+
+      expect(response.status).toBe(201);
+      expect(response.body.accessToken).toBeTruthy();
+      expect(await prisma.user.findUnique({ where: { phone } })).not.toBeNull();
+    });
+
+    it("will not let one code create two accounts", async () => {
+      const phone = "8888700008";
+      await request(app).post("/api/auth/patient/register/initiate").send(payload(phone));
+
+      const first = await request(app)
+        .post("/api/auth/patient/register")
+        .send({ ...payload(phone), otp: "000000" });
+      const replay = await request(app)
+        .post("/api/auth/patient/register")
+        .send({ ...payload(phone), phone: "8888700009", otp: "000000" });
+
+      expect(first.status).toBe(201);
+      expect(replay.status).toBe(401);
+      expect(await prisma.user.findUnique({ where: { phone: "8888700009" } })).toBeNull();
+      await redis.del("register_otp_attempts:8888700009");
+    });
+
+    afterAll(async () => {
+      const keys = await redis.keys("register_initiate_attempts:*");
+      if (keys.length > 0) {
+        await redis.del(...keys);
       }
     });
   });
