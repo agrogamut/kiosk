@@ -1,9 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
 import multer from "multer";
+import { io } from "../index.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { AppError } from "../middleware/error.middleware.js";
+import { ACTIVE_STATUSES } from "../services/call-completion.service.js";
 import { deleteObject, uploadBuffer } from "../services/storage.service.js";
 import { buildFileUrl } from "../services/file-url.service.js";
 
@@ -69,7 +71,22 @@ healthFilesRouter.post(
         },
       });
 
-      res.status(201).json({ ...file, url: buildFileUrl(req, objectKey) });
+      const fileWithUrl = { ...file, url: buildFileUrl(req, objectKey) };
+
+      // A doctor mid-call has PatientHistoryPanel open already fetched -- without this push it
+      // won't know a new file landed until something else happens to trigger a refetch (a window
+      // refocus past its staleTime, or remounting the call screen). Only fires when this upload's
+      // patient has a doctor actually assigned to their in-progress call (QUEUED calls haven't
+      // matched one yet).
+      const activeCall = await prisma.callSession.findFirst({
+        where: { patientId: userId, status: { in: ACTIVE_STATUSES }, doctorId: { not: null } },
+        select: { doctorId: true },
+      });
+      if (activeCall?.doctorId) {
+        io.to(`user:${activeCall.doctorId}`).emit("health-file:uploaded", { healthFile: fileWithUrl });
+      }
+
+      res.status(201).json(fileWithUrl);
     } catch (error) {
       next(error);
     }

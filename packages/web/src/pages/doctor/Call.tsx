@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import toast from "react-hot-toast";
+import type { HealthFile } from "@madamgy/api-client";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,6 +63,7 @@ interface CallRouteState {
 export default function DoctorCall() {
   const { id: callSessionId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const location = useLocation();
   const routeState = location.state as CallRouteState | null;
   const storedLivekitToken = useCallStore((state) => state.livekitToken);
@@ -145,10 +148,21 @@ export default function DoctorCall() {
       navigate("/doctor");
     });
 
+    // PatientHistoryPanel fetches records once and caches them -- without this, a file the
+    // patient uploads mid-call sits invisible until something else happens to trigger a refetch.
+    socket.on("health-file:uploaded", ({ healthFile }: { healthFile: HealthFile }) => {
+      if (healthFile.userId !== patientId) {
+        return;
+      }
+      toast.success("Patient uploaded a new file");
+      void queryClient.invalidateQueries({ queryKey: ["patient-records", patientId] });
+    });
+
     return () => {
       socket.off("call:ended");
+      socket.off("health-file:uploaded");
     };
-  }, [clearCall, navigate]);
+  }, [clearCall, navigate, patientId, queryClient]);
 
   // Fills in whatever the dashboard didn't hand over -- the patient's name and the start time for
   // the timer, and the token itself after a reload. Guarded by a ref rather than by the state it
