@@ -91,3 +91,13 @@ body {
 .lk-participant-tile .lk-participant-placeholder {
   display: none;
 }
+
+/* LiveKit crops landscape camera video to fill its tile (object-fit: cover). The stage is a tall
+   panel beside the work rail, not a 16:9 box, so filling it threw away most of the frame's width
+   and left a face zoomed past the edges. Fit the whole frame instead and let the stage's own dark
+   surface show through the letterbox. The corner self-view keeps cover -- it is a thumbnail, where
+   a crop reads as intentional framing rather than a lost picture. */
+.call-stage-main .lk-participant-media-video {
+  object-fit: contain;
+  background-color: transparent;
+}

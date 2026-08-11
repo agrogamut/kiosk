@@ -41,7 +41,7 @@ export function CameraOffTile({ trackRef, compact = false }: CameraOffTileProps)
   const showPlaceholder = resolved.source === Track.Source.Camera && noVideo;
 
   return (
-    <div className="relative h-full w-full">
+    <div className={`relative h-full w-full ${compact ? "" : "call-stage-main"}`}>
       <ParticipantTile trackRef={resolved} />
       {showPlaceholder && (
         <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[hsl(0_8%_13%)] p-4 text-center">
