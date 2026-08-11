@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import axios from "axios";
 import toast from "react-hot-toast";
 import {
   PatientRegisterInitiateSchema,
@@ -24,6 +25,10 @@ interface RegisterResponse {
 
 interface PatientRegisterFormProps {
   onSuccess: (response: RegisterResponse) => void;
+  // Where "log in instead" goes when the number turns out to already have an account, carrying
+  // the number with it so nobody retypes what they just typed. Without a handler the form still
+  // says what happened, it just can't offer the shortcut.
+  onExistingAccount?: (phone: string) => void;
   footer: ReactNode;
 }
 
@@ -47,7 +52,35 @@ function formatDateOfBirthInput(value: string): string {
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
-export function PatientRegisterForm({ onSuccess, footer }: PatientRegisterFormProps) {
+/**
+ * Turns a failed sign-up call into something the person can act on.
+ *
+ * Every one of these arrives as the same axios rejection, and the generic "check the number and
+ * try again" that used to cover all of them is wrong for most: a taken number is not a typo, and
+ * being rate limited is not something trying again fixes.
+ */
+function describeFailure(error: unknown): { message: string; field: "phone" | null } {
+  if (!axios.isAxiosError(error)) {
+    return { message: "Something went wrong. Try again.", field: null };
+  }
+
+  if (!error.response) {
+    return { message: "Can't reach the server. Check your connection and try again.", field: null };
+  }
+
+  switch (error.response.status) {
+    case 409:
+      return { message: "This number already has an account.", field: "phone" };
+    case 429:
+      return { message: "Too many attempts for this number. Try again in 15 minutes.", field: null };
+    case 401:
+      return { message: "That code is wrong or has expired. Request a new one.", field: null };
+    default:
+      return { message: getApiErrorMessage(error, "Something went wrong. Try again."), field: null };
+  }
+}
+
+export function PatientRegisterForm({ onSuccess, onExistingAccount, footer }: PatientRegisterFormProps) {
   const [consent, setConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [gender, setGender] = useState<Gender | "">("");
@@ -59,15 +92,20 @@ export function PatientRegisterForm({ onSuccess, footer }: PatientRegisterFormPr
   const [pending, setPending] = useState<PatientRegisterInitiate | null>(null);
   const [otp, setOtp] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
+  // The number that came back as already registered, held so "log in instead" can carry it over.
+  // Null whenever the phone field has been touched since, because the answer no longer applies.
+  const [takenPhone, setTakenPhone] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm<RegisterInfo>({
     resolver: zodResolver(PatientRegisterInitiateSchema.omit({ pin: true, consent: true, gender: true, email: true })),
   });
   const dobRegistration = register("dob");
+  const phoneRegistration = register("phone");
 
   useEffect(() => {
     if (step !== "verify" || resendCooldown <= 0) {
@@ -87,7 +125,18 @@ export function PatientRegisterForm({ onSuccess, footer }: PatientRegisterFormPr
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
       toast.success("OTP sent");
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "We couldn't send the code. Check the number and try again."));
+      const failure = describeFailure(error);
+      if (failure.field === "phone") {
+        // On the field rather than in a toast: it's the one input that's wrong, the answer stays
+        // on screen while they read it, and it sits next to the way out of the dead end. Resend
+        // comes through here too, from the verify step, where that field isn't on screen -- so go
+        // back to it rather than setting an error nobody can see.
+        setTakenPhone(values.phone);
+        setStep("details");
+        setError("phone", { message: failure.message });
+        return;
+      }
+      toast.error(failure.message);
     } finally {
       setSubmitting(false);
     }
@@ -112,7 +161,17 @@ export function PatientRegisterForm({ onSuccess, footer }: PatientRegisterFormPr
       onSuccess(response.data);
     } catch (error) {
       setOtp("");
-      toast.error(getApiErrorMessage(error, "That code didn't work. Try again."));
+      const failure = describeFailure(error);
+      // Someone else finished signing up on this number in the seconds it took to read the SMS.
+      // Rare, but leaving them on a numpad that can no longer succeed is a dead end, so send them
+      // back to the field the answer belongs to.
+      if (failure.field === "phone") {
+        setTakenPhone(pending.phone);
+        setStep("details");
+        setError("phone", { message: failure.message });
+        return;
+      }
+      toast.error(failure.message);
     } finally {
       setSubmitting(false);
     }
@@ -164,8 +223,27 @@ export function PatientRegisterForm({ onSuccess, footer }: PatientRegisterFormPr
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="register-phone">Phone number</Label>
-        <Input id="register-phone" {...register("phone")} type="tel" placeholder="10-digit phone number" />
+        <Input
+          id="register-phone"
+          {...phoneRegistration}
+          onChange={(event) => {
+            // A different number is a different question, so drop the answer to the old one.
+            setTakenPhone(null);
+            void phoneRegistration.onChange(event);
+          }}
+          type="tel"
+          placeholder="10-digit phone number"
+        />
         {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
+        {takenPhone && onExistingAccount && (
+          <button
+            type="button"
+            onClick={() => onExistingAccount(takenPhone)}
+            className="self-start text-sm font-semibold text-primary"
+          >
+            Log in as {takenPhone} instead
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col gap-2">

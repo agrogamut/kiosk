@@ -20,6 +20,11 @@ export default function KioskRegister() {
                 setAuth(response.accessToken, response.user);
                 navigate("/dashboard");
               }}
+              // Login lives on the entry screen, so hand the number over in navigation state
+              // rather than making someone type it a second time to be told they already exist.
+              onExistingAccount={(existingPhone) => {
+                navigate("/", { state: { patientPhone: existingPhone } });
+              }}
               footer={
                 <p className="text-center text-sm text-muted-foreground">
                   Already have an account?{" "}

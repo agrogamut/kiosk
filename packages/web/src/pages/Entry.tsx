@@ -93,8 +93,12 @@ export default function Entry() {
   // never reads this) -- which of the two patient views is showing. Defaults
   // to signup since most people landing on an unlocked "/" are new patients;
   // a locked kiosk's own patient screen always shows login regardless of
-  // this value.
-  const [patientView, setPatientView] = useState<"signup" | "login">("signup");
+  // this value. Arriving from the kiosk sign-up page with a number that turned
+  // out to already have an account is the exception: that person is here to log
+  // in, and the number they typed comes with them (see `patientForm` below).
+  const [patientView, setPatientView] = useState<"signup" | "login">(() =>
+    (location.state as { patientPhone?: string } | null)?.patientPhone ? "login" : "signup",
+  );
   // Seconds remaining before Resend OTP is clickable again; 0 means ready.
   const [resendCooldown, setResendCooldown] = useState(0);
   const [showUnlock, setShowUnlock] = useState(false);
@@ -113,7 +117,10 @@ export default function Entry() {
   const kioskLockHandledRef = useRef(false);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const patientForm = useForm<PatientLoginOtpInitiate>({ resolver: zodResolver(PatientLoginOtpInitiateSchema) });
+  const patientForm = useForm<PatientLoginOtpInitiate>({
+    resolver: zodResolver(PatientLoginOtpInitiateSchema),
+    defaultValues: { phone: (location.state as { patientPhone?: string } | null)?.patientPhone ?? "" },
+  });
   const doctorForm = useForm<DoctorLoginInitiate>({ resolver: zodResolver(DoctorLoginInitiateSchema) });
   const adminForm = useForm<AdminLogin>({ resolver: zodResolver(AdminLoginSchema) });
 
@@ -478,6 +485,10 @@ export default function Entry() {
                   onSuccess={(response) => {
                     setAuth(response.accessToken, response.user);
                     enterApp(response.user);
+                  }}
+                  onExistingAccount={(existingPhone) => {
+                    patientForm.setValue("phone", existingPhone);
+                    setPatientView("login");
                   }}
                   footer={
                     <p className="text-center text-sm text-muted-foreground">
