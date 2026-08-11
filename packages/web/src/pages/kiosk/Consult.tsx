@@ -12,7 +12,6 @@ import { fetchActiveCall } from "../../lib/activeCall";
 import { getApiErrorMessage } from "../../lib/errors";
 import { getLivekitUrl } from "../../lib/livekitUrl";
 import { getSocket } from "../../lib/socket";
-import { useCallListener } from "../../hooks/useCall";
 import { useImmersiveStatusBar } from "../../hooks/useImmersiveStatusBar";
 import { useCallStore } from "../../store/call.store";
 import { useKioskStore } from "../../store/kiosk.store";
@@ -74,7 +73,6 @@ export default function KioskConsult() {
     setRejoinKey((key) => key + 1);
   }
 
-  useCallListener();
   useImmersiveStatusBar();
 
   useEffect(() => {
@@ -182,6 +180,13 @@ export default function KioskConsult() {
     navigate("/dashboard");
   }
 
+  // The search keeps running -- callSession stays in the shared store and useCallListener is
+  // mounted app-wide, so nothing here needs to pause. CallSearchWidget picks it up on any other
+  // page and brings the patient back the moment a doctor accepts.
+  function minimize(): void {
+    navigate("/dashboard");
+  }
+
   const waitingText = callSession?.status === "RINGING" ? "Ringing doctor..." : "Finding available doctor...";
 
   if (loading) {
@@ -189,9 +194,14 @@ export default function KioskConsult() {
       <div className="flex min-h-full flex-col items-center justify-center gap-6 bg-background p-8">
         <PulseRing size="lg" />
         <p className="text-center text-xl text-foreground">{waitingText}</p>
-        <button type="button" onClick={cancel} className="mt-4 text-muted-foreground underline">
-          Cancel
-        </button>
+        <div className="mt-4 flex gap-6">
+          <button type="button" onClick={minimize} className="text-muted-foreground underline">
+            Minimize
+          </button>
+          <button type="button" onClick={cancel} className="text-muted-foreground underline">
+            Cancel
+          </button>
+        </div>
       </div>
     );
   }
@@ -230,9 +240,14 @@ export default function KioskConsult() {
     <div className="flex min-h-full flex-col items-center justify-center gap-6 bg-background p-8">
       <PulseRing size="lg" />
       <p className="text-center text-xl text-foreground">{callSession?.status === "RINGING" ? "Waiting for doctor to accept..." : "Finding available doctor..."}</p>
-      <button type="button" onClick={cancel} className="mt-4 text-muted-foreground underline">
-        Cancel
-      </button>
+      <div className="mt-4 flex gap-6">
+        <button type="button" onClick={minimize} className="text-muted-foreground underline">
+          Minimize
+        </button>
+        <button type="button" onClick={cancel} className="text-muted-foreground underline">
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }

@@ -19,6 +19,13 @@ export function useActiveCallRedirect(): void {
       return;
     }
 
+    // A call already in the store didn't come from a reload -- e.g. a patient who minimized out
+    // of /consult remounts this shell on the way back to /dashboard, and the store never lost
+    // the session. Redirecting here would immediately undo that minimize.
+    if (useCallStore.getState().callSession) {
+      return;
+    }
+
     fetchActiveCall()
       .then(({ callSession, livekitToken }) => {
         if (!callSession) {

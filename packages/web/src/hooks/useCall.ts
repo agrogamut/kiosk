@@ -3,13 +3,24 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import type { CallSession } from "@madamgy/api-client";
 import { connectSocket } from "../lib/socket";
+import { useAuthStore } from "../store/auth.store";
 import { useCallStore } from "../store/call.store";
 
+// Mounted once at the app root (not per-page) so these listeners survive navigation -- a patient
+// who minimizes the search widget and browses their health locker must still hear about
+// call:accepted/call:ended while they're away from /consult. Gated to PATIENT here (rather than
+// only calling this hook conditionally) so the same always-mounted call satisfies the rules of
+// hooks while still being a no-op for doctors and signed-out visitors.
 export function useCallListener(): void {
   const { setCall, setCallStatus, setLivekitToken, clearCall } = useCallStore();
+  const role = useAuthStore((state) => state.user?.role);
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (role !== "PATIENT") {
+      return;
+    }
+
     const socket = connectSocket();
 
     socket.on("call:ringing", ({ callSession }: { callSession: CallSession }) => {
@@ -45,5 +56,5 @@ export function useCallListener(): void {
       socket.off("call:no_doctor_available");
       socket.off("call:ended");
     };
-  }, [clearCall, navigate, setCall, setCallStatus, setLivekitToken]);
+  }, [role, clearCall, navigate, setCall, setCallStatus, setLivekitToken]);
 }
