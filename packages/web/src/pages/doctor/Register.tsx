@@ -94,7 +94,7 @@ export default function DoctorRegister() {
   }
 
   return (
-    <div className="min-h-dvh bg-background px-6 py-10">
+    <div className="min-h-full bg-background px-6 py-10">
       <form
         onSubmit={handleSubmit((data) => void submit(data))}
         className="mx-auto max-w-2xl rounded-xl bg-card p-8 shadow-sm lg:max-w-3xl"

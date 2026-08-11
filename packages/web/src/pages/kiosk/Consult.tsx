@@ -186,7 +186,7 @@ export default function KioskConsult() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background p-8">
+      <div className="flex min-h-full flex-col items-center justify-center gap-6 bg-background p-8">
         <PulseRing size="lg" />
         <p className="text-center text-xl text-foreground">{waitingText}</p>
         <button type="button" onClick={cancel} className="mt-4 text-muted-foreground underline">
@@ -227,7 +227,7 @@ export default function KioskConsult() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background p-8">
+    <div className="flex min-h-full flex-col items-center justify-center gap-6 bg-background p-8">
       <PulseRing size="lg" />
       <p className="text-center text-xl text-foreground">{callSession?.status === "RINGING" ? "Waiting for doctor to accept..." : "Finding available doctor..."}</p>
       <button type="button" onClick={cancel} className="mt-4 text-muted-foreground underline">

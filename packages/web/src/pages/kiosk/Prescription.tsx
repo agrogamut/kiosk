@@ -39,21 +39,21 @@ export default function KioskPrescription() {
 
   if (fileLoading || prescriptionLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex min-h-full items-center justify-center bg-background">
         <PulseRing size="lg" />
       </div>
     );
   }
   if (!file || !prescription) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex min-h-full items-center justify-center bg-background">
         <p className="text-lg text-destructive">We couldn't find that prescription.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-full bg-background p-6">
       <IdleGuard />
       <KioskHeader />
       <div className="mx-auto max-w-md sm:max-w-lg lg:max-w-2xl">

@@ -9,7 +9,7 @@ export default function KioskRegister() {
   const setAuth = useAuthStore((state) => state.setAuth);
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-background px-6 py-10">
+    <div className="flex min-h-full flex-col items-center bg-background px-6 py-10">
       <Logo className="mb-8 h-10 w-auto" />
       <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg">
         <h1 className="mb-6 text-center font-display text-3xl font-bold text-foreground">Create account</h1>

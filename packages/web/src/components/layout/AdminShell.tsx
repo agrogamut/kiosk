@@ -106,7 +106,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-background lg:flex">
+    <div className="min-h-full bg-background lg:flex">
       <IdleGuard />
       <aside className="hidden lg:flex lg:w-64 lg:shrink-0 lg:flex-col lg:gap-6 lg:border-r lg:border-border lg:bg-card lg:p-6">
         <Link to="/admin" className="inline-flex">

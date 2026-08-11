@@ -27,7 +27,7 @@ export function PatientShell({ children }: { children: ReactNode }) {
   }, [navigate, queryClient]);
 
   return (
-    <div className="min-h-screen bg-background pb-28">
+    <div className="min-h-full bg-background pb-28">
       <IdleGuard />
       {children}
       <PatientBottomNav />

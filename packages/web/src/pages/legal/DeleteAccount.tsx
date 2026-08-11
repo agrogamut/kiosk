@@ -44,7 +44,7 @@ export default function DeleteAccount() {
 
   if (step === "done") {
     return (
-      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 bg-background p-8 text-center">
+      <div className="mx-auto flex min-h-full max-w-md flex-col items-center justify-center gap-4 bg-background p-8 text-center">
         <Logo className="h-10 w-auto" />
         <h1 className="font-display text-2xl font-bold text-foreground">Account deleted</h1>
         <p className="text-muted-foreground">
@@ -57,7 +57,7 @@ export default function DeleteAccount() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 bg-background p-8">
+    <div className="mx-auto flex min-h-full max-w-md flex-col justify-center gap-6 bg-background p-8">
       <Logo className="mx-auto h-10 w-auto" />
       <div>
         <h1 className="font-display mb-2 text-2xl font-bold text-foreground">Delete your MadamGy account</h1>

@@ -64,7 +64,7 @@ export function DoctorShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-background lg:flex">
+    <div className="min-h-full bg-background lg:flex">
       <aside className="hidden lg:flex lg:w-64 lg:shrink-0 lg:flex-col lg:gap-6 lg:border-r lg:border-border lg:bg-card lg:p-6">
         <Link to="/doctor" className="inline-flex">
           <Logo />
