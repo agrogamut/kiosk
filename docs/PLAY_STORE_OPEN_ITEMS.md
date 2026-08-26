@@ -5,8 +5,7 @@ Running list. Add to this file whenever a submission blocker needs info only you
 ## Blocked on you
 
 - **Production domain live + reachable** — Play Console checks the privacy policy URL at submission time; it must resolve publicly (not localhost/staging-only) when you submit.
-- **Legal sign-off on retention wording** — `PrivacyPolicy.tsx` "How long we keep it" section cites general Indian regulation categories (drafted 2026-08-01, see file for current text). A lawyer should confirm the exact retention period and citation apply to this business before this ships — general legal drafting is not a substitute for review.
-- **Registered business address** — About/Contact pages give the support email only (`agrogamut@gmail.com`); no physical address is on file. Add one if Play Console or Razorpay verification asks for it.
+- **Registered business address** — About/Contact pages give the support email only (`agrogamut@gmail.com`); no physical address is on file yet. To be added once provided.
 
 ## Also open (pre-dates this list)
 

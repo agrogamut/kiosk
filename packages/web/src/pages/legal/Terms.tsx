@@ -6,8 +6,7 @@ export default function Terms() {
       <Logo className="mb-8 h-10 w-auto" />
       <h1 className="font-display mb-6 text-2xl font-bold text-foreground">Terms &amp; conditions</h1>
       <p className="mb-4 text-sm text-muted-foreground">
-        Last updated: check this date against the actual publish date before submitting to Play
-        Console / Razorpay.
+        Last updated: 27 August 2026.
       </p>
 
       <h2 className="font-display mb-2 mt-8 text-xl font-bold text-foreground">1. Acceptance of terms</h2>
