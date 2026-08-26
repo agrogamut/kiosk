@@ -17,8 +17,11 @@ import AdminUserDetail from "./pages/admin/UserDetail";
 import AdminUsers from "./pages/admin/Users";
 import AdminWallet from "./pages/admin/Wallet";
 import AdminWithdrawals from "./pages/admin/Withdrawals";
+import AboutUs from "./pages/legal/AboutUs";
 import DeleteAccount from "./pages/legal/DeleteAccount";
 import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
+import RefundPolicy from "./pages/legal/RefundPolicy";
+import Terms from "./pages/legal/Terms";
 import DoctorCall from "./pages/doctor/Call";
 import DoctorDashboard from "./pages/doctor/Dashboard";
 import DoctorHistory from "./pages/doctor/History";
@@ -79,6 +82,9 @@ export default function App() {
         <Route path="/register" element={<KioskRegister />} />
         <Route path="/delete-account" element={<DeleteAccount />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/refund-policy" element={<RefundPolicy />} />
+        <Route path="/about" element={<AboutUs />} />
         <Route
           element={
             <RequireRole role="PATIENT">

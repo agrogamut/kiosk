@@ -63,7 +63,14 @@ export function ContactUsDialog({ trigger, defaultName = "", defaultPhone = "" }
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Contact us</DialogTitle>
-          <DialogDescription>Tell us what's going on and we'll follow up on this number.</DialogDescription>
+          <DialogDescription>
+            Tell us what's going on and we'll follow up on this number. You can also reach us
+            directly at{" "}
+            <a href="mailto:agrogamut@gmail.com" className="text-primary underline">
+              agrogamut@gmail.com
+            </a>
+            .
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">

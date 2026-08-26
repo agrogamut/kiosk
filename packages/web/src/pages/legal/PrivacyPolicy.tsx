@@ -69,7 +69,13 @@ export default function PrivacyPolicy() {
       </p>
 
       <h2 className="font-display mb-2 mt-8 text-xl font-bold text-foreground">Contact</h2>
-      <p className="mb-4">Replace this line with a real support contact email before publishing.</p>
+      <p className="mb-4">
+        Questions about this policy or your data can be sent to{" "}
+        <a href="mailto:agrogamut@gmail.com" className="text-primary underline">
+          agrogamut@gmail.com
+        </a>
+        .
+      </p>
     </div>
   );
 }

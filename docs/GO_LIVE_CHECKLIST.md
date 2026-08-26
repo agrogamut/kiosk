@@ -83,5 +83,8 @@ get back). For a plain test run, choose "Just sign me in".
 
 ## Known-not-done
 
-- Razorpay keys are still placeholders — keep `REQUIRE_PAYMENT_FOR_CALLS=false`.
-- Privacy policy contact email is still a placeholder (`docs/PLAY_STORE_OPEN_ITEMS.md`).
+- Razorpay test-mode keys are live in Railway; real (live-mode) keys still pending Razorpay
+  business website verification — keep `REQUIRE_PAYMENT_FOR_CALLS=false` until then.
+- Razorpay website verification submitted via Account & Settings → Business website details —
+  requires `/about`, `/terms`, `/refund-policy`, `/privacy-policy` to be live and reachable on the
+  production domain (all added 2026-08-27, linked from the Entry page).

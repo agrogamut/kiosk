@@ -577,6 +577,21 @@ export default function Entry() {
             </button>
           }
         />
+
+        <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <Link to="/about" className="underline">
+            About us
+          </Link>
+          <Link to="/privacy-policy" className="underline">
+            Privacy policy
+          </Link>
+          <Link to="/terms" className="underline">
+            Terms &amp; conditions
+          </Link>
+          <Link to="/refund-policy" className="underline">
+            Refund policy
+          </Link>
+        </div>
       </div>
 
       <AlertDialog
