@@ -16,7 +16,7 @@ export function IdleGuard() {
       }
 
       timer = setTimeout(() => {
-        void logout().finally(() => navigate("/"));
+        void logout().finally(() => navigate("/login"));
       }, IDLE_MS);
     }
 

@@ -64,7 +64,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     // below is the only action that's supposed to end at the patient screen.
     const forceEntryRole = user?.role === "ADMIN" ? "KIOSK_OWNER" : "ADMIN";
     await logout();
-    navigate("/", { state: { forceEntryRole } });
+    navigate("/login", { state: { forceEntryRole } });
   }
 
   async function lockThisDevice(): Promise<void> {
@@ -74,7 +74,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       lockAsKiosk();
       toast.success("Device locked as your kiosk. Long-press the logo to sign in again.");
       await logout();
-      navigate("/");
+      navigate("/login");
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not lock this device. Try again."));
     } finally {

@@ -88,7 +88,7 @@ export default function Profile() {
 
   async function signOut(): Promise<void> {
     await logout();
-    navigate("/");
+    navigate("/login");
   }
 
   if (loading) {

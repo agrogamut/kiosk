@@ -19,3 +19,17 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Razorpay checkout SDK. Inert while minifyEnabled is false, but kept here so
+# turning release minification on later does not silently break payments.
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keepattributes JavascriptInterface
+-keepattributes *Annotation*
+-dontwarn com.razorpay.**
+-keep class com.razorpay.** { *; }
+-optimizations !method/inlining/*
+-keepclasseswithmembers class * {
+    public void onPayment*(...);
+}

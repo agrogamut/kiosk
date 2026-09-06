@@ -23,12 +23,12 @@ export default function KioskRegister() {
               // Login lives on the entry screen, so hand the number over in navigation state
               // rather than making someone type it a second time to be told they already exist.
               onExistingAccount={(existingPhone) => {
-                navigate("/", { state: { patientPhone: existingPhone } });
+                navigate("/login", { state: { patientPhone: existingPhone } });
               }}
               footer={
                 <p className="text-center text-sm text-muted-foreground">
                   Already have an account?{" "}
-                  <Link to="/" className="font-semibold text-primary">
+                  <Link to="/login" className="font-semibold text-primary">
                     Log in
                   </Link>
                 </p>

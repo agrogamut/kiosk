@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { Capacitor } from "@capacitor/core";
 import type { CallSession } from "@madamgy/api-client";
 import { Button } from "../../components/ui/button";
 import { CallChatPanel } from "../../components/call/CallChatPanel";
@@ -11,6 +12,7 @@ import { api } from "../../lib/api";
 import { fetchActiveCall } from "../../lib/activeCall";
 import { getApiErrorMessage } from "../../lib/errors";
 import { getLivekitUrl } from "../../lib/livekitUrl";
+import { RazorpayNative } from "../../lib/razorpayNative";
 import { getSocket } from "../../lib/socket";
 import { useImmersiveStatusBar } from "../../hooks/useImmersiveStatusBar";
 import { useCallStore } from "../../store/call.store";
@@ -110,6 +112,29 @@ export default function KioskConsult() {
 
     async function payAndCreateCall(): Promise<void> {
       try {
+        if (Capacitor.isNativePlatform()) {
+          // In the APK, take payment through the native Razorpay sheet (UPI intent,
+          // saved cards) instead of the checkout.js overlay in the WebView.
+          const order = await api.post<PaymentOrder>("/payments/order");
+          try {
+            await RazorpayNative.open({
+              key: order.data.keyId,
+              orderId: order.data.razorpayOrderId,
+              amount: order.data.amount * 100,
+              currency: "INR",
+              name: "MadamGy Consultation",
+              description: "Doctor consultation fee",
+            });
+          } catch {
+            // Native SDK rejects on both an explicit cancel and a gateway decline.
+            toast("Payment cancelled");
+            navigate("/dashboard");
+            return;
+          }
+          await createCallWithPayment(order.data.paymentId);
+          return;
+        }
+
         if (typeof window.Razorpay !== "function") {
           // checkout.js (loaded via a <script> tag in index.html) can fail to load --
           // ad blockers, offline, or a flaky CDN. window.Razorpay would otherwise throw

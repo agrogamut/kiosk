@@ -53,6 +53,9 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // Native Razorpay checkout used by RazorpayPlugin (in-app payment sheet + UPI intent).
+    // The web build keeps checkout.js as a fallback for browsers; the APK uses this.
+    implementation 'com.razorpay:checkout:1.6.40'
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

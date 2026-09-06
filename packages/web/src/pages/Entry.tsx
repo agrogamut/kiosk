@@ -90,15 +90,20 @@ export default function Entry() {
   const [otp, setOtp] = useState("");
   const [submitting, setSubmitting] = useState(false);
   // Unlocked patient tab only (see `locked` branch in the render below, which
-  // never reads this) -- which of the two patient views is showing. Defaults
-  // to signup since most people landing on an unlocked "/" are new patients;
-  // a locked kiosk's own patient screen always shows login regardless of
-  // this value. Arriving from the kiosk sign-up page with a number that turned
-  // out to already have an account is the exception: that person is here to log
-  // in, and the number they typed comes with them (see `patientForm` below).
-  const [patientView, setPatientView] = useState<"signup" | "login">(() =>
-    (location.state as { patientPhone?: string } | null)?.patientPhone ? "login" : "signup",
-  );
+  // never reads this) -- which of the two patient views is showing. The route
+  // sets the initial value: /signup opens the create-account form, /login opens
+  // the login form. A locked kiosk's own patient screen always shows login
+  // regardless of this value. Arriving from the kiosk sign-up page with a number
+  // that turned out to already have an account is the exception: that person is
+  // here to log in, and the number they typed comes with them (see `patientForm`).
+  const [patientView, setPatientView] = useState<"signup" | "login">(() => {
+    // Arriving from the kiosk sign-up page with an already-registered number: that person
+    // is here to log in, and their number rides along in navigation state.
+    if ((location.state as { patientPhone?: string } | null)?.patientPhone) return "login";
+    // Otherwise the route decides: /signup shows the create-account form, /login (and any
+    // other path that renders this screen, e.g. a locked kiosk) shows the login form.
+    return location.pathname === "/signup" ? "signup" : "login";
+  });
   // Seconds remaining before Resend OTP is clickable again; 0 means ready.
   const [resendCooldown, setResendCooldown] = useState(0);
   const [showUnlock, setShowUnlock] = useState(false);
