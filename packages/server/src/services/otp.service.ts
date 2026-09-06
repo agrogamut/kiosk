@@ -22,8 +22,25 @@ export async function storeOtp(phone: string, purpose: OtpPurpose = "login"): Pr
   return code;
 }
 
+/**
+ * Store and payment-gateway reviewers (Google Play "App access", Razorpay website
+ * verification) cannot receive a real SMS OTP. When REVIEW_LOGIN_PHONE and REVIEW_LOGIN_OTP
+ * are BOTH set, that one number logs in with that one fixed code, in any environment.
+ * Unset both env vars once the reviews have cleared. Leaving them unset disables this
+ * entirely -- there is no built-in default.
+ */
+function isReviewLogin(phone: string, code: string): boolean {
+  const reviewPhone = process.env.REVIEW_LOGIN_PHONE;
+  const reviewOtp = process.env.REVIEW_LOGIN_OTP;
+  return Boolean(reviewPhone && reviewOtp && phone === reviewPhone && code === reviewOtp);
+}
+
 export async function verifyOtp(phone: string, code: string, purpose: OtpPurpose = "login"): Promise<boolean> {
   if (process.env.NODE_ENV === "development" && code === "000000") {
+    return true;
+  }
+
+  if (isReviewLogin(phone, code)) {
     return true;
   }
 
@@ -33,6 +50,12 @@ export async function verifyOtp(phone: string, code: string, purpose: OtpPurpose
 
 export async function sendOtpSms(phone: string, otp: string): Promise<void> {
   if (process.env.NODE_ENV !== "production") {
+    return;
+  }
+
+  // The reviewer bypass number never needs a real SMS -- it logs in with the fixed
+  // REVIEW_LOGIN_OTP -- and it is not a real handset, so don't spend an SMS on it.
+  if (process.env.REVIEW_LOGIN_PHONE && phone === process.env.REVIEW_LOGIN_PHONE) {
     return;
   }
 

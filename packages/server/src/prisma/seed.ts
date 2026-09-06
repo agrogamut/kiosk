@@ -38,6 +38,28 @@ async function main(): Promise<void> {
   } else {
     console.log("Revenue config already exists, skipping");
   }
+
+  // Patient account for Play Store / Razorpay reviewers. Only created when REVIEW_LOGIN_PHONE
+  // is set; it logs in with the fixed REVIEW_LOGIN_OTP (see otp.service.ts). Remove the env
+  // vars once the reviews clear -- the account can stay, it just becomes an ordinary patient
+  // with no bypass.
+  const reviewPhone = process.env.REVIEW_LOGIN_PHONE;
+  if (reviewPhone) {
+    const existingReviewer = await prisma.user.findUnique({ where: { phone: reviewPhone } });
+    if (!existingReviewer) {
+      await prisma.user.create({
+        data: {
+          phone: reviewPhone,
+          name: "Store Review Tester",
+          role: "PATIENT",
+          patientProfile: { create: { dob: new Date("1990-01-01"), consentGivenAt: new Date() } },
+        },
+      });
+      console.log(`Review test patient created: ${reviewPhone}`);
+    } else {
+      console.log("Review test patient already exists, skipping");
+    }
+  }
 }
 
 main()

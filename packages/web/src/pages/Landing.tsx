@@ -8,6 +8,8 @@ import { Button } from "../components/ui/button";
 // service, its pricing, and how to reach the business, instead of a login wall.
 
 const SUPPORT_EMAIL = "agrogamut@gmail.com";
+const SUPPORT_PHONE_DISPLAY = "+91 8100540644";
+const SUPPORT_PHONE_TEL = "+918100540644";
 const BUSINESS_ADDRESS =
   "Shop No. 9, 201 (239) Kamala Abasa, M.B. Road, Nimta, Kolkata, North 24 Parganas, West Bengal, PIN: 700049";
 
@@ -110,6 +112,12 @@ export default function Landing() {
             Email:{" "}
             <a href={`mailto:${SUPPORT_EMAIL}`} className="text-primary underline">
               {SUPPORT_EMAIL}
+            </a>
+          </p>
+          <p className="mt-2 text-muted-foreground">
+            Phone:{" "}
+            <a href={`tel:${SUPPORT_PHONE_TEL}`} className="text-primary underline">
+              {SUPPORT_PHONE_DISPLAY}
             </a>
           </p>
           <p className="mt-2 text-muted-foreground">{BUSINESS_ADDRESS}</p>

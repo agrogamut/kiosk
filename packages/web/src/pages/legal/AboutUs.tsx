@@ -32,6 +32,10 @@ export default function AboutUs() {
         For support, billing, or general questions, reach us at{" "}
         <a href="mailto:agrogamut@gmail.com" className="text-primary underline">
           agrogamut@gmail.com
+        </a>{" "}
+        or call{" "}
+        <a href="tel:+918100540644" className="text-primary underline">
+          +91 8100540644
         </a>
         .
       </p>
