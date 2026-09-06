@@ -182,12 +182,17 @@ jobs:
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      - run: chmod +x gradlew && ./gradlew assembleRelease
+      # APK for sideloading/testing; AAB is the format Play Console requires for upload.
+      - run: chmod +x gradlew && ./gradlew assembleRelease bundleRelease
         working-directory: packages/kiosk-android/android
       - uses: actions/upload-artifact@v4
         with:
           name: madamgy-release-apk
           path: packages/kiosk-android/android/app/build/outputs/apk/release/app-release.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: madamgy-release-aab
+          path: packages/kiosk-android/android/app/build/outputs/bundle/release/app-release.aab
 
   dependency-audit:
     runs-on: ubuntu-latest
