@@ -35,6 +35,10 @@ export default function AboutUs() {
         </a>
         .
       </p>
+      <p className="mb-4">
+        Registered office: Shop No. 9, 201 (239) Kamala Abasa, M.B. Road, Nimta, Kolkata,
+        North 24 Parganas, West Bengal, PIN: 700049.
+      </p>
     </div>
   );
 }

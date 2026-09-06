@@ -8,9 +8,8 @@ import { Button } from "../components/ui/button";
 // service, its pricing, and how to reach the business, instead of a login wall.
 
 const SUPPORT_EMAIL = "agrogamut@gmail.com";
-// TODO: replace with the real registered office address before submitting to Razorpay.
-// A visible business address is required for payment-gateway website verification.
-const BUSINESS_ADDRESS = "Agrogamut Services Pvt Ltd, [registered office address], India";
+const BUSINESS_ADDRESS =
+  "Shop No. 9, 201 (239) Kamala Abasa, M.B. Road, Nimta, Kolkata, North 24 Parganas, West Bengal, PIN: 700049";
 
 function Step({ n, title, body }: { n: number; title: string; body: string }) {
   return (
