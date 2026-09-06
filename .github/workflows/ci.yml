@@ -77,6 +77,9 @@ jobs:
 
   build-android-apk:
     runs-on: ubuntu-latest
+    # Dependabot PRs run without repository secrets, so the signing/env setup below can't work.
+    # Skip both Android jobs for Dependabot; they still run on every push and human PR.
+    if: github.actor != 'dependabot[bot]'
     env:
       VITE_API_URL: https://kiosk-production-060d.up.railway.app/api
       VITE_SOCKET_URL: https://kiosk-production-060d.up.railway.app
@@ -109,6 +112,8 @@ jobs:
 
   build-android-release-apk:
     runs-on: ubuntu-latest
+    # Needs the ANDROID_KEYSTORE_* secrets, which GitHub withholds from Dependabot PRs.
+    if: github.actor != 'dependabot[bot]'
     env:
       VITE_API_URL: https://kiosk-production-060d.up.railway.app/api
       VITE_SOCKET_URL: https://kiosk-production-060d.up.railway.app

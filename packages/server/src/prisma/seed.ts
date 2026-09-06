@@ -56,6 +56,13 @@ async function main(): Promise<void> {
         },
       });
       console.log(`Review test patient created: ${reviewPhone}`);
+    } else if (existingReviewer.role !== "PATIENT") {
+      // The bypass only reaches the patient login flow (findActivePatientByPhone rejects any
+      // other role), so pointing it at an existing admin/doctor number leaves it non-functional.
+      console.warn(
+        `WARNING: REVIEW_LOGIN_PHONE ${reviewPhone} is an existing ${existingReviewer.role} account. ` +
+          "The reviewer bypass will not work -- use a phone number that is not already a staff or doctor account.",
+      );
     } else {
       console.log("Review test patient already exists, skipping");
     }
