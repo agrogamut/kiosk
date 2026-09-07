@@ -185,7 +185,7 @@ export default function Entry() {
     setRole(value);
     setStep("credentials");
     setOtp("");
-    setPatientView("signup");
+    setPatientView(location.pathname === "/signup" ? "signup" : "login");
   }
 
   function enterApp(user: { role: UserRole }): void {

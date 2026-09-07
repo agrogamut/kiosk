@@ -251,9 +251,10 @@ export default function KioskConsult() {
 
   if (livekitToken && callSession) {
     return (
-      // dvh, not vh: on a phone the mobile browser's URL bar is excluded from vh, so the chat
-      // composer sat below the fold until you scrolled.
-      <div className="flex h-[100dvh] flex-col overflow-hidden bg-background lg:flex-row">
+      // h-full, not h-[100dvh]: #root already claims 100dvh and carries the safe-area inset
+      // padding (see index.css) -- claiming a second full dvh here made this div taller than
+      // #root's padded box and let the document scroll by the inset height.
+      <div className="flex h-full flex-col overflow-hidden bg-background lg:flex-row">
         <div className="min-h-56 flex-[3] lg:h-full lg:flex-1">
           {connectionLost ? (
             <div className="flex h-full flex-col items-center justify-center gap-4 bg-background p-8 text-center">

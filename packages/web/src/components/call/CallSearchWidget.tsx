@@ -34,23 +34,25 @@ export function CallSearchWidget() {
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => navigate("/consult")}
-      className="fixed bottom-24 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border/50 bg-card/95 py-2.5 pl-3 pr-2.5 shadow-lg backdrop-blur-lg"
-    >
-      <PulseRing size="sm" />
-      <span className="text-sm font-medium text-foreground">
-        {callSession!.status === "RINGING" ? "Ringing doctor..." : "Finding a doctor..."}
-      </span>
-      <span
-        role="button"
+    <div className="fixed bottom-24 left-1/2 z-50 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border/50 bg-card/95 py-2 pl-3 pr-2 shadow-lg backdrop-blur-lg">
+      <button
+        type="button"
+        onClick={() => navigate("/consult")}
+        className="flex items-center gap-3 py-0.5"
+      >
+        <PulseRing size="sm" />
+        <span className="text-sm font-medium text-foreground">
+          {callSession!.status === "RINGING" ? "Ringing doctor..." : "Finding a doctor..."}
+        </span>
+      </button>
+      <button
+        type="button"
         aria-label="Cancel search"
         onClick={cancel}
         className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
       >
         <X className="size-4" />
-      </span>
-    </button>
+      </button>
+    </div>
   );
 }

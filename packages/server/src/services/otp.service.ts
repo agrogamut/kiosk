@@ -8,7 +8,7 @@ import { redis } from "../lib/redis.js";
  * to someone -- would also satisfy "prove you own this phone" during patient sign-up, and any
  * flow that ever issues a code to a number becomes a way to open an account on it.
  */
-export type OtpPurpose = "login" | "register";
+export type OtpPurpose = "login" | "register" | "account_delete";
 
 function otpKey(phone: string, purpose: OtpPurpose): string {
   // "login" keeps the original unprefixed key so codes already in flight when this ships stay
@@ -29,7 +29,13 @@ export async function storeOtp(phone: string, purpose: OtpPurpose = "login"): Pr
  * Unset both env vars once the reviews have cleared. Leaving them unset disables this
  * entirely -- there is no built-in default.
  */
-function isReviewLogin(phone: string, code: string): boolean {
+function isReviewLogin(phone: string, code: string, purpose: OtpPurpose): boolean {
+  // The seeded reviewer account already exists, so the bypass only ever needs to satisfy
+  // "login" -- gating on purpose keeps a register-purpose call from being spent on it too,
+  // matching the namespacing invariant described on OtpPurpose above.
+  if (purpose !== "login") {
+    return false;
+  }
   const reviewPhone = process.env.REVIEW_LOGIN_PHONE;
   const reviewOtp = process.env.REVIEW_LOGIN_OTP;
   return Boolean(reviewPhone && reviewOtp && phone === reviewPhone && code === reviewOtp);
@@ -40,7 +46,7 @@ export async function verifyOtp(phone: string, code: string, purpose: OtpPurpose
     return true;
   }
 
-  if (isReviewLogin(phone, code)) {
+  if (isReviewLogin(phone, code, purpose)) {
     return true;
   }
 

@@ -36,7 +36,7 @@ accountRouter.post(
       if (user && !user.deletedAt && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
         Promise.resolve()
           .then(async () => {
-            const otp = await storeOtp(phone);
+            const otp = await storeOtp(phone, "account_delete");
             await sendOtpSms(phone, otp);
           })
           .catch((error) => {
@@ -60,7 +60,9 @@ accountRouter.post(
       const attemptKey = `account_delete_verify:${phone}`;
       await checkAttemptLimit(attemptKey);
 
-      const valid = await verifyOtp(phone, otp);
+      // Distinct purpose from "login" so the reviewer OTP bypass (gated to purpose === "login"
+      // in otp.service.ts) can't be used to delete the seeded reviewer account.
+      const valid = await verifyOtp(phone, otp, "account_delete");
       if (!valid) {
         await recordFailedAttempt(attemptKey);
         throw new AppError(401, "Invalid or expired OTP");

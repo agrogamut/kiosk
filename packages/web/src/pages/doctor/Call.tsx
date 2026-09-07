@@ -80,6 +80,8 @@ export default function DoctorCall() {
   const [connectionLost, setConnectionLost] = useState(false);
   const [rejoinKey, setRejoinKey] = useState(0);
   const hydratedFor = useRef<string | null>(null);
+  const patientIdRef = useRef<string | null>(patientId);
+  patientIdRef.current = patientId;
   const tabRefs = useRef<Record<RailTab, HTMLButtonElement | null>>({
     prescription: null,
     chat: null,
@@ -150,19 +152,21 @@ export default function DoctorCall() {
 
     // PatientHistoryPanel fetches records once and caches them -- without this, a file the
     // patient uploads mid-call sits invisible until something else happens to trigger a refetch.
+    // Reads patientId via ref (not the closed-over state value) so an event that arrives before
+    // patientId hydrates on reload isn't dropped by a stale null closure.
     socket.on("health-file:uploaded", ({ healthFile }: { healthFile: HealthFile }) => {
-      if (healthFile.userId !== patientId) {
+      if (healthFile.userId !== patientIdRef.current) {
         return;
       }
       toast.success("Patient uploaded a new file");
-      void queryClient.invalidateQueries({ queryKey: ["patient-records", patientId] });
+      void queryClient.invalidateQueries({ queryKey: ["patient-records", patientIdRef.current] });
     });
 
     return () => {
       socket.off("call:ended");
       socket.off("health-file:uploaded");
     };
-  }, [clearCall, navigate, patientId, queryClient]);
+  }, [clearCall, navigate, queryClient]);
 
   // Fills in whatever the dashboard didn't hand over -- the patient's name and the start time for
   // the timer, and the token itself after a reload. Guarded by a ref rather than by the state it
@@ -264,7 +268,7 @@ export default function DoctorCall() {
 
   if (!storedLivekitToken) {
     return (
-      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-6 bg-background p-8">
+      <div className="flex min-h-full flex-col items-center justify-center gap-6 bg-background p-8">
         <PulseRing size="lg" />
         <p className="text-center text-xl text-foreground">Waiting for connection...</p>
       </div>
@@ -275,7 +279,7 @@ export default function DoctorCall() {
     // Two panes side by side rather than stacked. Stacking made the video and the work surface
     // compete for the same vertical space, and on a laptop the video won by default -- the
     // prescription form was left with a couple of hundred pixels and the chat was off-screen.
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background lg:flex-row">
+    <div className="flex h-full flex-col overflow-hidden bg-background lg:flex-row">
       <section className="relative min-h-44 flex-[2] lg:min-h-0 lg:w-0 lg:min-w-0 lg:flex-1">
         {connectionLost ? (
           <div className="flex h-full flex-col items-center justify-center gap-4 bg-background p-8 text-center">

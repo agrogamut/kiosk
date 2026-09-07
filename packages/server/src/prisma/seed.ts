@@ -63,6 +63,15 @@ async function main(): Promise<void> {
         `WARNING: REVIEW_LOGIN_PHONE ${reviewPhone} is an existing ${existingReviewer.role} account. ` +
           "The reviewer bypass will not work -- use a phone number that is not already a staff or doctor account.",
       );
+    } else if (existingReviewer.name !== "Store Review Tester") {
+      // A PATIENT role alone doesn't mean this is the seeded reviewer account -- a real patient
+      // could hold this phone number, in which case the OTP bypass (gated only on phone + fixed
+      // code, see otp.service.ts) would log anyone who knows REVIEW_LOGIN_OTP in as that patient.
+      console.warn(
+        `WARNING: REVIEW_LOGIN_PHONE ${reviewPhone} belongs to an existing patient ("${existingReviewer.name}") ` +
+          "that is not the seeded reviewer account. The OTP bypass will log anyone who knows " +
+          "REVIEW_LOGIN_OTP in as this patient -- use a phone number with no existing account.",
+      );
     } else {
       console.log("Review test patient already exists, skipping");
     }

@@ -12,7 +12,10 @@ import { useCallStore } from "../store/call.store";
 // only calling this hook conditionally) so the same always-mounted call satisfies the rules of
 // hooks while still being a no-op for doctors and signed-out visitors.
 export function useCallListener(): void {
-  const { setCall, setCallStatus, setLivekitToken, clearCall } = useCallStore();
+  const setCall = useCallStore((state) => state.setCall);
+  const setCallStatus = useCallStore((state) => state.setCallStatus);
+  const setLivekitToken = useCallStore((state) => state.setLivekitToken);
+  const clearCall = useCallStore((state) => state.clearCall);
   const role = useAuthStore((state) => state.user?.role);
   const navigate = useNavigate();
 
