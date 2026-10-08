@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import request from "supertest";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { app } from "../index.js";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
@@ -440,6 +440,13 @@ describe("Patient auth", () => {
 });
 
 describe("Doctor auth", () => {
+  beforeEach(async () => {
+    const keys = await redis.keys("doctor_register_attempts:*");
+    if (keys.length > 0) {
+      await redis.del(...keys);
+    }
+  });
+
   it("registers a doctor pending approval", async () => {
     const response = await request(app)
       .post("/api/auth/doctor/register")
