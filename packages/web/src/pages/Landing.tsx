@@ -60,6 +60,21 @@ export default function Landing() {
           </div>
         </section>
 
+        <section className="border-t border-border py-14">
+          <h2 className="font-display text-2xl font-bold text-foreground">Scheduled pediatric consultations</h2>
+          <p className="mt-3 max-w-2xl text-muted-foreground">
+            Register your child, choose a doctor or any available doctor, and request a time through
+            our pediatric consultation portal. Each appointment is limited to 30 minutes. Pay online,
+            then wait for the MadamGy team to confirm your booking.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <Button asChild variant="outline" className="rounded-full">
+              <a href="https://consultpd.madamgy.com">Book a pediatric consultation</a>
+            </Button>
+            <Link to="/pricing" className="text-primary underline">View consultation pricing</Link>
+          </div>
+        </section>
+
         <section className="grid gap-10 border-t border-border py-14 sm:grid-cols-3">
           <Step
             n={1}
@@ -81,9 +96,9 @@ export default function Landing() {
         <section className="border-t border-border py-14">
           <h2 className="font-display text-2xl font-bold text-foreground">Pricing</h2>
           <p className="mt-3 max-w-2xl text-muted-foreground">
-            A single flat consultation fee is charged per completed consultation. The exact
-            amount is shown on screen before you confirm payment, and payment is collected
-            securely through Razorpay. See our{" "}
+            Consultation fees are collected upfront through Razorpay. View the{" "}
+            <Link to="/pricing" className="text-primary underline">pricing for scheduled pediatric consultations</Link>.
+            On-demand call fees are shown before payment. See our{" "}
             <Link to="/refund-policy" className="text-primary underline">
               refund policy
             </Link>{" "}
@@ -133,6 +148,8 @@ export default function Landing() {
             <Link to="/about" className="underline">
               About us
             </Link>
+            <Link to="/contact" className="underline">Contact</Link>
+            <Link to="/pricing" className="underline">Pricing</Link>
             <Link to="/privacy-policy" className="underline">
               Privacy policy
             </Link>

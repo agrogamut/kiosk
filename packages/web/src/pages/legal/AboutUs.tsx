@@ -1,4 +1,5 @@
 import { Logo } from "../../components/brand/Logo";
+import { PublicPageLinks } from "../../components/PublicPageLinks";
 
 export default function AboutUs() {
   return (
@@ -20,10 +21,24 @@ export default function AboutUs() {
         <li>In-call chat for sharing vitals, images, and documents with your doctor.</li>
       </ul>
 
+      <h2 className="font-display mb-2 mt-8 text-xl font-bold text-foreground">Scheduled pediatric consultations</h2>
+      <p className="mb-4">
+        Families can register a child and request an appointment through{" "}
+        <a href="https://consultpd.madamgy.com" className="text-primary underline">consultpd.madamgy.com</a>,
+        our pediatric consultation portal. Choose a specific doctor or any available doctor,
+        then select an available time. Each consultation is limited to 30 minutes.
+      </p>
+      <p className="mb-4">
+        The consultation fee is paid through Razorpay before the MadamGy team confirms the booking.
+        Families can return to the portal to view their appointment and documents released to them
+        by the team. See our <a href="/pricing" className="text-primary underline">pricing</a> and{" "}
+        <a href="/refund-policy" className="text-primary underline">cancellation and refund policy</a>.
+      </p>
+
       <h2 className="font-display mb-2 mt-8 text-xl font-bold text-foreground">Who we are</h2>
       <p className="mb-4">
         Agrogamut Services Pvt Ltd is the registered business operating the MadamGy platform.
-        Doctors on MadamGy are verified against their degree, registration number, and license
+        Doctors for the on-demand service are verified against their degree, registration number, and license
         document before being approved to take consultations.
       </p>
 
@@ -43,6 +58,7 @@ export default function AboutUs() {
         Registered office: Shop No. 9, 201 (239) Kamala Abasa, M.B. Road, Nimta, Kolkata,
         North 24 Parganas, West Bengal, PIN: 700049.
       </p>
+      <PublicPageLinks />
     </div>
   );
 }

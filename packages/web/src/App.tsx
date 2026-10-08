@@ -18,7 +18,9 @@ import AdminUsers from "./pages/admin/Users";
 import AdminWallet from "./pages/admin/Wallet";
 import AdminWithdrawals from "./pages/admin/Withdrawals";
 import AboutUs from "./pages/legal/AboutUs";
+import Contact from "./pages/legal/Contact";
 import DeleteAccount from "./pages/legal/DeleteAccount";
+import Pricing from "./pages/legal/Pricing";
 import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
 import RefundPolicy from "./pages/legal/RefundPolicy";
 import Terms from "./pages/legal/Terms";
@@ -109,6 +111,8 @@ export default function App() {
         <Route path="/terms" element={<Terms />} />
         <Route path="/refund-policy" element={<RefundPolicy />} />
         <Route path="/about" element={<AboutUs />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/pricing" element={<Pricing />} />
         <Route
           element={
             <RequireRole role="PATIENT">
