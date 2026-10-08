@@ -14,7 +14,7 @@ type Tx = Prisma.TransactionClient;
 
 // The `@@unique([callSessionId, userId, type])` constraint on WalletTransaction is the real
 // guard here: completeCall() can be triggered concurrently from the call:end socket handler,
-// the prescription PDF worker, and the stale-call reaper, so the DB constraint -- not this
+// the LiveKit room_finished webhook, and the stale-call reaper, so the DB constraint -- not this
 // in-memory check -- is what prevents a doctor/admin from being credited twice for one call.
 async function creditWalletOnce(tx: Tx, params: { userId: string; callSessionId: string; amount: number; description: string }): Promise<void> {
   try {

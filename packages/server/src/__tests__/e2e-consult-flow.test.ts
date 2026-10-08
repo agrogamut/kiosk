@@ -233,9 +233,16 @@ describe("Full consult flow (real workers + sockets, no mocks)", () => {
     expect(accepted.doctor?.livekitToken).toBeTruthy();
     expect(accepted.doctor!.livekitToken.length).toBeGreaterThan(20);
 
-    const endedPromise = new Promise<void>((resolve, reject) => {
-      patientSocket.once("call:ended", () => resolve());
-      setTimeout(() => reject(new Error("call:ended timeout")), 15000);
+    // A prescription is part of the consultation, not the end of it. The worker used to complete
+    // the call once the PDF was ready, which threw both sides out of the room mid-conversation.
+    let endedByPrescription = false;
+    const onEarlyEnd = (): void => {
+      endedByPrescription = true;
+    };
+    patientSocket.on("call:ended", onEarlyEnd);
+    const prescriptionReady = new Promise<void>((resolve, reject) => {
+      patientSocket.once("prescription:ready", () => resolve());
+      setTimeout(() => reject(new Error("prescription:ready timeout")), 15000);
     });
 
     const submitRx = await api.post(
@@ -245,6 +252,17 @@ describe("Full consult flow (real workers + sockets, no mocks)", () => {
     );
     expect(submitRx.status).toBe(202);
 
+    await prescriptionReady;
+    patientSocket.off("call:ended", onEarlyEnd);
+    expect(endedByPrescription).toBe(false);
+    const stillActive = await prisma.callSession.findUniqueOrThrow({ where: { id: callSessionId } });
+    expect(stillActive.status).toBe("ACTIVE");
+
+    const endedPromise = new Promise<void>((resolve, reject) => {
+      patientSocket.once("call:ended", () => resolve());
+      setTimeout(() => reject(new Error("call:ended timeout")), 15000);
+    });
+    doctorSocket.emit("call:end", { callSessionId });
     await endedPromise;
 
     const wallet = await api.get("/doctor/wallet", { headers: { Authorization: `Bearer ${doctorToken}` } });

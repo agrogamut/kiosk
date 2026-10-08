@@ -168,9 +168,7 @@ export default function DoctorCall() {
     };
   }, [clearCall, navigate, queryClient]);
 
-  // Fills in whatever the dashboard didn't hand over -- the patient's name and the start time for
-  // the timer, and the token itself after a reload. Guarded by a ref rather than by the state it
-  // sets, which would otherwise re-trigger this effect on each field it filled in.
+  // Only completed hydration suppresses another setup; StrictMode cancels the first setup.
   useEffect(() => {
     if (!callSessionId || hydratedFor.current === callSessionId) {
       return;
@@ -178,8 +176,6 @@ export default function DoctorCall() {
     if (storedLivekitToken && patientName && startedAt) {
       return;
     }
-    hydratedFor.current = callSessionId;
-
     let cancelled = false;
     fetchActiveCall()
       .then((active) => {
@@ -194,6 +190,7 @@ export default function DoctorCall() {
           return;
         }
 
+        hydratedFor.current = callSessionId;
         setPatientId((current) => current ?? active.callSession?.patient?.id ?? null);
         setPatientName((current) => current ?? active.callSession?.patient?.name ?? null);
         setStartedAt((current) => current ?? active.callSession?.startedAt ?? null);
