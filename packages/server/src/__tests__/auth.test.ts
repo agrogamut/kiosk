@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
+import { Agent } from "node:http";
 import request from "supertest";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { app } from "../index.js";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
@@ -440,16 +441,27 @@ describe("Patient auth", () => {
 });
 
 describe("Doctor auth", () => {
-  beforeEach(async () => {
-    const keys = await redis.keys("doctor_register_attempts:*");
-    if (keys.length > 0) {
-      await redis.del(...keys);
-    }
-  });
+  // A dedicated loopback client keeps limiter cleanup scoped to this suite's requests.
+  const registrationAddress = "127.0.0.71";
+  const registrationAgent = new Agent({ localAddress: registrationAddress });
+
+  function registerDoctor() {
+    return request(app).post("/api/auth/doctor/register").agent(registrationAgent);
+  }
+
+  async function clearRegistrationAttempts() {
+    await redis.del(
+      `doctor_register_attempts:${registrationAddress}`,
+      `doctor_register_attempts:::ffff:${registrationAddress}`,
+    );
+  }
+
+  beforeEach(clearRegistrationAttempts);
+  afterEach(clearRegistrationAttempts);
+  afterAll(() => registrationAgent.destroy());
 
   it("registers a doctor pending approval", async () => {
-    const response = await request(app)
-      .post("/api/auth/doctor/register")
+    const response = await registerDoctor()
       .field("data", JSON.stringify(validDoctorRegisterPayload()));
 
     expect(response.status).toBe(201);
@@ -457,11 +469,9 @@ describe("Doctor auth", () => {
   });
 
   it("rejects duplicate doctor phone and registration number", async () => {
-    const duplicatePhone = await request(app)
-      .post("/api/auth/doctor/register")
+    const duplicatePhone = await registerDoctor()
       .field("data", JSON.stringify(validDoctorRegisterPayload({ name: "Duplicate Doctor", regNumber: "DOC-NEW" })));
-    const duplicateReg = await request(app)
-      .post("/api/auth/doctor/register")
+    const duplicateReg = await registerDoctor()
       .field("data", JSON.stringify(
         validDoctorRegisterPayload({ phone: "9999000003", name: "Duplicate Registration" }),
       ));
@@ -471,8 +481,7 @@ describe("Doctor auth", () => {
   });
 
   it("rejects a license document that is not a valid PDF", async () => {
-    const response = await request(app)
-      .post("/api/auth/doctor/register")
+    const response = await registerDoctor()
       .field("data", JSON.stringify({
         phone: "9999000009",
         name: "Fake License Doctor",
@@ -489,14 +498,8 @@ describe("Doctor auth", () => {
   });
 
   it("counts rejected non-PDF uploads toward the rate limit", async () => {
-    const existingKeys = await redis.keys("doctor_register_attempts:*");
-    if (existingKeys.length > 0) {
-      await redis.del(...existingKeys);
-    }
-
     for (let i = 0; i < 5; i++) {
-      const response = await request(app)
-        .post("/api/auth/doctor/register")
+      const response = await registerDoctor()
         .field("data", JSON.stringify({
           phone: "9999000011",
           name: "Spoofed Mimetype Doctor",
@@ -512,8 +515,7 @@ describe("Doctor auth", () => {
       expect(response.status).toBe(400);
     }
 
-    const limited = await request(app)
-      .post("/api/auth/doctor/register")
+    const limited = await registerDoctor()
       .field("data", JSON.stringify({
         phone: "9999000012",
         name: "Should Be Blocked After Spoofed Uploads",
@@ -523,22 +525,11 @@ describe("Doctor auth", () => {
       }));
 
     expect(limited.status).toBe(429);
-
-    const cleanupKeys = await redis.keys("doctor_register_attempts:*");
-    if (cleanupKeys.length > 0) {
-      await redis.del(...cleanupKeys);
-    }
   });
 
   it("counts failed registration attempts toward the rate limit, not just successes", async () => {
-    const existingKeys = await redis.keys("doctor_register_attempts:*");
-    if (existingKeys.length > 0) {
-      await redis.del(...existingKeys);
-    }
-
     for (let i = 0; i < 5; i++) {
-      const response = await request(app)
-        .post("/api/auth/doctor/register")
+      const response = await registerDoctor()
         .field("data", JSON.stringify(
           validDoctorRegisterPayload({ name: "Rate Limit Doctor", regNumber: `DOC-RATE-${i}` }),
         ));
@@ -546,8 +537,7 @@ describe("Doctor auth", () => {
       expect(response.status).toBe(409);
     }
 
-    const limited = await request(app)
-      .post("/api/auth/doctor/register")
+    const limited = await registerDoctor()
       .field("data", JSON.stringify({
         phone: "9999000010",
         name: "Should Be Blocked",
@@ -557,11 +547,6 @@ describe("Doctor auth", () => {
       }));
 
     expect(limited.status).toBe(429);
-
-    const cleanupKeys = await redis.keys("doctor_register_attempts:*");
-    if (cleanupKeys.length > 0) {
-      await redis.del(...cleanupKeys);
-    }
   });
 
   it("blocks doctor login before approval", async () => {
