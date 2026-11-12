@@ -1,6 +1,6 @@
 # Call recovery evidence
 
-Open the [fresh combined upstream verification](upstream/README.md) for inspected screenshots, the short workflow recording, received audio, measured media counters and current test results.
+Open the [current CI repair and end-to-end verification](../ci-repair/README.md) for final dependency/runtime results and inspected evidence. The [earlier combined verification](upstream/README.md) is historical.
 
 These captures use the real doctor and patient pages with separate authenticated browser contexts, a running server and LiveKit. The upstream verifier is [scripts/verify-call-media.mjs](../../../scripts/verify-call-media.mjs).
 
@@ -18,11 +18,11 @@ The local `.env` must set `NODE_ENV=development`, `DATABASE_URL`, `REDIS_URL`, J
 
 Keep object storage writable: `XMinioStorageFull` prevents uploads and leaves PDF generation pending even when health checks pass. The current run uses separate disposable memory-backed MinIO instances for application and tests. The CI workflow pins a retrievable MinIO image and waits for readiness.
 
-Install optional browser tooling in the ignored output directory. Node 22 or newer, npm, ffmpeg and Chromium are required:
+Install optional browser tooling in the ignored output directory. Node 22.12 or newer, npm, ffmpeg and Chromium are required:
 
 ```fish
 npm install --prefix data/uploads/main-integration/tools playwright@1.63.0
 env PLAYWRIGHT_BROWSERS_PATH=$PWD/data/uploads/main-integration/tools/browsers node data/uploads/main-integration/tools/node_modules/playwright/cli.js install chromium
 ```
 
-Then follow the [server, web and verifier commands](upstream/README.md). The verifier creates synthetic accounts and leaves their records in the scratch database for inspection. A successful run records both peers' advancing media counters and received PCM, then verifies hangup and cleanup. Full raw captures stay in the selected output directory; the small reviewed evidence set lives under `upstream/`.
+Then follow the [current server, web and verifier commands](../ci-repair/README.md). The verifier creates synthetic accounts and leaves their records in the scratch database for inspection. A successful run records both peers' advancing media counters and received PCM, then verifies hangup and cleanup. Full raw captures stay in the selected output directory; the current reviewed evidence set lives under `../ci-repair/`.

@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 RUN apk add --no-cache openssl
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -12,7 +12,7 @@ RUN npm run build --workspace @madamgy/api-client
 RUN npm run db:generate --workspace @madamgy/server
 RUN npm run build --workspace @madamgy/server
 
-FROM node:20-alpine
+FROM node:22-alpine
 RUN apk add --no-cache openssl
 WORKDIR /app
 ENV NODE_ENV=production

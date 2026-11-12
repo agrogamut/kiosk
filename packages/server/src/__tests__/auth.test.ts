@@ -115,6 +115,10 @@ describe("Patient auth", () => {
     });
 
     expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid request");
+    expect(response.body.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: ["pin"], message: "PIN must be 4 digits" }),
+    ]));
   });
 
   it("rejects invalid patient date of birth", async () => {
@@ -126,6 +130,10 @@ describe("Patient auth", () => {
     });
 
     expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid request");
+    expect(response.body.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: ["dob"], message: "Date of birth must be a valid date in DD/MM/YYYY format" }),
+    ]));
   });
 
   it("registers a new patient", async () => {

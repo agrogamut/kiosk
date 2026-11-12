@@ -8,7 +8,7 @@ import { deleteObject, ensureBucket, uploadBuffer } from "../services/storage.se
 // The whole point of this route is that it works without an Authorization header: an <img src>
 // or a link sends none, and the bucket it fronts is not reachable from a browser at all.
 describe("GET /api/files/:token", () => {
-  const objectKey = "chat/file-url-test/hello.txt";
+  const objectKey = "chat/file-url-test/space + percent% / question? hash# Unicode-α.txt";
   const body = "hello from object storage";
 
   beforeAll(async () => {
@@ -63,6 +63,18 @@ describe("GET /api/files/:token", () => {
     const token = signFileToken({ k: "chat/file-url-test/missing.txt" }, 60);
 
     await request(app).get(`/api/files/${token}`).expect(404);
+  });
+
+  it("deletes an encoded key without confusing a literal percent escape with a slash", async () => {
+    const key = "chat/file-url-test/literal%2F+ name?.txt";
+    await uploadBuffer(key, Buffer.from("encoded key"), "text/plain");
+    const token = signFileToken({ k: key }, 60);
+    const response = await request(app).get("/api/files/" + token).expect(200);
+    expect(response.text).toBe("encoded key");
+    expect(response.headers["content-length"]).toBe("11");
+    await deleteObject(key);
+    await deleteObject(key);
+    await request(app).get("/api/files/" + token).expect(404);
   });
 
   it("builds an absolute URL honouring the proxy's forwarded protocol", () => {

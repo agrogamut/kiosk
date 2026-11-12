@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { z } from "zod";
 import { Link, useNavigate } from "react-router-dom";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -37,7 +38,7 @@ export default function DoctorRegister() {
     control,
     setValue,
     formState: { errors },
-  } = useForm<DoctorRegister>({
+  } = useForm<z.input<typeof DoctorRegisterSchema>, unknown, DoctorRegister>({
     resolver: zodResolver(DoctorRegisterSchema),
     defaultValues: {
       educations: [{ degree: "", institution: "", year: "" }],

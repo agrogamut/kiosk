@@ -1,5 +1,7 @@
 # Combined call and CI verification
 
+Historical evidence for the published baseline. The [current CI repair](../../ci-repair/README.md) supersedes these dependency and audit results.
+
 Fresh captures from the combined upstream candidate on 12 November 2026, 16:17:49 to 16:18:27 IST. The candidate preserves policy main `ca541c7`, call recovery `353205d` and CI repair `97772b0`. It also patches body-parser to 1.20.9 and follow-redirects to 1.16.3 for newly disclosed high advisories. [Measurements and tested file hashes](metrics.json) identify this run.
 
 Fresh checks: 39 web tests pass; all 24 server files pass with 191 tests and one skipped real-provider payment test; typecheck and production build pass. The repository lint command exits successfully but no workspace defines a lint script. The existing bundle-size warning remains. Capacitor sync and Android debug APK, release APK and release bundle builds pass with JDK 21.0.13. Release packaging uses a disposable local key; production signing and physical-device behavior were not verified.

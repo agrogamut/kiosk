@@ -1,20 +1,38 @@
 import "../config/env.js";
-import * as Minio from "minio";
+import { Readable } from "node:stream";
+import {
+  S3Client, CreateBucketCommand, HeadBucketCommand, PutObjectCommand,
+  GetObjectCommand, DeleteObjectCommand, S3ServiceException,
+} from "@aws-sdk/client-s3";
 
-export const minioClient = new Minio.Client({
-  endPoint: process.env.MINIO_ENDPOINT ?? "localhost",
-  port: Number(process.env.MINIO_PORT ?? "9000"),
-  useSSL: process.env.MINIO_USE_SSL === "true",
-  accessKey: process.env.MINIO_ACCESS_KEY!,
-  secretKey: process.env.MINIO_SECRET_KEY!,
+const region = "ap-south-1";
+const bucket = process.env.MINIO_BUCKET ?? "madamgy";
+const protocol = process.env.MINIO_USE_SSL === "true" ? "https" : "http";
+const client = new S3Client({
+  endpoint: `${protocol}://${process.env.MINIO_ENDPOINT ?? "localhost"}:${process.env.MINIO_PORT ?? "9000"}`,
+  region,
+  forcePathStyle: true,
+  credentials: {
+    accessKeyId: process.env.MINIO_ACCESS_KEY!,
+    secretAccessKey: process.env.MINIO_SECRET_KEY!,
+  },
 });
 
-const BUCKET = process.env.MINIO_BUCKET ?? "madamgy";
+export async function bucketExists(): Promise<boolean> {
+  try {
+    await client.send(new HeadBucketCommand({ Bucket: bucket }));
+    return true;
+  } catch (error) {
+    if (error instanceof S3ServiceException && error.$metadata.httpStatusCode === 404) return false;
+    throw error;
+  }
+}
 
 export async function ensureBucket(): Promise<void> {
-  const exists = await minioClient.bucketExists(BUCKET);
-  if (!exists) {
-    await minioClient.makeBucket(BUCKET, "ap-south-1");
+  if (!(await bucketExists())) {
+    await client.send(new CreateBucketCommand({
+      Bucket: bucket, CreateBucketConfiguration: { LocationConstraint: region },
+    }));
   }
 }
 
@@ -23,15 +41,10 @@ export async function uploadBuffer(
   buffer: Buffer,
   contentType: string,
 ): Promise<void> {
-  await minioClient.putObject(BUCKET, objectKey, buffer, buffer.length, {
-    "Content-Type": contentType,
-  });
+  await client.send(new PutObjectCommand({
+    Bucket: bucket, Key: objectKey, Body: buffer, ContentType: contentType,
+  }));
 }
-
-// There is deliberately no presigned-URL helper here. MinIO is only reachable from inside the
-// deployment, so a URL signed against it is useless to a browser -- and because an S3 signature
-// covers the Host header, you cannot sign against the internal host and swap the hostname
-// afterwards. Hand out an API URL instead: see buildFileUrl in file-url.service.ts.
 
 export interface StoredObject {
   stream: NodeJS.ReadableStream;
@@ -39,18 +52,19 @@ export interface StoredObject {
   size: number;
 }
 
-// Used by GET /api/files/:token to stream an object back to the browser, because the bucket
-// itself is not reachable from one -- see file-url.service.ts.
+// Keep browser downloads on the signed API route; the storage endpoint can be private.
 export async function getObjectStream(objectKey: string): Promise<StoredObject> {
-  const stat = await minioClient.statObject(BUCKET, objectKey);
-  const stream = await minioClient.getObject(BUCKET, objectKey);
+  const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: objectKey }));
+  if (!(object.Body instanceof Readable) || object.ContentLength === undefined) {
+    throw new Error("Object storage returned an incomplete response");
+  }
   return {
-    stream,
-    contentType: stat.metaData?.["content-type"] ?? "application/octet-stream",
-    size: stat.size,
+    stream: object.Body,
+    contentType: object.ContentType ?? "application/octet-stream",
+    size: object.ContentLength,
   };
 }
 
 export async function deleteObject(objectKey: string): Promise<void> {
-  await minioClient.removeObject(BUCKET, objectKey);
+  await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }));
 }

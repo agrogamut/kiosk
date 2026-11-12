@@ -23,7 +23,7 @@ import { initSocketHandlers } from "./socket/index.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
 import { prisma } from "./lib/prisma.js";
 import { redis } from "./lib/redis.js";
-import { ensureBucket, minioClient } from "./services/storage.service.js";
+import { ensureBucket, bucketExists } from "./services/storage.service.js";
 import { handleAssignDoctorFailed, startAssignDoctorWorker } from "./workers/assign-doctor.worker.js";
 import { handleRenderPdfFailed, startRenderPdfWorker } from "./workers/render-pdf.worker.js";
 import { startStaleCallReaper } from "./workers/stale-call-reaper.worker.js";
@@ -128,7 +128,7 @@ app.get("/api/health", async (_req, res) => {
 
   try {
     checks.minio = await withTimeout(
-      minioClient.bucketExists(process.env.MINIO_BUCKET ?? "madamgy"),
+      bucketExists(),
       3000,
     );
   } catch {

@@ -28,7 +28,9 @@ function isValidDateOfBirth(value: string): boolean {
 export const UserRoleSchema = z.enum(["PATIENT", "DOCTOR", "ADMIN", "SUPER_ADMIN"]);
 export type UserRole = z.infer<typeof UserRoleSchema>;
 
-export const GenderSchema = z.enum(["MALE", "FEMALE", "OTHER"]);
+export const GenderSchema = z.enum(["MALE", "FEMALE", "OTHER"], {
+  error: (issue) => issue.input === undefined ? "Required" : undefined,
+});
 export type Gender = z.infer<typeof GenderSchema>;
 
 export const DateOfBirthSchema = z.string().refine(isValidDateOfBirth, {

@@ -4,7 +4,6 @@ import { resolve, join } from "node:path";
 import { randomBytes, randomInt } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
 import { RoomServiceClient } from "livekit-server-sdk";
 
 process.loadEnvFile();
@@ -15,6 +14,7 @@ assert.equal(process.env.NODE_ENV, "development", "The login flow requires devel
 for (const url of [base, process.env.DATABASE_URL, process.env.LIVEKIT_HOST]) {
   assert.ok(["localhost", "127.0.0.1", "[::1]"].includes(new URL(url).hostname), "Use local services only");
 }
+assert.equal(process.env.REQUIRE_PAYMENT_FOR_CALLS, "false", "This verifier does not initiate provider payments");
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 await mkdir(output, { recursive: true });
 const pause = (ms) => new Promise((done) => setTimeout(done, ms));
@@ -41,7 +41,7 @@ await writeFile(tonePath, wav);
 
 const prisma = new PrismaClient();
 const rooms = new RoomServiceClient(process.env.LIVEKIT_HOST, process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET);
-const report = { startedAt: new Date().toISOString(), base, stages: {}, screenshots: [], recordings: [], pageErrors: [] };
+const report = { runtime: process.version, boundaries: { payment: "Provider payment skipped; REQUIRE_PAYMENT_FOR_CALLS=false on disposable services", media: "Chromium fake devices and continuous synthetic tone" }, startedAt: new Date().toISOString(), base, stages: {}, screenshots: [], recordings: [], pageErrors: [] };
 const password = randomBytes(18).toString("hex");
 const doctorPhone = `9${randomInt(100_000_000, 999_999_999)}`;
 const patientPhone = `8${randomInt(100_000_000, 999_999_999)}`;
@@ -182,15 +182,114 @@ async function apiGet(page, path) {
   }, path);
 }
 
+async function registerAndValidate() {
+  const license = { name: "synthetic-license.pdf", mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 0/Kids[]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF") };
+  await doctor.goto(base + "/doctor/register");
+  await doctor.locator("#licenseDocument").setInputFiles(license);
+  await doctor.getByRole("button", { name: "Submit registration", exact: true }).click();
+  await doctor.getByText("Enter your name", { exact: true }).waitFor();
+  await doctor.getByText("Required", { exact: true }).waitFor();
+  await doctor.getByText("Password must be at least 8 characters", { exact: true }).waitFor();
+  await patient.goto(base + "/register");
+  await patient.getByLabel("Full name", { exact: true }).fill("Call Patient");
+  await patient.getByLabel("Phone number", { exact: true }).fill("12");
+  await patient.getByLabel("Date of birth", { exact: true }).fill("31/04/1990");
+  await patient.getByRole("checkbox").check();
+  await patient.getByRole("button", { name: "Send OTP", exact: true }).click();
+  await patient.getByText("Enter a valid phone number", { exact: true }).waitFor();
+  await patient.getByText("Date of birth must be a valid date in DD/MM/YYYY format", { exact: true }).waitFor();
+  await capture("registration-invalid");
+
+  const fields = { name: "Call Doctor", phone: doctorPhone, password, email: "synthetic@example.com",
+    dob: "01/01/1990", degree: "MBBS", experienceYears: "5", regNumber: "VERIFY-" + doctorPhone,
+    regYear: "2015", regType: "Test council", city: "Pune", state: "Maharashtra",
+    address: "Synthetic clinic", about: "Local verification account" };
+  for (const [id, value] of Object.entries(fields)) await doctor.locator("#" + id).fill(value);
+  await doctor.getByRole("button", { name: "Female", exact: true }).click();
+  await doctor.getByPlaceholder("e.g. Cardiology").fill("General Medicine");
+  await doctor.getByRole("button", { name: "Add", exact: true }).click();
+  await doctor.locator('[name="educations.0.degree"]').fill("MBBS");
+  await doctor.locator('[name="educations.0.institution"]').fill("Synthetic college");
+  const registered = doctor.waitForResponse(r => r.url().endsWith("/api/auth/doctor/register") && r.request().method() === "POST");
+  await doctor.getByRole("button", { name: "Submit registration", exact: true }).click();
+  assert.equal((await registered).status(), 201);
+  const doctorUser = await prisma.user.findUniqueOrThrow({ where: { phone: doctorPhone }, include: { doctorProfile: true } });
+  assert.equal(doctorUser.doctorProfile.experienceYears, 5);
+  assert.equal(doctorUser.doctorProfile.isApproved, false);
+  await prisma.doctorProfile.update({ where: { userId: doctorUser.id }, data: { isApproved: true, approvedAt: new Date() } });
+  await patient.getByLabel("Phone number", { exact: true }).fill(patientPhone);
+  await patient.getByLabel("Date of birth", { exact: true }).fill("29/02/1992");
+  await patient.getByRole("button", { name: "Send OTP", exact: true }).click();
+  for (let i = 0; i < 6; i++) await patient.getByRole("button", { name: "0", exact: true }).click();
+  await patient.getByRole("button", { name: "Create account", exact: true }).click();
+  await patient.waitForURL(base + "/dashboard");
+  const patientUser = await prisma.user.findUniqueOrThrow({ where: { phone: patientPhone } });
+  report.registration = { invalidFieldsRendered: true, correctedFormsSubmitted: true, doctorNumericCoercion: 5,
+    patientOtp: "development code", doctorApproval: "local synthetic fixture, approval UI not exercised" };
+  return { doctorUser, patientUser };
+}
+
+async function verifyStorage(patientId) {
+  await patient.goto(base + "/dashboard/locker");
+  const name = "synthetic + 100% report.pdf";
+  const bytes = Buffer.from("%PDF-1.4\n% synthetic upload\n%%EOF");
+  const uploaded = patient.waitForResponse(r => r.url().endsWith("/api/health-files") && r.request().method() === "POST");
+  await patient.locator('input[type="file"]').setInputFiles({ name, mimeType: "application/pdf", buffer: bytes });
+  const upload = await uploaded;
+  assert.equal(upload.status(), 201);
+  const file = await upload.json();
+  await patient.getByText(name, { exact: true }).waitFor();
+  const download = await patientContext.request.get(file.url);
+  assert.equal(download.status(), 200);
+  assert.deepEqual(await download.body(), bytes);
+  assert.ok(download.headers()["content-type"].includes("application/pdf"));
+  const { uploadBuffer, deleteObject } = await import("../packages/server/dist/services/storage.service.js");
+  const key = "verification/" + patientId + "/space + percent%2F ? hash# Unicode-α.txt";
+  const encodedBody = Buffer.from("Synthetic encoded-key storage round trip: α");
+  await uploadBuffer(key, encodedBody, "text/plain; charset=utf-8");
+  const fixture = await prisma.healthFile.create({ data: {
+    userId: patientId, name: "Encoded-key fixture", type: "LAB_REPORT", objectKey: key, sizeBytes: encodedBody.length,
+  } });
+  try {
+    const signed = await apiGet(patient, "/health-files/" + fixture.id);
+    const raw = await patientContext.request.get(signed.url);
+    assert.equal(raw.status(), 200);
+    assert.deepEqual(await raw.body(), encodedBody);
+    assert.equal(raw.headers()["content-type"], "text/plain; charset=utf-8");
+    const page = await patientContext.newPage();
+    const response = await page.goto(signed.url);
+    assert.equal(response.status(), 200);
+    assert.deepEqual(await response.body(), encodedBody);
+    assert.equal(response.headers()["content-length"], String(encodedBody.length));
+    await page.getByText(encodedBody.toString(), { exact: true }).waitFor();
+    await page.close();
+    await deleteObject(key);
+    assert.equal((await patientContext.request.get(signed.url)).status(), 404);
+  } finally {
+    await deleteObject(key);
+    await prisma.healthFile.delete({ where: { id: fixture.id } });
+  }
+  await patient.getByText(name, { exact: true }).locator("../..").getByRole("button", { name: "Delete", exact: true }).click();
+  await until(() => apiGet(patient, "/health-files"), value => !value.some(row => row.id === file.id), "UI upload deletion");
+  assert.equal((await patientContext.request.get(file.url)).status(), 404);
+  report.storage = { uiUploadDownloadDelete: true, byteExact: true, metadata: true, encodedKey: key, signedBrowserLink: true, deletedLink404: true };
+  await patient.goto(base + "/dashboard");
+}
+
+async function invalidApi(page, method, path, data, expectedPath, message) {
+  const result = await page.evaluate(async ({ method, path, data }) => {
+    const { api } = await import("/src/lib/api.ts");
+    try { const r = await api.request({ method, url: path, data }); return { status: r.status, body: r.data }; }
+    catch (error) { return { status: error.response?.status, body: error.response?.data }; }
+  }, { method, path, data });
+  assert.equal(result.status, 400, JSON.stringify(result));
+  assert.equal(result.body.message, "Invalid request");
+  assert.ok(result.body.issues.some(issue => JSON.stringify(issue.path) === JSON.stringify(expectedPath) && (!message || issue.message === message)));
+  return result;
+}
+
 try {
-  const doctorUser = await prisma.user.create({ data: {
-    phone: doctorPhone, name: "Call Doctor", role: "DOCTOR", passwordHash: await bcrypt.hash(password, 10),
-    doctorProfile: { create: { degree: "MBBS", regNumber: `VERIFY-${doctorPhone}`, isApproved: true, approvedAt: new Date() } },
-  } });
-  const patientUser = await prisma.user.create({ data: {
-    phone: patientPhone, name: "Call Patient", role: "PATIENT", patientProfile: { create: { consentGivenAt: new Date() } },
-  } });
-  report.users = { doctor: doctorUser.id, patient: patientUser.id };
   browser = await chromium.launch({ headless: true, args: [
     "--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", `--use-file-for-fake-audio-capture=${tonePath}`,
     "--autoplay-policy=no-user-gesture-required", "--disable-dev-shm-usage",
@@ -206,19 +305,28 @@ try {
     page.setDefaultTimeout(20_000);
     page.on("pageerror", (error) => report.pageErrors.push({ role, message: error.message }));
   }
+  const { doctorUser, patientUser } = await registerAndValidate();
+  report.users = { doctor: doctorUser.id, patient: patientUser.id };
+  const initialBalance = Number(doctorUser.walletBalance);
   await login(doctor, "doctor", doctorPhone);
   await login(patient, "patient", patientPhone);
   assert.notDeepEqual(await doctorContext.cookies(), await patientContext.cookies());
   console.log("Both real app pages authenticated separately");
+  report.invalidProfile = await invalidApi(patient, "put", "/users/me", { heightCm: -1 }, ["heightCm"], "Enter a valid height");
+  await verifyStorage(patientUser.id);
   await patient.getByRole("button", { name: "Consult a doctor", exact: true }).click();
   await doctor.getByRole("button", { name: "Accept", exact: true }).waitFor();
   await patient.getByRole("button", { name: "Minimize", exact: true }).click();
   await patient.waitForURL(`${base}/dashboard`);
+  await patientContext.setOffline(true);
+  await patient.evaluate(async () => { const { getSocket } = await import("/src/lib/socket.ts"); getSocket().io.engine.close(); });
+  await until(() => patient.evaluate(async () => (await import("/src/lib/socket.ts")).getSocket().connected), value => !value, "Patient transport disconnected");
   await doctor.reload({ waitUntil: "domcontentloaded" });
   await doctor.getByRole("button", { name: "Accept", exact: true }).click();
   await doctor.waitForURL(/\/doctor\/call\//);
-  await patient.waitForURL(`${base}/consult`);
-  report.entryRecovery = { minimizedRinging: true, doctorRingReload: true };
+  await patientContext.setOffline(false);
+  await patient.waitForURL(base + "/consult");
+  report.entryRecovery = { minimizedRinging: true, doctorRingReload: true, missedAcceptanceRecoveredAfterReconnect: true };
   call = await prisma.callSession.findFirstOrThrow({ where: { patientId: patientUser.id } });
   report.callId = call.id; report.room = call.livekitRoom;
   assert.equal(await prisma.callSession.count({ where: { patientId: patientUser.id } }), 1);
@@ -243,6 +351,9 @@ try {
   report.chat = { restoredAfterBothReloads: true, deliveredAfterBothReloads: true };
 
   await doctor.getByRole("tab", { name: "Prescription", exact: true }).click();
+  assert.equal(await doctor.getByRole("button", { name: "Submit prescription", exact: true }).isDisabled(), true);
+  report.invalidPrescription = await invalidApi(doctor, "post", "/prescriptions", { callSessionId: call.id, content: [] }, ["content"]);
+  assert.equal(await prisma.prescription.count({ where: { callSessionId: call.id } }), 0);
   await doctor.getByLabel("Patient complaint", { exact: true }).fill("Local verification entry");
   await doctor.getByLabel("Diagnosis", { exact: true }).fill("Test document");
   const submitted = doctor.waitForResponse((response) => response.url().endsWith("/api/prescriptions") && response.request().method() === "POST");
@@ -251,12 +362,14 @@ try {
   assert.equal(response.status(), 202);
   const prescription = await response.json();
   const ready = await until(() => apiGet(patient, `/prescriptions/${prescription.id}`), (value) => value.pdfReady && value.pdfUrl, "PDF generation");
+  assert.deepEqual(ready.content, { complaint: "Local verification entry", diagnosis: "Test document", medications: "", advice: "" });
   const pdf = await patientContext.request.get(ready.pdfUrl);
   assert.equal(pdf.status(), 200);
   const pdfBytes = await pdf.body();
   assert.equal(pdfBytes.subarray(0, 5).toString(), "%PDF-");
   await writeFile(join(output, "prescription.pdf"), pdfBytes);
   assert.equal((await prisma.callSession.findUniqueOrThrow({ where: { id: call.id } })).status, "ACTIVE");
+  assert.equal(await prisma.walletTransaction.count({ where: { callSessionId: call.id, type: "CREDIT" } }), 0);
   await verifyMedia("after-pdf");
   await capture("after-pdf");
   report.pdf = { id: prescription.id, bytes: pdfBytes.length, path: join(output, "prescription.pdf"), callStayedActive: true };
@@ -302,6 +415,20 @@ try {
     })), (value) => value.tracks.every((track) => track.state === "ended") && value.connections.every((state) => state === "closed"), `${role} devices stopped`);
     report.cleanup.peers[role] = cleanup;
   }
+  for (const page of [doctor, patient]) {
+    await page.evaluate(async id => { const { getSocket } = await import("/src/lib/socket.ts"); getSocket().emit("call:end", { callSessionId: id }); }, call.id);
+  }
+  await pause(1500);
+  const credits = await prisma.walletTransaction.findMany({ where: { callSessionId: call.id, type: "CREDIT" } });
+  const config = await prisma.revenueConfig.findFirstOrThrow();
+  const expectedCredit = Number((Number(config.consultationFee) * Number(config.doctorPct) / 100).toFixed(2));
+  assert.equal(credits.length, 1);
+  assert.equal(credits[0].userId, doctorUser.id);
+  assert.equal(credits[0].status, "COMPLETED");
+  assert.equal(Number(credits[0].amount), expectedCredit);
+  assert.equal(Number((await prisma.user.findUniqueOrThrow({ where: { id: doctorUser.id } })).walletBalance), initialBalance + expectedCredit);
+  assert.equal(await prisma.callSession.count({ where: { patientId: patientUser.id } }), 1);
+  report.credit = { count: 1, amount: expectedCredit, noCreditBeforeHangup: true, duplicateEndAttempts: 2, balanceAdvancedOnce: true };
   await capture("ended");
   assert.deepEqual(report.pageErrors, []);
   report.success = true;
