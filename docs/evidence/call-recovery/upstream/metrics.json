@@ -1,6 +1,6 @@
 {
-  "startedAt": "2026-10-08T08:49:51.208Z",
-  "finishedAt": "2026-10-08T08:50:25.198Z",
+  "startedAt": "2026-11-12T10:47:49.302Z",
+  "finishedAt": "2026-11-12T10:48:27.219Z",
   "browser": "153.0.8010.12",
   "success": true,
   "pageErrors": [],
@@ -40,7 +40,7 @@
   ],
   "cleanup": {
     "status": "ENDED",
-    "endedAt": "2026-10-08T08:50:24.626Z",
+    "endedAt": "2026-11-12T10:48:26.087Z",
     "roomDeleted": true,
     "peers": {
       "doctor": {
@@ -87,9 +87,8 @@
     "noActiveCalls": true,
     "doctorReleased": true
   },
-  "measurementWindowSeconds": 2.5,
   "pdf": {
-    "bytes": 44286,
+    "bytes": 44292,
     "callStayedActive": true
   },
   "stages": {
@@ -97,75 +96,75 @@
       "doctor": {
         "counterDeltas": {
           "inbound-rtp:audio": {
-            "bytes": 30859,
-            "packets": 125,
+            "bytes": 31088,
+            "packets": 126,
             "frames": 0,
-            "audioEnergy": 0.008607248408742713,
-            "samples": 120480
+            "audioEnergy": 0.008434961936651268,
+            "samples": 121920
           },
           "inbound-rtp:video": {
-            "bytes": 157858,
-            "packets": 161,
-            "frames": 51,
+            "bytes": 145804,
+            "packets": 155,
+            "frames": 53,
             "audioEnergy": 0,
             "samples": 0
           },
           "outbound-rtp:audio": {
-            "bytes": 30907,
-            "packets": 125,
+            "bytes": 31327,
+            "packets": 127,
             "frames": 0,
             "audioEnergy": 0,
             "samples": 0
           },
           "outbound-rtp:video": {
-            "bytes": 390833,
-            "packets": 435,
-            "frames": 150,
+            "bytes": 752015,
+            "packets": 769,
+            "frames": 148,
             "audioEnergy": 0,
             "samples": 0
           }
         },
         "receivedAudio": {
-          "peak": 0.02909320965409279,
-          "rms": 0.01965391955252367,
-          "samples": 54720
+          "peak": 0.028465798124670982,
+          "rms": 0.019594436328617928,
+          "samples": 57600
         }
       },
       "patient": {
         "counterDeltas": {
           "inbound-rtp:audio": {
-            "bytes": 31154,
+            "bytes": 31080,
             "packets": 126,
             "frames": 0,
-            "audioEnergy": 0.008496524262910274,
+            "audioEnergy": 0.00830929242957324,
             "samples": 120960
           },
           "inbound-rtp:video": {
-            "bytes": 98605,
-            "packets": 113,
-            "frames": 52,
+            "bytes": 129520,
+            "packets": 136,
+            "frames": 53,
             "audioEnergy": 0,
             "samples": 0
           },
           "outbound-rtp:audio": {
-            "bytes": 31105,
+            "bytes": 31084,
             "packets": 126,
             "frames": 0,
             "audioEnergy": 0,
             "samples": 0
           },
           "outbound-rtp:video": {
-            "bytes": 361067,
+            "bytes": 351486,
             "packets": 401,
-            "frames": 144,
+            "frames": 143,
             "audioEnergy": 0,
             "samples": 0
           }
         },
         "receivedAudio": {
-          "peak": 0.02796240709722042,
-          "rms": 0.01955201376741826,
-          "samples": 57600
+          "peak": 0.028484757989645004,
+          "rms": 0.019639626491964806,
+          "samples": 54720
         }
       }
     },
@@ -176,72 +175,72 @@
             "bytes": 31122,
             "packets": 126,
             "frames": 0,
-            "audioEnergy": 0.0009827981215667875,
-            "samples": 120480
+            "audioEnergy": 0.000990974263752227,
+            "samples": 121440
           },
           "inbound-rtp:video": {
-            "bytes": 232124,
-            "packets": 223,
-            "frames": 51,
+            "bytes": 194525,
+            "packets": 190,
+            "frames": 52,
             "audioEnergy": 0,
             "samples": 0
           },
           "outbound-rtp:audio": {
-            "bytes": 31188,
+            "bytes": 31109,
             "packets": 126,
             "frames": 0,
             "audioEnergy": 0,
             "samples": 0
           },
           "outbound-rtp:video": {
-            "bytes": 384981,
-            "packets": 435,
+            "bytes": 540304,
+            "packets": 572,
             "frames": 149,
             "audioEnergy": 0,
             "samples": 0
           }
         },
         "receivedAudio": {
-          "peak": 0.028553886339068413,
-          "rms": 0.019689054953957327,
-          "samples": 57600
+          "peak": 0.02826746739447117,
+          "rms": 0.019641264768930473,
+          "samples": 54720
         }
       },
       "patient": {
         "counterDeltas": {
           "inbound-rtp:audio": {
-            "bytes": 31188,
-            "packets": 126,
+            "bytes": 30862,
+            "packets": 125,
             "frames": 0,
-            "audioEnergy": 0.008462092963291666,
-            "samples": 120480
+            "audioEnergy": 0.008185146603344594,
+            "samples": 120000
           },
           "inbound-rtp:video": {
-            "bytes": 105616,
-            "packets": 117,
+            "bytes": 156527,
+            "packets": 160,
             "frames": 52,
             "audioEnergy": 0,
             "samples": 0
           },
           "outbound-rtp:audio": {
-            "bytes": 31122,
-            "packets": 126,
+            "bytes": 30875,
+            "packets": 125,
             "frames": 0,
             "audioEnergy": 0,
             "samples": 0
           },
           "outbound-rtp:video": {
-            "bytes": 451052,
-            "packets": 455,
-            "frames": 151,
+            "bytes": 410511,
+            "packets": 419,
+            "frames": 150,
             "audioEnergy": 0,
             "samples": 0
           }
         },
         "receivedAudio": {
-          "peak": 0.029658837243914604,
-          "rms": 0.019657054313697176,
-          "samples": 54720
+          "peak": 0.028643900528550148,
+          "rms": 0.019658166497708393,
+          "samples": 57600
         }
       }
     },
@@ -249,15 +248,15 @@
       "doctor": {
         "counterDeltas": {
           "inbound-rtp:audio": {
-            "bytes": 31360,
+            "bytes": 30952,
             "packets": 126,
             "frames": 0,
-            "audioEnergy": 0.008357701461729879,
-            "samples": 120960
+            "audioEnergy": 0.008856629234922036,
+            "samples": 120480
           },
           "inbound-rtp:video": {
-            "bytes": 57558,
-            "packets": 81,
+            "bytes": 133837,
+            "packets": 140,
             "frames": 52,
             "audioEnergy": 0,
             "samples": 0
@@ -270,16 +269,16 @@
             "samples": 0
           },
           "outbound-rtp:video": {
-            "bytes": 378065,
-            "packets": 400,
-            "frames": 153,
+            "bytes": 405040,
+            "packets": 425,
+            "frames": 150,
             "audioEnergy": 0,
             "samples": 0
           }
         },
         "receivedAudio": {
-          "peak": 0.028505608439445496,
-          "rms": 0.01963878126880023,
+          "peak": 0.028597334399819374,
+          "rms": 0.019644618666302845,
           "samples": 57600
         }
       },
@@ -289,35 +288,35 @@
             "bytes": 31122,
             "packets": 126,
             "frames": 0,
-            "audioEnergy": 0.000986964489070503,
-            "samples": 120960
+            "audioEnergy": 0.0009842619892297894,
+            "samples": 120480
           },
           "inbound-rtp:video": {
-            "bytes": 194122,
-            "packets": 195,
+            "bytes": 182107,
+            "packets": 182,
             "frames": 52,
             "audioEnergy": 0,
             "samples": 0
           },
           "outbound-rtp:audio": {
-            "bytes": 31360,
+            "bytes": 30952,
             "packets": 126,
             "frames": 0,
             "audioEnergy": 0,
             "samples": 0
           },
           "outbound-rtp:video": {
-            "bytes": 398846,
-            "packets": 442,
-            "frames": 136,
+            "bytes": 440617,
+            "packets": 488,
+            "frames": 144,
             "audioEnergy": 0,
             "samples": 0
           }
         },
         "receivedAudio": {
-          "peak": 0.028201093897223473,
-          "rms": 0.019648479381471108,
-          "samples": 57600
+          "peak": 0.028611861169338226,
+          "rms": 0.019627265671178853,
+          "samples": 54720
         }
       }
     },
@@ -325,53 +324,53 @@
       "doctor": {
         "counterDeltas": {
           "inbound-rtp:audio": {
-            "bytes": 30875,
-            "packets": 125,
+            "bytes": 31122,
+            "packets": 126,
             "frames": 0,
-            "audioEnergy": 0.000978522140019044,
-            "samples": 120000
+            "audioEnergy": 0.0009825417593812436,
+            "samples": 120480
           },
           "inbound-rtp:video": {
-            "bytes": 106941,
-            "packets": 120,
-            "frames": 51,
+            "bytes": 225860,
+            "packets": 218,
+            "frames": 50,
             "audioEnergy": 0,
             "samples": 0
           },
           "outbound-rtp:audio": {
-            "bytes": 30875,
-            "packets": 125,
+            "bytes": 31122,
+            "packets": 126,
             "frames": 0,
             "audioEnergy": 0,
             "samples": 0
           },
           "outbound-rtp:video": {
-            "bytes": 388037,
-            "packets": 406,
-            "frames": 150,
+            "bytes": 379254,
+            "packets": 393,
+            "frames": 151,
             "audioEnergy": 0,
             "samples": 0
           }
         },
         "receivedAudio": {
-          "peak": 0.028328407555818558,
-          "rms": 0.019640453216883874,
-          "samples": 54720
+          "peak": 0.028238341212272644,
+          "rms": 0.019611401378496426,
+          "samples": 57600
         }
       },
       "patient": {
         "counterDeltas": {
           "inbound-rtp:audio": {
-            "bytes": 30875,
-            "packets": 125,
+            "bytes": 31122,
+            "packets": 126,
             "frames": 0,
-            "audioEnergy": 0.0009871774582888068,
+            "audioEnergy": 0.00098714121831555,
             "samples": 120960
           },
           "inbound-rtp:video": {
-            "bytes": 221712,
-            "packets": 220,
-            "frames": 51,
+            "bytes": 226723,
+            "packets": 222,
+            "frames": 50,
             "audioEnergy": 0,
             "samples": 0
           },
@@ -383,16 +382,16 @@
             "samples": 0
           },
           "outbound-rtp:video": {
-            "bytes": 392049,
-            "packets": 411,
-            "frames": 150,
+            "bytes": 383629,
+            "packets": 394,
+            "frames": 153,
             "audioEnergy": 0,
             "samples": 0
           }
         },
         "receivedAudio": {
-          "peak": 0.028203796595335007,
-          "rms": 0.01965323213403347,
+          "peak": 0.02955196052789688,
+          "rms": 0.019627307099487987,
           "samples": 57600
         }
       }
@@ -404,72 +403,72 @@
             "bytes": 30875,
             "packets": 125,
             "frames": 0,
-            "audioEnergy": 0.0009976183706148743,
-            "samples": 120960
+            "audioEnergy": 0.0009830974389711793,
+            "samples": 120480
           },
           "inbound-rtp:video": {
-            "bytes": 216898,
-            "packets": 213,
-            "frames": 51,
+            "bytes": 167772,
+            "packets": 173,
+            "frames": 52,
             "audioEnergy": 0,
             "samples": 0
           },
           "outbound-rtp:audio": {
-            "bytes": 30875,
-            "packets": 125,
+            "bytes": 31122,
+            "packets": 126,
             "frames": 0,
             "audioEnergy": 0,
             "samples": 0
           },
           "outbound-rtp:video": {
-            "bytes": 401987,
-            "packets": 415,
+            "bytes": 393034,
+            "packets": 417,
             "frames": 152,
             "audioEnergy": 0,
             "samples": 0
           }
         },
         "receivedAudio": {
-          "peak": 0.02912864089012146,
-          "rms": 0.019707341874536526,
-          "samples": 57600
+          "peak": 0.029471296817064285,
+          "rms": 0.019639041984997333,
+          "samples": 54720
         }
       },
       "patient": {
         "counterDeltas": {
           "inbound-rtp:audio": {
-            "bytes": 30875,
-            "packets": 125,
+            "bytes": 31122,
+            "packets": 126,
             "frames": 0,
-            "audioEnergy": 0.0009904706762132853,
-            "samples": 120480
+            "audioEnergy": 0.0009954847107553188,
+            "samples": 120960
           },
           "inbound-rtp:video": {
-            "bytes": 238336,
-            "packets": 231,
-            "frames": 52,
+            "bytes": 213218,
+            "packets": 209,
+            "frames": 50,
             "audioEnergy": 0,
             "samples": 0
           },
           "outbound-rtp:audio": {
-            "bytes": 30875,
-            "packets": 125,
+            "bytes": 31122,
+            "packets": 126,
             "frames": 0,
             "audioEnergy": 0,
             "samples": 0
           },
           "outbound-rtp:video": {
-            "bytes": 405474,
-            "packets": 432,
-            "frames": 153,
+            "bytes": 396726,
+            "packets": 435,
+            "frames": 151,
             "audioEnergy": 0,
             "samples": 0
           }
         },
         "receivedAudio": {
-          "peak": 0.028519518673419952,
-          "rms": 0.019670004994214795,
-          "samples": 57600
+          "peak": 0.02937382645905018,
+          "rms": 0.0196913312799658,
+          "samples": 54720
         }
       }
     }
@@ -479,16 +478,63 @@
       "files": 5,
       "passed": 39
     },
-    "affectedServerConsultationFlow": {
-      "files": 1,
-      "passed": 4
+    "server": {
+      "files": 24,
+      "passed": 191,
+      "skipped": 1,
+      "skipReason": "Real payment-provider credentials unavailable"
     },
     "typecheck": "passed",
-    "productionBuild": "passed"
+    "lint": "command passed; no workspace lint scripts",
+    "productionBuild": "passed; existing bundle-size warning",
+    "android": {
+      "capacitorSync": "passed",
+      "debugApk": "passed",
+      "releaseApk": "passed with disposable local signing",
+      "releaseBundle": "passed with disposable local signing",
+      "jdk": "Temurin 21.0.13",
+      "productionSigning": "not verified"
+    },
+    "productionAudit": {
+      "command": "npm audit --omit=dev --audit-level=high",
+      "exitCode": 1,
+      "high": 4,
+      "critical": 0,
+      "moderate": 5,
+      "low": 1,
+      "highPackages": [
+        "decode-uri-component",
+        "query-string",
+        "minio",
+        "zod"
+      ]
+    }
   },
-  "upstreamBase": "a0c0178bc71bae9d8c6030f45eeb6fbfdf750de5",
+  "upstreamBase": "ca541c7f56c6018566800ba07294d942a6f6b3bf",
+  "integratedCommits": [
+    "353205d365773cb58f14523cd0a14214b18f7948",
+    "97772b00e3e0e220c3f29776637a09bda6e04144"
+  ],
   "sourceSha256": {
-    "useCall.ts": "7b1712b07500786528fe3a9b83fbce1f796ecb515f53bbc96f4415a57406089e",
-    "Consult.test.tsx": "15a88ad327d565dd0b8953dfc1e560d51a0469b5ccdc8bbcac176ad8a553edf6"
+    ".github/workflows/ci.yml": "e2213bb4d8ef871fe1db42a9576914115c3ca4e16476b9ac920e4c0ccd3cd75c",
+    "package-lock.json": "b9f7232a9398788390fa390df200496d4f535813edbe602f8a94924fab8bba41",
+    "packages/server/src/__tests__/account-routes.test.ts": "57b297af44a154fcececc4ac65f2c0708738d1a301d54b61500ea91dad81ec92",
+    "packages/server/src/__tests__/auth.test.ts": "2b86b82031624a92cedd41953346dee508795a3acb2e3fc3d2caf979fdfca088",
+    "packages/server/src/__tests__/e2e-consult-flow.test.ts": "fde6a6f1ca3c037b4a797329b791a3788fac3737ba7474ac458de5001e7870b3",
+    "packages/server/src/services/call-completion.service.ts": "2171112d7f940b81e4298f71ed9c4e064935b216358dff14e124debeebdeb22a",
+    "packages/server/src/workers/render-pdf.worker.ts": "d3a6563a4015f3e59bed42cebe1df94aeaa975bed3515e0d837b6a2af1b8fb72",
+    "packages/web/package.json": "50ac28751e15094d048931ee17e536ed94567bd5e4666ba5dc8e28d10e9d96cc",
+    "packages/web/src/hooks/useCall.ts": "7b1712b07500786528fe3a9b83fbce1f796ecb515f53bbc96f4415a57406089e",
+    "packages/web/src/lib/api.test.ts": "18835d70a0854384c05116dc65a7d667a7d91e8f7c35ca7252ed7479769b3ff7",
+    "packages/web/src/lib/api.ts": "553505bb623679ab077a4eddd00208a6237a4ed96ea3198ff51d5a9079b05d1f",
+    "packages/web/src/lib/socket.test.ts": "fd37a2a01bb06aa4c52024d7594d9fafa0a2a26ce1e93e937f8fb3bb6549ffaf",
+    "packages/web/src/lib/socket.ts": "89b05fdffe6ea0527c9d001ad9c372a789ba1d29e3091c7e3a113f1d333bb634",
+    "packages/web/src/pages/doctor/Call.test.tsx": "db89cc53f044b5511d615b4a25315c840752aaccc464fd2d1fdd9c09aa28ac62",
+    "packages/web/src/pages/doctor/Call.tsx": "d960eb5e76aa15bc9a583ea4f5d903f6e17c8d6868d99580f309889a1a5b4219",
+    "packages/web/src/pages/doctor/Dashboard.test.tsx": "4dd5d3fe88d98fef0f373f3d8b5f18041a058061bbe004bdfa0e161ccf6e8c51",
+    "packages/web/src/pages/doctor/Dashboard.tsx": "7bd2dfeab8cc6d49b06b303e02fec060abecafbcf03ace55e9c4dd239a1f668f",
+    "packages/web/src/pages/kiosk/Consult.test.tsx": "15a88ad327d565dd0b8953dfc1e560d51a0469b5ccdc8bbcac176ad8a553edf6",
+    "packages/web/src/pages/kiosk/Consult.tsx": "2ffe3da5a50e9afc292c346104f8d92c69a7b7461033a0e1869ad2ac18fd16be",
+    "scripts/verify-call-media.mjs": "908a76f9e8162fdef90e955a5a3b5a5abde42beff515585707ea4b12bd5fccec"
   }
 }
