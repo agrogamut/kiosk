@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { app } from "../index.js";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
+import { storeOtp } from "../services/otp.service.js";
 
 async function registerTestPatient(phone: string) {
   const payload = { phone, name: "Delete Route Test", dob: "01/01/1990", consent: true };
@@ -220,13 +221,11 @@ describe("account deletion routes", () => {
     const { user } = await registerTestPrivilegedUser("9990000002", "ADMIN");
     createdIds.push(user.id);
 
-    // initiate no longer stores an OTP for ADMIN/SUPER_ADMIN phones at all (not just
-    // SMS-suppressed) -- seed one directly so this test still proves verify's role check
-    // rejects even a technically-valid OTP, without the route needing to store one in prod.
-    await redis.set("otp:9990000002", "000000", "EX", 300);
+    // Privileged accounts cannot request a deletion code, so seed one to exercise the role check.
+    const otp = await storeOtp("9990000002", "account_delete");
     const response = await request(app).post("/api/account/delete/verify").send({
       phone: "9990000002",
-      otp: "000000",
+      otp,
     });
 
     expect(response.status).toBe(404);
@@ -247,12 +246,10 @@ describe("account deletion routes", () => {
     const { user } = await registerTestPrivilegedUser("9990000004", "SUPER_ADMIN");
     createdIds.push(user.id);
 
-    // Same reasoning as the ADMIN case above -- seed the OTP directly since initiate no
-    // longer stores one for SUPER_ADMIN phones.
-    await redis.set("otp:9990000004", "000000", "EX", 300);
+    const otp = await storeOtp("9990000004", "account_delete");
     const response = await request(app).post("/api/account/delete/verify").send({
       phone: "9990000004",
-      otp: "000000",
+      otp,
     });
 
     expect(response.status).toBe(404);

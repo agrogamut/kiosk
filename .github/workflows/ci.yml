@@ -72,8 +72,24 @@ jobs:
       - run: npm run db:generate --workspace @madamgy/server
       - run: npm run db:migrate:deploy --workspace @madamgy/server
       - run: npm run db:seed --workspace @madamgy/server
-      - run: docker run -d --name madamgy-ci-minio -e MINIO_ROOT_USER=madamgy -e MINIO_ROOT_PASSWORD=madamgy123 -p 19000:9000 minio/minio server /data
+      - name: Start MinIO and wait for readiness
+        # This mirror preserves the upstream release digest after its original image was removed.
+        env:
+          MINIO_IMAGE: quay.io/thanos/minio:RELEASE.2025-09-07T16-13-09Z@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+        run: |
+          docker run -d --name madamgy-ci-minio \
+            -e MINIO_ROOT_USER=madamgy -e MINIO_ROOT_PASSWORD=madamgy123 \
+            -p 127.0.0.1:19000:9000 "$MINIO_IMAGE" server /data
+          if ! curl --fail --silent --show-error --retry 30 --retry-delay 1 \
+            --retry-connrefused --retry-max-time 60 --max-time 2 \
+            http://127.0.0.1:19000/minio/health/ready; then
+            docker logs madamgy-ci-minio
+            exit 1
+          fi
       - run: npm run test --workspace @madamgy/server
+      - name: Stop MinIO
+        if: always()
+        run: docker rm -f madamgy-ci-minio
 
   build-android-apk:
     runs-on: ubuntu-latest
