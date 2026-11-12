@@ -93,34 +93,45 @@ export default function DoctorDashboard() {
       .then((response) => setProfile(response.data.doctorProfile ?? null))
       .catch(() => setProfile(null));
 
-    // `incoming` only ever came from the socket event, so a doctor who reloaded (or opened the
-    // dashboard in a new tab) during a ring lost the call with no way back, while the patient
-    // kept ringing. Rebuild it from the server instead.
-    fetchActiveCall()
-      .then((active) => {
-        const call = active.callSession;
-        if (call?.status === "RINGING" && call.patient) {
-          setIncoming({
-            callSession: { id: call.id, livekitRoom: call.livekitRoom },
-            patient: call.patient,
-          });
-        } else if (call?.status === "ACTIVE" && active.livekitToken) {
-          setLivekitToken(active.livekitToken);
-          navigate(`/doctor/call/${call.id}`, { state: { patientId: call.patient?.id } });
-        }
-      })
-      .catch(() => {
-        // Non-fatal: the socket still delivers any call that starts ringing from now on.
-      });
+    let cancelled = false;
+    let revision = 0;
+    // Missed socket events must be recovered from the current server snapshot.
+    const syncWithServer = (): void => {
+      const requestRevision = ++revision;
+      fetchActiveCall()
+        .then((active) => {
+          if (cancelled || requestRevision !== revision) return;
+          const call = active.callSession;
+          if (call?.status === "RINGING" && call.patient) {
+            setIncoming({
+              callSession: { id: call.id, livekitRoom: call.livekitRoom },
+              patient: call.patient,
+            });
+          } else if (call?.status === "ACTIVE" && active.livekitToken) {
+            setLivekitToken(active.livekitToken);
+            navigate(`/doctor/call/${call.id}`, { state: { patientId: call.patient?.id } });
+          } else {
+            setIncoming(null);
+          }
+          void refetchAvailability();
+        })
+        .catch(() => {
+          // A later reconnect or live event can still recover the call.
+        });
+    };
+    syncWithServer();
 
     const socket = connectSocket();
+    socket.on("connect", syncWithServer);
     socket.on("call:incoming", (data: IncomingCall) => {
+      revision += 1;
       setIncoming(data);
       toast("Incoming call");
     });
     socket.on(
       "call:accepted",
       ({ callSessionId, livekitToken, patientId }: { callSessionId: string; livekitToken: string; patientId?: string }) => {
+        revision += 1;
         setLivekitToken(livekitToken);
         // The name comes from the incoming-call card so the call screen can name the patient
         // straight away instead of waiting on a round trip.
@@ -133,6 +144,7 @@ export default function DoctorDashboard() {
     // doctor. Without this the card sat there forever advertising a call that no longer exists,
     // and Accept silently did nothing because the server refuses a call that isn't RINGING.
     socket.on("call:ended", ({ callSessionId }: { callSessionId: string }) => {
+      revision += 1;
       setIncoming((current) => (current && current.callSession.id !== callSessionId ? current : null));
       // The doctor becomes reachable again the moment the call closes, so the badge above has to
       // stop saying "On a call".
@@ -140,6 +152,8 @@ export default function DoctorDashboard() {
     });
 
     return () => {
+      cancelled = true;
+      socket.off("connect", syncWithServer);
       socket.off("call:incoming");
       socket.off("call:accepted");
       socket.off("call:ended");

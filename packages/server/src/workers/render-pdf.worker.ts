@@ -7,7 +7,6 @@ import { prisma } from "../lib/prisma.js";
 import { deleteObject, uploadBuffer } from "../services/storage.service.js";
 import { PrescriptionDoc } from "../components/PrescriptionDoc.js";
 import { io } from "../index.js";
-import { completeCall } from "../services/call-completion.service.js";
 
 function isRecordNotFoundError(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025";
@@ -50,7 +49,7 @@ export function startRenderPdfWorker(): Worker<{ prescriptionId: string }> {
         // BullMQ retries the whole handler on failure -- e.g. a worker restart between that
         // transaction committing and the job finishing -- and HealthFile is unique on
         // prescriptionId, so re-running the create would crash with the same constraint
-        // violation on every retry. Skip straight to completing the call instead.
+        // violation on every retry. Skip straight to notifying the patient instead.
         healthFileId = prescription.healthFile.id;
       } else {
         const document = React.createElement(PrescriptionDoc, {
@@ -95,8 +94,6 @@ export function startRenderPdfWorker(): Worker<{ prescriptionId: string }> {
           throw error;
         }
       }
-
-      await completeCall(prescription.callSessionId);
 
       io.to(`user:${prescription.patientId}`).emit("prescription:ready", {
         callSessionId: prescription.callSessionId,

@@ -51,8 +51,8 @@ export default function KioskConsult() {
   // around (minimize, then a call that ended), and reaching one of them by a back tap used to
   // start and pay for a fresh call the patient never asked for -- which looked like the search
   // restarting itself the moment the doctor hung up. Only an explicit Consult tap carries this.
-  const startRequested = (location.state as { start?: boolean } | null)?.start === true;
-  const bootstrapped = useRef(false);
+  const startRequested = useRef((location.state as { start?: boolean } | null)?.start === true);
+  const hadCall = useRef(Boolean(callSession));
   const [loading, setLoading] = useState(!callSession);
   const [connectionLost, setConnectionLost] = useState(false);
   const [rejoinKey, setRejoinKey] = useState(0);
@@ -85,18 +85,22 @@ export default function KioskConsult() {
   useImmersiveStatusBar();
 
   useEffect(() => {
-    // Once per mount, never again on this instance: call:ended clears the store while this page
-    // is still mounted, and re-running would read that as "no call yet" and open a new one.
-    if (callSession || bootstrapped.current) {
+    if (callSession) {
+      hadCall.current = true;
+      setLoading(false);
       return;
     }
-    bootstrapped.current = true;
+    // Clearing a known call ends this visit, even while navigation is pending.
+    if (hadCall.current) return;
+    let cancelled = false;
 
     async function createCallWithPayment(paymentId: string, retried = false): Promise<void> {
+      if (cancelled) return;
       try {
         const response = await api.post("/calls", { paymentId, deviceId: useKioskStore.getState().deviceId });
-        setCall(response.data);
+        if (!cancelled) setCall(response.data);
       } catch (error: unknown) {
+        if (cancelled) return;
         if (axios.isAxiosError(error) && error.response?.status === 402 && !retried) {
           // The client-side checkout succeeded but the payment webhook may not have
           // landed yet -- give it one short retry before treating this as a failure.
@@ -111,11 +115,13 @@ export default function KioskConsult() {
     }
 
     async function payAndCreateCall(): Promise<void> {
+      if (cancelled) return;
       try {
         if (Capacitor.isNativePlatform()) {
           // In the APK, take payment through the native Razorpay sheet (UPI intent,
           // saved cards) instead of the checkout.js overlay in the WebView.
           const order = await api.post<PaymentOrder>("/payments/order");
+          if (cancelled) return;
           try {
             await RazorpayNative.open({
               key: order.data.keyId,
@@ -126,6 +132,7 @@ export default function KioskConsult() {
               description: "Doctor consultation fee",
             });
           } catch {
+            if (cancelled) return;
             // Native SDK rejects on both an explicit cancel and a gateway decline.
             toast("Payment cancelled");
             navigate("/dashboard");
@@ -145,6 +152,7 @@ export default function KioskConsult() {
         }
 
         const order = await api.post<PaymentOrder>("/payments/order");
+        if (cancelled) return;
         await new Promise<void>((resolve) => {
           const razorpay = new window.Razorpay({
             key: order.data.keyId,
@@ -157,8 +165,10 @@ export default function KioskConsult() {
             },
             modal: {
               ondismiss: () => {
-                toast("Payment cancelled");
-                navigate("/dashboard");
+                if (!cancelled) {
+                  toast("Payment cancelled");
+                  navigate("/dashboard");
+                }
                 resolve();
               },
             },
@@ -166,16 +176,19 @@ export default function KioskConsult() {
           razorpay.open();
         });
       } catch (error) {
+        if (cancelled) return;
         toast.error(getApiErrorMessage(error, "Payment could not be started"));
         navigate("/dashboard");
       }
     }
 
     async function startConsult(): Promise<void> {
+      if (cancelled) return;
       try {
         const response = await api.post("/calls", { deviceId: useKioskStore.getState().deviceId });
-        setCall(response.data);
+        if (!cancelled) setCall(response.data);
       } catch (error: unknown) {
+        if (cancelled) return;
         if (axios.isAxiosError<{ callSession?: CallSession }>(error) && error.response?.status === 409 && error.response.data.callSession) {
           setCall(error.response.data.callSession);
           return;
@@ -193,6 +206,7 @@ export default function KioskConsult() {
 
     async function bootstrap(): Promise<void> {
       const active = await fetchActiveCall().catch(() => ({ callSession: null, livekitToken: null }));
+      if (cancelled) return;
       if (active.callSession) {
         setCall(active.callSession);
         if (active.livekitToken) {
@@ -201,19 +215,23 @@ export default function KioskConsult() {
         return;
       }
 
-      if (!startRequested) {
+      if (!startRequested.current) {
         navigate("/dashboard", { replace: true });
         return;
       }
 
       // Spend the intent before starting, so this history entry can't start a second consultation
       // if the patient walks back onto it later.
+      startRequested.current = false;
       navigate(".", { replace: true, state: null });
       await startConsult();
     }
 
-    void bootstrap().finally(() => setLoading(false));
-  }, [callSession, navigate, setCall, setLivekitToken, startRequested]);
+    void bootstrap().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [callSession, navigate, setCall, setLivekitToken]);
 
   function cancel(): void {
     if (callSession) {
@@ -227,6 +245,7 @@ export default function KioskConsult() {
   // mounted app-wide, so nothing here needs to pause. CallSearchWidget picks it up on any other
   // page and brings the patient back the moment a doctor accepts.
   function minimize(): void {
+    if (!callSession) return;
     navigate("/dashboard");
   }
 
@@ -238,7 +257,7 @@ export default function KioskConsult() {
         <PulseRing size="lg" />
         <p className="text-center text-xl text-foreground">{waitingText}</p>
         <div className="mt-4 flex gap-6">
-          <button type="button" onClick={minimize} className="text-muted-foreground underline">
+          <button type="button" onClick={minimize} disabled={!callSession} className="text-muted-foreground underline disabled:opacity-50">
             Minimize
           </button>
           <button type="button" onClick={cancel} className="text-muted-foreground underline">
@@ -285,7 +304,7 @@ export default function KioskConsult() {
       <PulseRing size="lg" />
       <p className="text-center text-xl text-foreground">{callSession?.status === "RINGING" ? "Waiting for doctor to accept..." : "Finding available doctor..."}</p>
       <div className="mt-4 flex gap-6">
-        <button type="button" onClick={minimize} className="text-muted-foreground underline">
+        <button type="button" onClick={minimize} disabled={!callSession} className="text-muted-foreground underline disabled:opacity-50">
           Minimize
         </button>
         <button type="button" onClick={cancel} className="text-muted-foreground underline">
